@@ -131,11 +131,11 @@ This Payment Subscription Smart Contract is developed using Aiken to facilitate 
 
 There are three contracts in this subscription system.
 
-- *Merchant Contract:* A multi-validator responsible for creating an initial service by minting a single CIP-68 compliant MerchantNFT and sending it to the merchant while sending the reference NFT to the Subscribe Contract. It also updates the metadata for the merchant and deletes the service by burning the MerchantNFT.
+- *Merchant Contract:* A multi-validator responsible for creating an initial service by minting a single CIP-68 compliant MerchantNFT and sending it to the merchant while sending the reference NFT to the spending end point. It also updates the metadata for the merchant and deletes the service by burning the MerchantNFT.
 
-- *Subscriber Contract:* A multi-validator responsible for creating the initial subscription to a service by minting a SubscriberNFT and sending it to the user, while sending the reference NFT to the Subscribe Contract. It also updating the metadata for the subscriber and deletes the user account by burning a SubscriberNFT.
+- *Subscriber Contract:* A multi-validator responsible for creating the initial subscription to a service by minting a SubscriberNFT and sending it to the user, while sending the reference NFT to the spending endpoint. It also updating the metadata for the subscriber and deletes the user account by burning a SubscriberNFT.
 
-- *Subscribe Contract:* Responsible for holding the prepaid subscription fees for a service, renewing a subscription to a service, unsubscribing from a service and withdrawing subscription fees.
+- *Subscribe Contract:* Responsible for holding the prepaid subscription fees for a service, renewing a subscription to a service, unsubscribing from a service and withdrawing subscription fees. This could also be a multi-validator to authenticate the UTxO.
 
 = Specification
 \
@@ -147,15 +147,13 @@ There are three contracts in this subscription system.
 \
 == Tokens
 \
-- *Merchant NFT:* Can only be minted by a merchant when creating a subscription service and burned when merchant removes their service/services from the system. Datum is updated when a subscription is paid or fees are withdrawn from Subscribe Contract.
+- *Merchant NFT:* Can only be minted by a merchant when creating a subscription service and burned when merchant removes their service/services from the system. Datum is updated when a subscription is paid or the merchant withdraws from the Subscribe Contract.
 
- - Policy Id: Merchant Minting Policy
- - TokenName: Defined in Merchant Minting Policy parameters with Merchant OutputReference
+ - TokenName: Defined in Merchant Minting Policy parameters with the hash of the Merchant Minting Policy OutputReference
 
 - *Subscriber NFT:* Can only be minted when a subscription fee is paid to Subscribe Contract and burned when subscriber exits the system. Datum is updated when fees are deposited and withdrawn from Subscribe Contract.
 
- - Policy Id: Subscriber Minting Policy
- - TokenName: Defined in Subscriber Minting Policy parameters with Subscriber OutputReference
+ - TokenName: Defined in Subscriber Minting Policy parameters with hash of the Subscriber Minting Policy OutputReference
 \
 
 == Smart Contract
@@ -172,7 +170,12 @@ Subscribe validator is responsible for holding subscription fees and validating 
 \
 
 ==== Datum
+
 \
+This is a Sum type datum where one represents the main datum and the other one represents a penalty datum.
+===== Main datum
+\
+
 - *`merchant_nft_tn`:* Merchant's token name encoding UTxO to be consumed when minting the NFT.
 
 - *`subscriber_nft_tn`:* Subscriber's token name encoding UTxO to be consumed when minting the NFT.
@@ -181,6 +184,12 @@ Subscribe validator is responsible for holding subscription fees and validating 
 - *`subscription_start`:* Start of the subscription.
 - *`subscription_end`:* Expiry time of the subscription.
 - *`total_installments`:* The number of periodic intervals over which to release subscription fees.
+\
+
+===== Penalty datum
+\
+
+- *`merchant_nft_tn`:* Merchant's token name encoding UTxO to be consumed when minting the NFT.
 \
 
 ==== Redeemer
@@ -194,26 +203,21 @@ Subscribe validator is responsible for holding subscription fees and validating 
 
 ==== Validation
 \
-- *Extend:* The redeemer will allow anyone with a subscriberNFT to spend Subscribe UTxO to unlock subscription fees to  merchant address beyond the previous `subscription_end` date.
- 
-  - validate that there is a single UTxO in the transaction input and contains a single subscriberNFT token.
+- *Extend:* The redeemer will allow anyone to increase the subscription funds. 
 
-  - validate that the transaction must execute after `subscription_end`.
-  - validate the correct `subscription_fee` Asset and quantity is sent to the merchant address.
+  - validate that the value of the UTxO is increased as long as the Datum is updated with the Merchant Token Name.
 
 - *Unsubscribe:* The redeemer will allow anyone with a subscriberNFT to spend Subscribe UTxO to unlock funds back to their address.
  
-  - validate that there is a single UTxO in the transaction input and contains a single subscriberNFT token.
+  - validate the subscriberNFT is being spent.
 
-  - validate that transaction withdraws subscription fee to the subscriber address.
+  - validate that the penalty UTxO is being produced with the merchants Token Name.
 
-- *Withdraw:* The redeemer will allow anyone with a subscriberNFT or merchantNFT to spend Subscribe UTxO to unlock funds to the merchant address.
+- *Withdraw:* The redeemer will allow anyone with a merchantNFT to withdraw funds from the Subscribe contract 
  
-  - validate that there is a single UTxO in the transaction input and contains a single merchantNFT token.
+  - validate merchantNFT is being spent
 
-  - validate that transaction withdraws subscription fee to the merchant address.
-  - validate that transaction withdraws penalties to the merchant address.
-
+  - validate whether the transaction contains a penalty datum or a normal datum.
 \
 
 === Merchant Minting Policy
@@ -224,13 +228,7 @@ Merchant Minting Policy is responsible for registering a service creating, updat
 \
 
 Nothing
-// - *out_ref:* is a Reference of an Unspent Transaction Output, which will only be spent on Subscribe and CreateService redeemer to make sure this redeemer can only be called once.
 
-// - *token_name:* is identified as the service name prefixed to the token name of the merchant or subscriber.
-
-// 2) Service name already in datum, should it be in tokenname.
-
-// Minting Purpose /Spend Purpose
 ==== Minting Purpose
 
 ===== Redeemer
@@ -250,17 +248,9 @@ Nothing
 
   - validate that the redeemer only mints a single CIP68 compliant merchant Token
 
-- *RemoveAccount:* 
-  - validate that the redeemer only burns a single CIP68 compliant merchant NFT Token
+- *RemoveAccount:*
 
-// - *Subscribe:* This redeemer allows spending Subscribe UTxO to subscribe to a service.
-
-//   - validate that the transaction must execute only after _`subscriptionStart`_
-//   - validate that transaction contains  _`subscriptionFee`_  fee amount equal or more than the amount in service datum.
-//   - validate that transaction contains the correct service owner / _`merchant`_ to withdraw the funds to.
-//   - validate that transaction mints or updates only one token of name SubscriberNFT.
-//   - validate that transaction mints or updates only one token of name MerchantNFT.
-
+  - validate that the redeemer only burns a single CIP68 compliant merchant NFT Token.
 \
 
 ==== Spend Purpose
@@ -268,10 +258,11 @@ Nothing
 ===== Datum
 \
 
-- penalty_fee
+- `penalty_fee`: AssetClass type for the amount of fees to be deducted when subscriber cancels the subscription.
 
-- penalty_fee_qty
+- `penalty_fee_qty`: Amount of the penalty fees.
 - cip-68 requirements
+\
 
 ===== Redeemer
 \
@@ -284,25 +275,23 @@ Nothing
 \
 - *UpdateMetaData:* The redeemer allows for updating the metadata attached to the UTxO sitting at the script address. 
 
-  - validate that there is a single UTxO in the transaction input and contains a single merchantNFT token.
+  - validate that merchantNFT is being spent.
 
-  - updates the metadata of the Reference NFT token and sends the token back to the Subscribe Contract.
+  - updates the metadata of the Reference NFT token and sends the token to the spending end point
 
 - *RemoveService:* The redeemer allows the removal of a service by a merchant from the subscription system. 
 
-  - validate payment signature is equal to merchant payment signature.  
-
-  - validate that there is a single UTxO in the transaction input and contains a single merchentNFT token.
-  - validate that unlocked funds are sent to the merchant address.
+  - validate merchentNFT is being spent.
   - Removes all the Reference NFT tokens to another external address.
 \
 
 === Subscriber Minting Policy
 
 ==== Parameter
-\
+\  
 
 Nothing
+\
 
 ==== Minting Purpose
 
@@ -346,18 +335,20 @@ Nothing
 
 - *UpdateMetaData:* The redeemer allows for updating the metadata attached to the UTxO sitting at the script address. 
 
-  - validate that there is a single UTxO in the transaction input and contains a single SubscriberNFT Token.
+  - validate that SubscriberNFT is being spent.
 
-  - updates the metadata of the Reference NFT token and sends the token back to the address entity executing it.
+  - updates the metadata of the Reference NFT token and sends the token to the spending end point. 
 
 - *RemoveAccount:* The redeemer allows the removal of an account by a subscriber from the subscription system.  
 
-  - validate payment signature is equal to subscriber payment signature.  
+  - validate that SubscriberNFT is being spent.
 
-  - validate that there is a single UTxO in the transaction input and contains a single SubscriberNFT Token.
-  - validate that unlocked funds are sent to the subscriber address
-  - validate that penalty is calculated and fees are sent to the merchant address
-  - Removes all the Reference NFT tokens to another external address.
+  - validate that unlocked funds are sent back to the subscriber address
+  - validate that penalty is calculated accurately and fees are in the penalty UTxO
+  - Removes all the Reference NFT tokens to athe spending endpoint.
+
+// = Transactions
+// == UTxO Diagram
 
 // = Additional Features
 
