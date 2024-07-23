@@ -1,0 +1,305 @@
+{
+  "version": "3",
+  "packages": {
+    "specifiers": {
+      "npm:@lucid-evolution/lucid@^0.2.46": "npm:@lucid-evolution/lucid@0.2.46_effect@3.5.4",
+      "npm:dotenv@^16.4.5": "npm:dotenv@16.4.5",
+      "npm:ts-node@^10.9.2": "npm:ts-node@10.9.2_@types+node@18.16.19_typescript@5.5.3"
+    },
+    "npm": {
+      "@anastasia-labs/cardano-multiplatform-lib-browser@5.3.1-2": {
+        "integrity": "sha512-Q1iv3bUy0kDWd/apUfTFB3SnVLf+QFD6lEGad5odw9Rj3OJ8lh3/muu+NReiwCrw3D6T4HEtrGGg0JwUJTZMZA==",
+        "dependencies": {}
+      },
+      "@anastasia-labs/cardano-multiplatform-lib-nodejs@5.3.1-2": {
+        "integrity": "sha512-971foebhWlMiKWIFu9qmd25v1KIWD5/zJmvvm0JoEYywknlFbRsVf8rJht8oaPOXeAcSdrx3vhJ7CLkGD5oIsA==",
+        "dependencies": {}
+      },
+      "@cspotcode/source-map-support@0.8.1": {
+        "integrity": "sha512-IchNf6dN4tHoMFIn/7OE8LWZ19Y6q/67Bmf6vnGREv8RSbBVb9LPJxEcnwrcwX6ixSvaiGoomAUvu4YSxXrVgw==",
+        "dependencies": {
+          "@jridgewell/trace-mapping": "@jridgewell/trace-mapping@0.3.9"
+        }
+      },
+      "@effect/schema@0.66.16_effect@3.5.4_fast-check@3.20.0": {
+        "integrity": "sha512-sT/k5NOgKslGPzs3DUaCFuM6g2JQoIIT8jpwEorAZooplPIMK2xIspr7ECz6pp6Dc7Wz/ppXGk7HVyGZQsIYEQ==",
+        "dependencies": {
+          "effect": "effect@3.5.4",
+          "fast-check": "fast-check@3.20.0"
+        }
+      },
+      "@effect/schema@0.67.24_effect@3.5.4": {
+        "integrity": "sha512-IaJYTqvWxOCTio8PHHtiZALDfYkUX90lElsqtQtuCTcrR14nzxwUb1gPye5iS3rZjbcc4NiDsROBJJs4+wMP0g==",
+        "dependencies": {
+          "effect": "effect@3.5.4",
+          "fast-check": "fast-check@3.20.0"
+        }
+      },
+      "@effect/schema@0.68.24_effect@3.5.4": {
+        "integrity": "sha512-xxH/XtLQ8JNDDqWgiGOxwqTVBtLWC0rJ59m+mZK9OKT79U+UzPjiMYpnC2cQ1LhGTtpYCKbAP2RI/AFWb3B8rw==",
+        "dependencies": {
+          "effect": "effect@3.5.4",
+          "fast-check": "fast-check@3.20.0"
+        }
+      },
+      "@emurgo/cardano-message-signing-browser@1.0.1": {
+        "integrity": "sha512-yC4Ymq44WR0bXO1wzxCoyc2W/RD1KSAla0oYhin7IYoVkp2raGp8wt7QNF4pDdNnTcejn5fyPyYY9dL4666H1w==",
+        "dependencies": {}
+      },
+      "@emurgo/cardano-message-signing-nodejs@1.0.1": {
+        "integrity": "sha512-PoKh1tQnJX18f8iEr8Jk1KXxKCn9eqaSslMI1pyOJvYRJhQVDLCh0+9YReufjp0oFJIY1ShcrR+4/WnECVZUKQ==",
+        "dependencies": {}
+      },
+      "@emurgo/cardano-serialization-lib-browser@11.5.0": {
+        "integrity": "sha512-qchOJ9NYDUz10tzs5r5QhP9hK0p+ZOlRiBwPdTAxqAYLw/8emYBkQQLaS8T1DF6EkeudyrgS00ym5Trw1fo4iA==",
+        "dependencies": {}
+      },
+      "@emurgo/cardano-serialization-lib-nodejs@11.5.0": {
+        "integrity": "sha512-IlVABlRgo9XaTR1NunwZpWcxnfEv04ba2l1vkUz4S1W7Jt36F4CtffP+jPeqBZGnAe+fnUwo0XjIJC3ZTNToNQ==",
+        "dependencies": {}
+      },
+      "@jridgewell/resolve-uri@3.1.2": {
+        "integrity": "sha512-bRISgCIjP20/tbWSPWMEi54QVPRZExkuD9lJL+UIxUKtwVJA8wW1Trb1jMs1RFXo1CBTNZ/5hpC9QvmKWdopKw==",
+        "dependencies": {}
+      },
+      "@jridgewell/sourcemap-codec@1.4.15": {
+        "integrity": "sha512-eF2rxCRulEKXHTRiDrDy6erMYWqNw4LPdQ8UQA4huuxaQsVeRPFl2oM8oDGxMFhJUWZf9McpLtJasDDZb/Bpeg==",
+        "dependencies": {}
+      },
+      "@jridgewell/trace-mapping@0.3.9": {
+        "integrity": "sha512-3Belt6tdc8bPgAtbcmdtNJlirVoTmEb5e2gC94PnkwEW9jI6CAHUeoG85tjWP5WquqfavoMtMwiG4P926ZKKuQ==",
+        "dependencies": {
+          "@jridgewell/resolve-uri": "@jridgewell/resolve-uri@3.1.2",
+          "@jridgewell/sourcemap-codec": "@jridgewell/sourcemap-codec@1.4.15"
+        }
+      },
+      "@lucid-evolution/bip39@0.2.8": {
+        "integrity": "sha512-xPyTH3c8PEcmhwMK6qC9c7DVNjOxrEdOLd1DdV+hj/q3PVB37kwz1BTyxHRTzq7J4QUjyWTjg0JlTRWMIcJreQ==",
+        "dependencies": {
+          "@lucid-evolution/core-utils": "@lucid-evolution/core-utils@0.1.7"
+        }
+      },
+      "@lucid-evolution/core-types@0.1.9": {
+        "integrity": "sha512-ZWn8jnEJnq3X8bUCgxHNhdMF3ru0TX4AEjhaSLO5WND9MgvZ4ZkBLtj7AU9pDvReRrjEZDkpT0+CL+XVs2nAUw==",
+        "dependencies": {
+          "@anastasia-labs/cardano-multiplatform-lib-browser": "@anastasia-labs/cardano-multiplatform-lib-browser@5.3.1-2",
+          "@anastasia-labs/cardano-multiplatform-lib-nodejs": "@anastasia-labs/cardano-multiplatform-lib-nodejs@5.3.1-2"
+        }
+      },
+      "@lucid-evolution/core-utils@0.1.7": {
+        "integrity": "sha512-yfV8tTx6RCda8HP2+2rER2R4lvyrj9j98p7eSPsdihsz3lVi7fRTLxjVnE7ORLVTN6MO0Hq5HUXE7Niz//tFcg==",
+        "dependencies": {
+          "@anastasia-labs/cardano-multiplatform-lib-browser": "@anastasia-labs/cardano-multiplatform-lib-browser@5.3.1-2",
+          "@anastasia-labs/cardano-multiplatform-lib-nodejs": "@anastasia-labs/cardano-multiplatform-lib-nodejs@5.3.1-2"
+        }
+      },
+      "@lucid-evolution/crc8@0.1.7": {
+        "integrity": "sha512-KNXduOgDuMsg0ZBHPcFL2/bQ+uXlwF3ppJkRz8wrgx7JAvPL/wo5V5cecK+Lgv3qbGD5ABbsadKeq/mRnDh67g==",
+        "dependencies": {}
+      },
+      "@lucid-evolution/lucid@0.2.46_effect@3.5.4": {
+        "integrity": "sha512-JJiwoU80bV0GSHqhI3X0igFEqzpQwM3JbazcbRdGimTY4Bgv4mmIAHY9/uj/CtbvVGyXvPRkJwdjASOx+Bbkrw==",
+        "dependencies": {
+          "@anastasia-labs/cardano-multiplatform-lib-browser": "@anastasia-labs/cardano-multiplatform-lib-browser@5.3.1-2",
+          "@anastasia-labs/cardano-multiplatform-lib-nodejs": "@anastasia-labs/cardano-multiplatform-lib-nodejs@5.3.1-2",
+          "@effect/schema": "@effect/schema@0.66.16_effect@3.5.4_fast-check@3.20.0",
+          "@emurgo/cardano-message-signing-nodejs": "@emurgo/cardano-message-signing-nodejs@1.0.1",
+          "@lucid-evolution/bip39": "@lucid-evolution/bip39@0.2.8",
+          "@lucid-evolution/core-types": "@lucid-evolution/core-types@0.1.9",
+          "@lucid-evolution/core-utils": "@lucid-evolution/core-utils@0.1.7",
+          "@lucid-evolution/plutus": "@lucid-evolution/plutus@0.1.12",
+          "@lucid-evolution/provider": "@lucid-evolution/provider@0.1.29_effect@3.5.4",
+          "@lucid-evolution/sign_data": "@lucid-evolution/sign_data@0.1.9",
+          "@lucid-evolution/uplc": "@lucid-evolution/uplc@0.2.7",
+          "@lucid-evolution/utils": "@lucid-evolution/utils@0.1.22_effect@3.5.4",
+          "@lucid-evolution/wallet": "@lucid-evolution/wallet@0.1.24",
+          "effect": "effect@3.5.4"
+        }
+      },
+      "@lucid-evolution/plutus@0.1.12": {
+        "integrity": "sha512-byAW1qWbIc7g/ZBEznUWWZ9bAxYQAi/IGPRfqjzpSE3LdOYjJP+hEscC8Ju/4RgP9Y0dKoNqi/b/mvSeQa+Rxg==",
+        "dependencies": {
+          "@anastasia-labs/cardano-multiplatform-lib-browser": "@anastasia-labs/cardano-multiplatform-lib-browser@5.3.1-2",
+          "@anastasia-labs/cardano-multiplatform-lib-nodejs": "@anastasia-labs/cardano-multiplatform-lib-nodejs@5.3.1-2",
+          "@lucid-evolution/core-types": "@lucid-evolution/core-types@0.1.9",
+          "@lucid-evolution/core-utils": "@lucid-evolution/core-utils@0.1.7",
+          "@sinclair/typebox": "@sinclair/typebox@0.32.34"
+        }
+      },
+      "@lucid-evolution/provider@0.1.29_effect@3.5.4": {
+        "integrity": "sha512-uyrMTcdh3IggfKCzist9e/wUQc+xB9w02JChgpfw2AgKfppSyYAO4FuvzTEIgTI6YzE8Fl413F4qS1rWP3oUnQ==",
+        "dependencies": {
+          "@anastasia-labs/cardano-multiplatform-lib-browser": "@anastasia-labs/cardano-multiplatform-lib-browser@5.3.1-2",
+          "@anastasia-labs/cardano-multiplatform-lib-nodejs": "@anastasia-labs/cardano-multiplatform-lib-nodejs@5.3.1-2",
+          "@effect/schema": "@effect/schema@0.67.24_effect@3.5.4",
+          "@lucid-evolution/core-types": "@lucid-evolution/core-types@0.1.9",
+          "@lucid-evolution/core-utils": "@lucid-evolution/core-utils@0.1.7",
+          "@lucid-evolution/utils": "@lucid-evolution/utils@0.1.22_effect@3.5.4",
+          "effect": "effect@3.5.4"
+        }
+      },
+      "@lucid-evolution/sign_data@0.1.9": {
+        "integrity": "sha512-hdXBh2p2x0HgeftE9oOeWB+gNhYW/thHBs3tANCOT9t2c+yTHkxWuzX2UHCkrpjxw0r2bVpO3b37r5GOfuRr8w==",
+        "dependencies": {
+          "@anastasia-labs/cardano-multiplatform-lib-browser": "@anastasia-labs/cardano-multiplatform-lib-browser@5.3.1-2",
+          "@anastasia-labs/cardano-multiplatform-lib-nodejs": "@anastasia-labs/cardano-multiplatform-lib-nodejs@5.3.1-2",
+          "@emurgo/cardano-message-signing-browser": "@emurgo/cardano-message-signing-browser@1.0.1",
+          "@emurgo/cardano-message-signing-nodejs": "@emurgo/cardano-message-signing-nodejs@1.0.1",
+          "@lucid-evolution/core-types": "@lucid-evolution/core-types@0.1.9",
+          "@lucid-evolution/core-utils": "@lucid-evolution/core-utils@0.1.7"
+        }
+      },
+      "@lucid-evolution/uplc@0.2.7": {
+        "integrity": "sha512-fxkf5XdYJ81qpqdWC7kgBOcM0nQOM+JARR6H7A57FifDfWUugg0JbRV4UMaXSrhHIVTiVrxS0GrXdJ3nodR7NA==",
+        "dependencies": {}
+      },
+      "@lucid-evolution/utils@0.1.22_effect@3.5.4": {
+        "integrity": "sha512-yTeSRNgPyXcaWHejQ2l0huc3Y8WeJRD9562lc2rIMjgybthLlAYgaCYVSiHt/7IQRX4NeSq6V/nfxo6pwlG5Rg==",
+        "dependencies": {
+          "@anastasia-labs/cardano-multiplatform-lib-browser": "@anastasia-labs/cardano-multiplatform-lib-browser@5.3.1-2",
+          "@anastasia-labs/cardano-multiplatform-lib-nodejs": "@anastasia-labs/cardano-multiplatform-lib-nodejs@5.3.1-2",
+          "@effect/schema": "@effect/schema@0.68.24_effect@3.5.4",
+          "@emurgo/cardano-serialization-lib-browser": "@emurgo/cardano-serialization-lib-browser@11.5.0",
+          "@emurgo/cardano-serialization-lib-nodejs": "@emurgo/cardano-serialization-lib-nodejs@11.5.0",
+          "@lucid-evolution/bip39": "@lucid-evolution/bip39@0.2.8",
+          "@lucid-evolution/core-types": "@lucid-evolution/core-types@0.1.9",
+          "@lucid-evolution/core-utils": "@lucid-evolution/core-utils@0.1.7",
+          "@lucid-evolution/crc8": "@lucid-evolution/crc8@0.1.7",
+          "@lucid-evolution/plutus": "@lucid-evolution/plutus@0.1.12",
+          "@lucid-evolution/uplc": "@lucid-evolution/uplc@0.2.7",
+          "cborg": "cborg@4.2.3",
+          "effect": "effect@3.5.4"
+        }
+      },
+      "@lucid-evolution/wallet@0.1.24": {
+        "integrity": "sha512-dX68WoOP2Mmd2ppsEmK8kBN2p+89Ny9xYS8aeLnpZ6fAwSfJwEHVCAJTUbDLbCifa8gTdPDLR4speA4uAn4S3Q==",
+        "dependencies": {
+          "@anastasia-labs/cardano-multiplatform-lib-nodejs": "@anastasia-labs/cardano-multiplatform-lib-nodejs@5.3.1-2",
+          "@lucid-evolution/bip39": "@lucid-evolution/bip39@0.2.8",
+          "@lucid-evolution/core-types": "@lucid-evolution/core-types@0.1.9",
+          "@lucid-evolution/core-utils": "@lucid-evolution/core-utils@0.1.7",
+          "@lucid-evolution/sign_data": "@lucid-evolution/sign_data@0.1.9",
+          "@lucid-evolution/utils": "@lucid-evolution/utils@0.1.22_effect@3.5.4"
+        }
+      },
+      "@sinclair/typebox@0.32.34": {
+        "integrity": "sha512-a3Z3ytYl6R/+7ldxx04PO1semkwWlX/8pTqxsPw4quIcIXDFPZhOc1Wx8azWmkU26ccK3mHwcWenn0avNgAKQg==",
+        "dependencies": {}
+      },
+      "@tsconfig/node10@1.0.11": {
+        "integrity": "sha512-DcRjDCujK/kCk/cUe8Xz8ZSpm8mS3mNNpta+jGCA6USEDfktlNvm1+IuZ9eTcDbNk41BHwpHHeW+N1lKCz4zOw==",
+        "dependencies": {}
+      },
+      "@tsconfig/node12@1.0.11": {
+        "integrity": "sha512-cqefuRsh12pWyGsIoBKJA9luFu3mRxCA+ORZvA4ktLSzIuCUtWVxGIuXigEwO5/ywWFMZ2QEGKWvkZG1zDMTag==",
+        "dependencies": {}
+      },
+      "@tsconfig/node14@1.0.3": {
+        "integrity": "sha512-ysT8mhdixWK6Hw3i1V2AeRqZ5WfXg1G43mqoYlM2nc6388Fq5jcXyr5mRsqViLx/GJYdoL0bfXD8nmF+Zn/Iow==",
+        "dependencies": {}
+      },
+      "@tsconfig/node16@1.0.4": {
+        "integrity": "sha512-vxhUy4J8lyeyinH7Azl1pdd43GJhZH/tP2weN8TntQblOY+A0XbT8DJk1/oCPuOOyg/Ja757rG0CgHcWC8OfMA==",
+        "dependencies": {}
+      },
+      "@types/node@18.16.19": {
+        "integrity": "sha512-IXl7o+R9iti9eBW4Wg2hx1xQDig183jj7YLn8F7udNceyfkbn1ZxmzZXuak20gR40D7pIkIY1kYGx5VIGbaHKA==",
+        "dependencies": {}
+      },
+      "acorn-walk@8.3.3": {
+        "integrity": "sha512-MxXdReSRhGO7VlFe1bRG/oI7/mdLV9B9JJT0N8vZOhF7gFRR5l3M8W9G8JxmKV+JC5mGqJ0QvqfSOLsCPa4nUw==",
+        "dependencies": {
+          "acorn": "acorn@8.12.1"
+        }
+      },
+      "acorn@8.12.1": {
+        "integrity": "sha512-tcpGyI9zbizT9JbV6oYE477V6mTlXvvi0T0G3SNIYE2apm/G5huBa1+K89VGeovbg+jycCrfhl3ADxErOuO6Jg==",
+        "dependencies": {}
+      },
+      "arg@4.1.3": {
+        "integrity": "sha512-58S9QDqG0Xx27YwPSt9fJxivjYl432YCwfDMfZ+71RAqUrZef7LrKQZ3LHLOwCS4FLNBplP533Zx895SeOCHvA==",
+        "dependencies": {}
+      },
+      "cborg@4.2.3": {
+        "integrity": "sha512-XBFbEJ6WMfn9L7woc2t+EzOxF8vGqddoopKBbrhIvZBt2WIUgSlT8xLmM6Aq1xv8eWt4yOSjwxWjYeuHU3CpJA==",
+        "dependencies": {}
+      },
+      "create-require@1.1.1": {
+        "integrity": "sha512-dcKFX3jn0MpIaXjisoRvexIJVEKzaq7z2rZKxf+MSr9TkdmHmsU4m2lcLojrj/FHl8mk5VxMmYA+ftRkP/3oKQ==",
+        "dependencies": {}
+      },
+      "diff@4.0.2": {
+        "integrity": "sha512-58lmxKSA4BNyLz+HHMUzlOEpg09FV+ev6ZMe3vJihgdxzgcwZ8VoEEPmALCZG9LmqfVoNMMKpttIYTVG6uDY7A==",
+        "dependencies": {}
+      },
+      "dotenv@16.4.5": {
+        "integrity": "sha512-ZmdL2rui+eB2YwhsWzjInR8LldtZHGDoQ1ugH85ppHKwpUHL7j7rN0Ti9NCnGiQbhaZ11FpR+7ao1dNsmduNUg==",
+        "dependencies": {}
+      },
+      "effect@3.5.4": {
+        "integrity": "sha512-TS9fhzqXh4AG070eP95/JY0STV9yi3FvMD/untC2blcQ/fXGT78AIzLc++mKdK8moaPce9OAIBwpHZPfhbE6rg==",
+        "dependencies": {}
+      },
+      "fast-check@3.20.0": {
+        "integrity": "sha512-pZIjqLpOZgdSLecec4GKC3Zq5702MZ34upMKxojnNVSWA0K64V3pXOBT1Wdsrc3AphLtzRBbsi8bRWF4TUGmUg==",
+        "dependencies": {
+          "pure-rand": "pure-rand@6.1.0"
+        }
+      },
+      "make-error@1.3.6": {
+        "integrity": "sha512-s8UhlNe7vPKomQhC1qFelMokr/Sc3AgNbso3n74mVPA5LTZwkB9NlXf4XPamLxJE8h0gh73rM94xvwRT2CVInw==",
+        "dependencies": {}
+      },
+      "pure-rand@6.1.0": {
+        "integrity": "sha512-bVWawvoZoBYpp6yIoQtQXHZjmz35RSVHnUOTefl8Vcjr8snTPY1wnpSPMWekcFwbxI6gtmT7rSYPFvz71ldiOA==",
+        "dependencies": {}
+      },
+      "ts-node@10.9.2_@types+node@18.16.19_typescript@5.5.3": {
+        "integrity": "sha512-f0FFpIdcHgn8zcPSbf1dRevwt047YMnaiJM3u2w2RewrB+fob/zePZcrOyQoLMMO7aBIddLcQIEK5dYjkLnGrQ==",
+        "dependencies": {
+          "@cspotcode/source-map-support": "@cspotcode/source-map-support@0.8.1",
+          "@tsconfig/node10": "@tsconfig/node10@1.0.11",
+          "@tsconfig/node12": "@tsconfig/node12@1.0.11",
+          "@tsconfig/node14": "@tsconfig/node14@1.0.3",
+          "@tsconfig/node16": "@tsconfig/node16@1.0.4",
+          "@types/node": "@types/node@18.16.19",
+          "acorn": "acorn@8.12.1",
+          "acorn-walk": "acorn-walk@8.3.3",
+          "arg": "arg@4.1.3",
+          "create-require": "create-require@1.1.1",
+          "diff": "diff@4.0.2",
+          "make-error": "make-error@1.3.6",
+          "typescript": "typescript@5.5.3",
+          "v8-compile-cache-lib": "v8-compile-cache-lib@3.0.1",
+          "yn": "yn@3.1.1"
+        }
+      },
+      "typescript@5.5.3": {
+        "integrity": "sha512-/hreyEujaB0w76zKo6717l3L0o/qEUtRgdvUBvlkhoWeOVMjMuHNHk0BRBzikzuGDqNmPQbg5ifMEqsHLiIUcQ==",
+        "dependencies": {}
+      },
+      "v8-compile-cache-lib@3.0.1": {
+        "integrity": "sha512-wa7YjyUGfNZngI/vtK0UHAN+lgDCxBPCylVXGp0zu59Fz5aiGtNXaq3DhIov063MorB+VfufLh3JlF2KdTK3xg==",
+        "dependencies": {}
+      },
+      "yn@3.1.1": {
+        "integrity": "sha512-Ux4ygGWsu2c7isFWe8Yu1YluJmqVhxqK2cLXNQA5AcC3QfbGNpM7fu0Y8b/z16pXLnFxZYvWhd3fhBY9DLmC6Q==",
+        "dependencies": {}
+      }
+    }
+  },
+  "remote": {
+    "https://deno.land/std@0.224.0/dotenv/mod.ts": "0180eaeedaaf88647318811cdaa418cc64dc51fb08354f91f5f480d0a1309f7d",
+    "https://deno.land/std@0.224.0/dotenv/parse.ts": "09977ff88dfd1f24f9973a338f0f91bbdb9307eb5ff6085446e7c423e4c7ba0c",
+    "https://deno.land/std@0.224.0/dotenv/stringify.ts": "275da322c409170160440836342eaa7cf012a1d11a7e700d8ca4e7f2f8aa4615"
+  },
+  "workspace": {
+    "packageJson": {
+      "dependencies": [
+        "npm:@lucid-evolution/lucid@^0.2.46",
+        "npm:dotenv@^16.4.5",
+        "npm:ts-node@^10.9.2"
+      ]
+    }
+  }
+}

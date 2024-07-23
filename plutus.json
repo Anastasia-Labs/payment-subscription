@@ -1,0 +1,152 @@
+{
+  "preamble": {
+    "title": "aiken-lang/payment-subscription",
+    "description": "Aiken contracts for project 'aiken-lang/payment-subscription'",
+    "version": "0.0.0",
+    "plutusVersion": "v2",
+    "compiler": {
+      "name": "Aiken",
+      "version": "v1.0.29-alpha+16fb02e"
+    },
+    "license": "Apache-2.0"
+  },
+  "validators": [
+    {
+      "title": "mint.mint_nft",
+      "redeemer": {
+        "title": "r",
+        "schema": {
+          "$ref": "#/definitions/mint~1Action"
+        }
+      },
+      "parameters": [
+        {
+          "title": "utxo_ref",
+          "schema": {
+            "$ref": "#/definitions/aiken~1transaction~1OutputReference"
+          }
+        },
+        {
+          "title": "token_name",
+          "schema": {
+            "$ref": "#/definitions/ByteArray"
+          }
+        }
+      ],
+      "compiledCode": "5901e8010000323232323232322232232323225333009323232533300c3007300d3754002264646464a666026602c00426464a666024601a60266ea803854ccc048c8cc004004018894ccc05c004528099299980a99baf301a30173754603400402829444cc00c00c004c06800454ccc048c03000454ccc048cdc78010078a51161616153330123370e90008008a99980919b8f00200f14a22c2c6eb4c04c008dd718088008b180a000992999807980498081baa00114bd6f7b63009bab30143011375400264646600200264660020026eacc058c05cc05cc05cc05c014894ccc05400452f5bded8c0264646464a66602c66e4522100002153330163371e9101000021003100513301a337606ea4008dd3000998030030019bab3017003375c602a0046032004602e00244a666028002298103d87a800013232323253330153372200e0042a66602a66e3c01c0084cdd2a4000660326e980052f5c02980103d87a80001330060060033756602c0066eb8c050008c060008c058004dd7180998081baa00337586024002601c6ea800858c040c044008c03c004c02cdd50008a4c26cac64a66601060060022a66601660146ea8010526161533300830020011533300b300a37540082930b0b18041baa003370e90011b8748000dd7000ab9a5573aaae7955cfaba05742ae89",
+      "hash": "fb980994151650ff0c6f17b481b1fae376eff9d441e76cb4829709d5"
+    },
+    {
+      "title": "mint_cip_68.mint_nft",
+      "redeemer": {
+        "title": "r",
+        "schema": {
+          "$ref": "#/definitions/payment_subscription~1types~1MintAction"
+        }
+      },
+      "parameters": [
+        {
+          "title": "issuer",
+          "schema": {
+            "$ref": "#/definitions/ByteArray"
+          }
+        },
+        {
+          "title": "utxo_ref",
+          "schema": {
+            "$ref": "#/definitions/aiken~1transaction~1OutputReference"
+          }
+        },
+        {
+          "title": "store",
+          "schema": {
+            "$ref": "#/definitions/ByteArray"
+          }
+        }
+      ],
+      "compiledCode": "59073801000032323232323232232223223232322533300b323232533300e3007300f3754002264646464646464646464a666030602260326ea80484c8c8c8c8c8c8c8c8c8c8c8c8c94ccc094cc038dd6180798139baa0190231323253330273370e600202490020a99981399b8800a48200104c94ccc0a0cccc00404c068025200215333028333300101301a0074800854ccc0a0c8cc00400405c894ccc0b4004528099192999816299981619baf3014302e37540040142660126eacc040c0b8dd50010060a5014a22660080080026062004605e00226040600460286602a6eacc030c0a8dd500224410014a02940528111119198008008029129998180008a5013232323232533303253330323371e6eb8c0dc01402854ccc0c8cdc7801004899b8700100814a029405288998038038021bad30363037002375c606a002606a00460680046eb0c0c80045280a50300100122533302a0011480004cdc02400466004004605a0022940c8cc00400404c894ccc0a4004584c8c94ccc0a14ccc0a0cdd7980818151baa0020061330050083756601860546ea800852808010998020020009816801181580091191980080098090011129998150008a511323232533302a337126eb4c0bcc0c0004cc88c94ccc0b4c094c0b8dd50008a400026eb4c0c8c0bcdd5000992999816981298171baa00114c0103d87a8000132330010013756606660606ea8008894ccc0c8004530103d87a80001323232325333033337220100042a66606666e3c0200084c068cc0dcdd4000a5eb80530103d87a8000133006006003375a60680066eb8c0c8008c0d8008c0d0004c8cc004004028894ccc0c40045300103d87a80001323232325333032337220100042a66606466e3c0200084c064cc0d8dd3000a5eb80530103d87a8000133006006003375660660066eb8c0c4008c0d4008c0cc004dd718178019bae302f00113300500500214a0605e004605c0046eb0c0b0004c024cc098cdd2a40046604c6ea40752f5c06604c980103d87a80004bd7019980180300224504000de14000533302030184800052f5bded8c0264646600200297adef6c60225333026001133027337606ea4054dd3001a5eb7bdb1804c8c8c8c94ccc09ccdc800c80109981599bb037520326e9801c01454ccc09ccdc780c80109981599bb037520326e9801c00c4cc0accdd81ba9002374c0026600c00c0066eacc0a000cdd71813001181500118140009919800800a5eb7bdb180894ccc0940044cc098cdd81ba90034c10101004bd6f7b630099191919299981319b9000700213302a337606ea401d301010100005153330263371e00e00426605466ec0dd4803a6101010000313302a337606ea4008dd4000998030030019bad3027003375c604a0046052004604e002666002008004910104000643b000222333718900019b8033700901f24000900119b8a001337160046e4c00cc94ccc078c05cc07cdd500089bad300230203754600c60406ea8c08cc080dd50008b180180691811181180099299980e180a980e9baa0011375c6008603c6ea8c010c078dd51802180f1baa3021301e37540022c60020164a66603c0022980103d87a8000130023301f30200014bd701ba5480008c07800454ccc060cc004dd61801180d1baa00c0161325333019333300100400b488104000643b0004800454ccc064cccc00401002d220104000de140004800454ccc070010528099299980e8008a501533301d302000113375e646644a66603a66e400080045300103d87980001533301d3371e0040022980103d87a800014c103d87b800033001375c604060426eb0c080019200833001375c604060426eb0c08000920082233371800266e04dc6801000801260103d87a800014a0603e0082940528111119198008008029129998108008a501323232323232533302453330243371e6eb8c0a401802c54ccc090cdc7805000899b8700200914a02940528899804004002999b8c480012008002375a604e60500046eb8c098004c098008c094008dd618118008a5022323300100100322533301e00114a0264a66603866e3cdd718108010020a5113300300300130210012301c301d301d301d301d301d301d301d301d00130013300237566034603660360089101002323300100100222533301a00114bd7009919991119198008008019129998100008801899198111ba733022375200c66044603e00266044604000297ae03300300330240023022001375c60320026eacc068004cc00c00cc078008c07000488c8cc00400400c894ccc06800452f5bded8c0264646464a66603666e4401c00854ccc06ccdc78038010801880289980f99bb037520046e98004cc01801800cdd5980e0019bae301a002301e002301c0013758602e002602e602e0046eb0c054004c044dd50019bae3013301037540022c602460260046022002601a6ea80045261365632533300a30030011533300d300c37540082930b0a99980518010008a99980698061baa00414985858c028dd50019b8748008dc3a40006eb8004dd7000ab9a5573aaae7955cfaba05742ae89",
+      "hash": "1c2b0aa6ef2875472e4822a661ee352ce770485c7318df3deea118b2"
+    }
+  ],
+  "definitions": {
+    "ByteArray": {
+      "dataType": "bytes"
+    },
+    "Int": {
+      "dataType": "integer"
+    },
+    "aiken/transaction/OutputReference": {
+      "title": "OutputReference",
+      "description": "An `OutputReference` is a unique reference to an output on-chain. The `output_index`\n corresponds to the position in the output list of the transaction (identified by its id)\n that produced that output",
+      "anyOf": [
+        {
+          "title": "OutputReference",
+          "dataType": "constructor",
+          "index": 0,
+          "fields": [
+            {
+              "title": "transaction_id",
+              "$ref": "#/definitions/aiken~1transaction~1TransactionId"
+            },
+            {
+              "title": "output_index",
+              "$ref": "#/definitions/Int"
+            }
+          ]
+        }
+      ]
+    },
+    "aiken/transaction/TransactionId": {
+      "title": "TransactionId",
+      "description": "A unique transaction identifier, as the hash of a transaction body. Note that the transaction id\n isn't a direct hash of the `Transaction` as visible on-chain. Rather, they correspond to hash\n digests of transaction body as they are serialized on the network.",
+      "anyOf": [
+        {
+          "title": "TransactionId",
+          "dataType": "constructor",
+          "index": 0,
+          "fields": [
+            {
+              "title": "hash",
+              "$ref": "#/definitions/ByteArray"
+            }
+          ]
+        }
+      ]
+    },
+    "mint/Action": {
+      "title": "Action",
+      "anyOf": [
+        {
+          "title": "Minting",
+          "dataType": "constructor",
+          "index": 0,
+          "fields": []
+        },
+        {
+          "title": "Burning",
+          "dataType": "constructor",
+          "index": 1,
+          "fields": []
+        }
+      ]
+    },
+    "payment_subscription/types/MintAction": {
+      "title": "MintAction",
+      "description": "Redeemer type for minting validator",
+      "anyOf": [
+        {
+          "title": "Mint",
+          "dataType": "constructor",
+          "index": 0,
+          "fields": []
+        },
+        {
+          "title": "Burn",
+          "dataType": "constructor",
+          "index": 1,
+          "fields": []
+        }
+      ]
+    }
+  }
+}

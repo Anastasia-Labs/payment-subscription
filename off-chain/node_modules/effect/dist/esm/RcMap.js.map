@@ -1,0 +1,1 @@
+{"version":3,"file":"RcMap.js","names":["internal","TypeId","make","get"],"sources":["../../src/RcMap.ts"],"sourcesContent":[null],"mappings":"AAMA,OAAO,KAAKA,QAAQ,MAAM,qBAAqB;AAK/C;;;;AAIA,OAAO,MAAMC,MAAM,GAAkBD,QAAQ,CAACC,MAAM;AAgCpD;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;AA+BA,OAAO,MAAMC,IAAI,GAebF,QAAQ,CAACE,IAAI;AAEjB;;;;AAIA,OAAO,MAAMC,GAAG,GAGZH,QAAQ,CAACG,GAAG","ignoreList":[]}
