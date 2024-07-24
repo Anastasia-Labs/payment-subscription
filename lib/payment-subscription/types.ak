@@ -23,6 +23,15 @@ pub type MintAction {
 //   Remove
 // }
 
+pub type ServiceDatum {
+  service_fee: AssetClass,
+  service_fee_qty: Int,
+  penalty_fee: Int,
+  penalty_fee_qty: Int,
+  total_installments: Int,
+  min_sub_period: Int,
+}
+
 // Service Mint Purpose Redeemer
 pub type MintService {
   CreateService

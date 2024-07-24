@@ -22,7 +22,8 @@ use assist/types/cip68
 use assist/values
 use payment_subscription/constants.{service_token_name}
 use payment_subscription/types.{
-  CreateService, DeleteService, MintService, PaymentDatum, SpendService,
+  CreateService, DeleteService, MintService, PaymentDatum, ServiceDatum,
+  SpendService,
 }
 use payment_subscription/utils.{output_by_value}
 
@@ -47,6 +48,7 @@ validator {
     when r is {
       types.CreateService -> {
         // To enforce a single initiation, the specified UTxO must be spent.
+
         let first_txid = find.first_input_txid(inputs)
         let first_idx = find.first_input_index(inputs)
 
@@ -57,7 +59,20 @@ validator {
         let user_tkn =
           values.unique_token_name(first_txid, first_idx, cip68.prefix_222)
 
-        // expect [Output { value: service_value, address: service_address, .. }] =
+        expect [output, ..] = outputs
+        let service_address = output.address
+        trace cbor.diagnostic(service_address)
+        trace cbor.diagnostic(ref_value)
+
+        // let output_utxo = output.output_reference
+        // Only one UTxO must be produced at the script address.
+        // expect [
+        //   Output {
+        //     datum: InlineDatum(service_datum),
+        //     value: list_head_value,
+        //     ..
+        //   },
+        // ] =
         //   list.filter(
         //     outputs,
         //     fn(output) {
@@ -66,7 +81,6 @@ validator {
         //   )
         let output_utxo =
           utils.output_by_addr_value(outputs, service_address, ref_value)
-
         // List head UTxO must contain only one other asset apart from Lovelaces.
         // let service_asset = get_single_asset_from_value(service_value)
         // List head's asset must match the minted asset.
@@ -82,19 +96,10 @@ validator {
           // Check user nft being minted
           minting.exact([mint_triplet], own_policy, user_tkn, 1)?,
           // Must send the reference nft to store address
-          payout.at_least(service_address, ref_value, outputs)?,
+          //   payout.at_least(service_address, ref_value, outputs)?,
           utils.check_output_utxo(output_utxo)?,
         }
       }
-
-      // Must send the reference nft to service address
-      //   payout.at_least(service_address, ref_value, outputs)?,
-      //   utils.check_output_utxo(output)?,
-      // expect
-      //   list.any(inputs, fn(input) { input.output_reference == utxo_ref })
-      // expect (1 == amount)?
-      // expect (asset_name == token_name)?
-      // True
       types.DeleteService -> and {
           //   signing.verify_sig(tx.extra_signatories, issuer)?,
           // Check nfts with ref and user token prefixes are burnt
@@ -113,7 +118,7 @@ validator {
     }
   }
 
-  fn spend(datum: PaymentDatum, rdmr: SpendService, ctx: ScriptContext) -> Bool {
+  fn spend(datum: ServiceDatum, rdmr: SpendService, ctx: ScriptContext) -> Bool {
     expect ScriptContext { transaction: tx, purpose } = ctx
 
     expect Spend(output_reference) = purpose
@@ -164,63 +169,64 @@ fn get_single_asset_from_value(v: Value) -> (PolicyId, AssetName, Int) {
       |> value.flatten
   triplet
 }
-// test mint_validator_init() {
-//   let own_cs = #"746fa3ba2daded6ab9ccc1e39d3835aa1dfcb9b5a54acc2ebe6b79a4"
-//   let init_output_ref =
-//     OutputReference {
-//       transaction_id: TransactionId {
-//         hash: #"2c6dbc95c1e96349c4131a9d19b029362542b31ffd2340ea85dd8f28e271ff6d",
-//       },
-//       output_index: 1,
-//     }
-//   //   let config =
-//   //     Config { utxo_ref: init_output_ref, token_name: token_name }
-//   let redeemer = CreateService
-//   let minted_value = value.add(value.zero(), own_cs, service_token_name, 1)
-//   let placeholder_utxo =
-//     OutputReference { transaction_id: TransactionId(""), output_index: 0 }
 
-//   let user_output =
-//     Output {
-//       address: Address(credential.ScriptCredential("B"), None),
-//       value: value.add(
-//         minted_value,
-//         value.ada_policy_id,
-//         value.ada_asset_name,
-//         4_000_000,
-//       ),
-//       datum: NoDatum,
-//       reference_script: None,
-//     }
-//   let context =
-//     ScriptContext {
-//       purpose: Mint(own_cs),
-//       transaction: Transaction {
-//         inputs: [
-//           Input {
-//             output_reference: init_output_ref,
-//             output: Output {
-//               address: Address(credential.ScriptCredential("C"), None),
-//               value: value.from_lovelace(4_000_000),
-//               datum: NoDatum,
-//               reference_script: None,
-//             },
-//           },
-//         ],
-//         reference_inputs: [],
-//         outputs: [user_output],
-//         fee: value.zero(),
-//         mint: value.to_minted_value(minted_value),
-//         certificates: [],
-//         withdrawals: [],
-//         validity_range: interval.everything(),
-//         extra_signatories: [],
-//         redeemers: [],
-//         datums: dict.new(),
-//         id: TransactionId {
-//           hash: #"2c6dbc95c1e96349c4131a9d19b029362542b31ffd2340ea85dd8f28e271ff6d",
-//         },
-//       },
-//     }
-//   mint(redeemer, context)
-// }
+test can_mint() {
+  let own_cs = #"746fa3ba2daded6ab9ccc1e39d3835aa1dfcb9b5a54acc2ebe6b79a4"
+  let init_output_ref =
+    OutputReference {
+      transaction_id: TransactionId {
+        hash: #"2c6dbc95c1e96349c4131a9d19b029362542b31ffd2340ea85dd8f28e271ff6d",
+      },
+      output_index: 1,
+    }
+  //   let config =
+  //     Config { utxo_ref: init_output_ref, token_name: token_name }
+  let redeemer = CreateService
+  let minted_value = value.add(value.zero(), own_cs, service_token_name, 1)
+  let placeholder_utxo =
+    OutputReference { transaction_id: TransactionId(""), output_index: 0 }
+
+  let user_output =
+    Output {
+      address: Address(credential.ScriptCredential("B"), None),
+      value: value.add(
+        minted_value,
+        value.ada_policy_id,
+        value.ada_asset_name,
+        4_000_000,
+      ),
+      datum: NoDatum,
+      reference_script: None,
+    }
+  let context =
+    ScriptContext {
+      purpose: Mint(own_cs),
+      transaction: Transaction {
+        inputs: [
+          Input {
+            output_reference: init_output_ref,
+            output: Output {
+              address: Address(credential.ScriptCredential("C"), None),
+              value: value.from_lovelace(4_000_000),
+              datum: NoDatum,
+              reference_script: None,
+            },
+          },
+        ],
+        reference_inputs: [],
+        outputs: [user_output],
+        fee: value.zero(),
+        mint: value.to_minted_value(minted_value),
+        certificates: [],
+        withdrawals: [],
+        validity_range: interval.everything(),
+        extra_signatories: [],
+        redeemers: [],
+        datums: dict.new(),
+        id: TransactionId {
+          hash: #"2c6dbc95c1e96349c4131a9d19b029362542b31ffd2340ea85dd8f28e271ff6d",
+        },
+      },
+    }
+  mint(redeemer, context)
+}
