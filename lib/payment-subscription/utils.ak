@@ -36,7 +36,7 @@ pub fn output_by_addr_value(
 ) -> Output {
   when outputs is {
     [output, ..rest] ->
-      if output.address == addr && values.contains(value, output.value) {
+      if output.address == addr && values.contains(output.value, value) {
         output
       } else {
         output_by_addr_value(rest, addr, value)
