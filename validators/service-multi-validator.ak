@@ -1,33 +1,30 @@
 use aiken/bytearray
+// use aiken/bytearray
 use aiken/cbor
 use aiken/dict
-use aiken/hash.{Blake2b_224, Hash}
+// use aiken/hash.{blake2b_256}
 use aiken/interval
-// use aiken/dict.{to_pairs}
 use aiken/list
 use aiken/math.{abs}
+// use aiken/string
 use aiken/transaction.{
-  Datum, InlineDatum, Input, Mint, NoDatum, Output, OutputReference,
-  ScriptContext, Spend, Transaction, TransactionId,
+  Input, Mint, NoDatum, Output, ScriptContext, Spend, Transaction, TransactionId,
 }
-use aiken/transaction/credential.{Address, ScriptCredential, VerificationKey}
-use aiken/transaction/value.{
-  AssetName, PolicyId, Value, flatten, from_minted_value,
-}
+use aiken/transaction/credential
+use aiken/transaction/value.{from_minted_value}
 use assist/count
 use assist/data
 use assist/find
 use assist/minting
 use assist/payout
-use assist/signing
 use assist/types/cip68
 use assist/values
-use payment_subscription/constants.{service_token_name}
+use payment_subscription/tests
 use payment_subscription/types.{
-  AssetClass, CreateService, DeleteService, MintService, PaymentDatum,
-  RemoveService, ServiceDatum, SpendService, UpdateService,
+  CreateService, DeleteService, MintService, RemoveService, ServiceDatum,
+  SpendService, UpdateService,
 }
-use payment_subscription/utils.{output_by_value}
+use payment_subscription/utils
 
 // This validator script handles minting and spending of service NFTs
 
@@ -42,15 +39,15 @@ validator {
     // Generate unique token names for reference and user tokens
     let first_txid = find.first_input_txid(inputs)
     let first_idx = find.first_input_index(inputs)
-    let ref_tkn =
-      values.unique_token_name(first_txid, first_idx, cip68.prefix_100)
-    let user_tkn =
-      values.unique_token_name(first_txid, first_idx, cip68.prefix_222)
 
-    let minted_tokens = mint |> value.from_minted_value()
+    let minted_tokens = mint |> from_minted_value()
 
     when r is {
       CreateService -> {
+        let ref_tkn =
+          values.unique_token_name(first_txid, first_idx, cip68.prefix_100)
+        let user_tkn =
+          values.unique_token_name(first_txid, first_idx, cip68.prefix_222)
         let service_address = credential.from_script(own_policy)
 
         // expect [output, ..] = outputs
@@ -89,10 +86,6 @@ validator {
         // let min_sub_period_valid = datum.min_sub_period >= 1
         and {
           // Validate the Datum meets Service Provider requirements.
-          // Ensure all datum validations pass
-          // service_fee_valid?,
-          // penalty_fee_valid?,
-          // total_installments_valid?,
           metadata_valid?,
           //  Validate that the redeemer only mints a single CIP68 compliant
           (merged_mint == minted_tokens)?,
@@ -101,16 +94,19 @@ validator {
       }
 
       DeleteService -> {
-        let ref_value_burn = value.from_asset(own_policy, ref_tkn, -1)
-        let user_value_burn = value.from_asset(own_policy, user_tkn, -1)
-        let merged_burn = value.merge(ref_value_burn, user_value_burn)
+        let mint_flat =
+          minted_tokens
+            |> value.flatten()
 
-        trace @"merged_burn"
-        trace cbor.diagnostic(merged_burn)
-
-        // let mint_flat =
-        //   minted_tokens
-        //     |> value.flatten()
+        // TODO: Grab the two tokens from inputs and then check if the token names are the same
+        // expect Some(own_input) =
+        //   transaction.find_input(tx.inputs, output_reference)
+        // let merged_burn = value.merge(ref_value_burn, user_value_burn)
+        // let ref_nft =
+        //   own_input.output.value
+        //     |> value.without_lovelace()
+        // trace @"merged_burn"
+        // trace cbor.diagnostic(merged_burn)
         // trace @"minted_tokens"
         // trace cbor.diagnostic(minted_tokens)
         // trace @"merged_burn"
@@ -118,8 +114,19 @@ validator {
         // trace @"mint_flat"
         // trace cbor.diagnostic(mint_flat)
         and {
-          // Validate that the redeemer only burns a single CIP68 compliant Service NFT.
-          (merged_burn == minted_tokens)?,
+          // TODO: Grab the two tokens from inputs and then check if the token names are the same
+          // Check nfts with ref and user token prefixes are burnt
+          minting.by_prefix(mint_flat, own_policy, cip68.prefix_100, -1)?,
+          minting.by_prefix(mint_flat, own_policy, cip68.prefix_222, -1)?,
+          when mint_flat is {
+            [(_pid1, tkn1, _amt1), (_pid2, tkn2, _amt2)] ->
+              bytearray.compare(
+                bytearray.drop(tkn1, 4),
+                bytearray.drop(tkn2, 4),
+              ) == Equal
+            _ -> False
+          },
+          // (merged_burn == minted_tokens)?,
           True,
         }
       }
@@ -138,27 +145,33 @@ validator {
 
     expect Spend(output_reference) = purpose
     // Validate that Service UTxO with a Service NFT is being spent.
-    let Transaction { outputs, .. } = ctx.transaction
     expect Some(own_input) = transaction.find_input(tx.inputs, output_reference)
     trace @"own_input"
     trace cbor.diagnostic(own_input)
 
-    expect [output, ..] = outputs
-    // let service_addr: Address = own_input.output.address
-    // let service_addr: Address = own_input.output.address
+    // let minted_tokens = mint |> from_minted_value()
     let service_addr = own_input.output.address
     let ref_nft =
       own_input.output.value
         |> value.without_lovelace()
     trace @"ref_value"
     trace cbor.diagnostic(ref_nft)
+
+    // Find and trace the User NFT
+    let user_input =
+      list.find(
+        tx.inputs,
+        fn(input) { input.output_reference != output_reference },
+      )
+
+    trace @"user_input"
+    trace cbor.diagnostic(user_input)
     trace @"output_reference"
     trace cbor.diagnostic(output_reference)
     when rdmr is {
       UpdateService -> {
         // trace @"output_address"
         // trace cbor.diagnostic(output.address)
-        // let service_addr = own_input.output.address
         trace @"service_address"
         trace cbor.diagnostic(service_addr)
 
@@ -193,14 +206,15 @@ validator {
       // Removes the utxo entirely from the script address.
       RemoveService -> {
         // this doesn't check for burn or destination for more of an open ended approach
-        let validating_output = utils.output_by_value(tx.outputs, ref_nft)
+        let validating_output =
+          utils.output_by_addr_value(tx.outputs, service_addr, ref_nft)
 
         and {
           // Validate that there's a single script input and No Script output back to the script address.
           // single script input
-          count.inputs_by_addr(tx.inputs, service_addr, 1)?,
+          count.inputs_by_addr(tx.inputs, service_addr, 2)?,
           // no script output
-          count.outputs_by_addr(tx.outputs, service_addr, 0)?,
+          count.outputs_by_addr(tx.outputs, service_addr, 1)?,
           // Validate UTxO with Reference NFT is being spent.
           utils.check_output_utxo(validating_output)?,
           True,
@@ -214,10 +228,14 @@ validator {
 fn is_metadata_valid(datum: ServiceDatum) -> Bool {
   // Implement logic to ensure fee changes are within acceptable range
   // For example, limit changes to ±10%
-  let service_fee_valid = datum.service_fee_qty >= 1
-  let penalty_fee_valid = datum.penalty_fee_qty >= 0
-  let total_installments_valid = datum.total_installments >= 1
-  let min_sub_period_valid = datum.min_sub_period >= 1
+  let service_fee_valid =
+    datum.service_fee_qty >= 1 && datum.service_fee_qty < 1_000_000_000_000
+  let penalty_fee_valid =
+    datum.penalty_fee_qty >= 0 && datum.penalty_fee_qty < 1_000_000_000_000
+  let total_installments_valid =
+    datum.total_installments >= 1 && datum.total_installments < 1_000_000_000_000
+  let min_sub_period_valid =
+    datum.min_sub_period >= 1 && datum.min_sub_period < 1_000_000_000_000
   service_fee_valid && penalty_fee_valid && total_installments_valid && min_sub_period_valid
 }
 
@@ -239,87 +257,41 @@ fn is_fee_change_valid(old_fee: Int, new_fee: Int) -> Bool {
 }
 
 test can_create_service() {
-  let own_cs = #"746fa3ba2daded6ab9ccc1e39d3835aa1dfcb9b5a54acc2ebe6b79a4"
-  let init_output_ref =
-    OutputReference {
-      transaction_id: TransactionId {
-        hash: #"2c6dbc95c1e96349c4131a9d19b029362542b31ffd2340ea85dd8f28e271ff6d",
-      },
-      output_index: 1,
-    }
+  let own_cs = tests.test_224_01()
+  let tx_hash = tests.test_224_02()
+  let init_output_ref = tests.test_input_utxo_02(tx_hash)
 
-  let datum =
-    ServiceDatum {
-      service_fee: AssetClass {
-        policy_id: value.ada_policy_id,
-        asset_name: value.ada_asset_name,
-      },
-      // Replace with actual AssetName
-      service_fee_qty: 1,
-      penalty_fee: AssetClass {
-        policy_id: value.ada_policy_id,
-        asset_name: value.ada_asset_name,
-      },
-      penalty_fee_qty: 1,
-      total_installments: 1,
-      min_sub_period: 1,
-    }
-
+  // trace @"tx_hash"
+  // trace cbor.diagnostic(tx_hash)
+  // trace @"init_output_ref"
+  // trace cbor.diagnostic(init_output_ref)
+  let datum = tests.test_datum_01(1, 1, 1, 1)
   let redeemer = CreateService
 
-  let ref_tkn =
-    values.unique_token_name(
-      #"2c6dbc95c1e96349c4131a9d19b029362542b31ffd2340ea85dd8f28e271ff6d",
-      1,
-      cip68.prefix_100,
-    )
-
-  let user_tkn =
-    values.unique_token_name(
-      #"2c6dbc95c1e96349c4131a9d19b029362542b31ffd2340ea85dd8f28e271ff6d",
-      1,
-      cip68.prefix_222,
-    )
+  let ref_tkn = values.unique_token_name(tx_hash, 1, cip68.prefix_100)
+  let user_tkn = values.unique_token_name(tx_hash, 1, cip68.prefix_222)
 
   let ref_value = value.add(value.zero(), own_cs, ref_tkn, 1)
   let user_value = value.add(value.zero(), own_cs, user_tkn, 1)
   let minted_value = value.merge(ref_value, user_value)
-  //   let placeholder_utxo =
-  //     OutputReference { transaction_id: TransactionId(""), output_index: 0 }
-  let user_output =
-    Output {
-      address: Address(
-        credential.ScriptCredential(
-          #"746fa3ba2daded6ab9ccc1e39d3835aa1dfcb9b5a54acc2ebe6b79a4",
-        ),
-        None,
-      ),
-      value: value.add(
-        minted_value,
-        value.ada_policy_id,
-        value.ada_asset_name,
-        4_000_000,
-      ),
-      datum: InlineDatum(datum),
-      reference_script: None,
-    }
+
+  let user_output = tests.test_utxo_02(own_cs, user_value, NoDatum)
+  let service_output = tests.test_utxo_02(own_cs, ref_value, datum)
+
+  // trace @"user_output"
+  // trace cbor.diagnostic(user_output)
+  // trace @"service_output"
+  // trace cbor.diagnostic(service_output)
+  let user_input = tests.test_context_input_01(init_output_ref, own_cs, NoDatum)
+
   let context =
     ScriptContext {
       purpose: Mint(own_cs),
       transaction: Transaction {
-        inputs: [
-          Input {
-            output_reference: init_output_ref,
-            output: Output {
-              address: Address(credential.ScriptCredential(own_cs), None),
-              value: value.from_lovelace(4_000_000),
-              datum: NoDatum,
-              reference_script: None,
-            },
-          },
-        ],
+        inputs: [user_input],
         reference_inputs: [],
-        outputs: [user_output],
+        //TODO: There should be two outputs.
+        outputs: [user_output, service_output],
         fee: value.zero(),
         mint: value.to_minted_value(minted_value),
         certificates: [],
@@ -328,96 +300,53 @@ test can_create_service() {
         extra_signatories: [],
         redeemers: [],
         datums: dict.new(),
-        id: TransactionId {
-          hash: #"2c6dbc95c1e96349c4131a9d19b029362542b31ffd2340ea85dd8f28e271ff6d",
-        },
+        id: TransactionId { hash: tx_hash },
       },
     }
+
+  // trace @"context"
+  // trace cbor.diagnostic(context)
   mint_service(redeemer, context)
 }
 
 test can_delete_service() {
-  let own_cs = #"746fa3ba2daded6ab9ccc1e39d3835aa1dfcb9b5a54acc2ebe6b79a4"
-  let init_output_ref =
-    OutputReference {
-      transaction_id: TransactionId {
-        hash: #"2c6dbc95c1e96349c4131a9d19b029362542b31ffd2340ea85dd8f28e271ff6d",
-      },
-      output_index: 1,
-    }
+  let own_cs = tests.test_224_01()
+  let tx_hash = tests.test_224_02()
+  let init_output_ref = tests.test_input_utxo_02(tx_hash)
+  let script_output_ref = tests.test_input_utxo_02(tests.test_224_01())
 
-  let datum =
-    ServiceDatum {
-      service_fee: AssetClass {
-        policy_id: value.ada_policy_id,
-        asset_name: value.ada_asset_name,
-      },
-      // Replace with actual AssetName
-      service_fee_qty: 1,
-      penalty_fee: AssetClass {
-        policy_id: value.ada_policy_id,
-        asset_name: value.ada_asset_name,
-      },
-      penalty_fee_qty: 1,
-      total_installments: 1,
-      min_sub_period: 1,
-    }
-
+  let datum = tests.test_datum_01(1, 1, 1, 1)
   let redeemer = DeleteService
 
-  let ref_tkn =
-    values.unique_token_name(
-      #"2c6dbc95c1e96349c4131a9d19b029362542b31ffd2340ea85dd8f28e271ff6d",
-      1,
-      cip68.prefix_100,
-    )
-
-  let user_tkn =
-    values.unique_token_name(
-      #"2c6dbc95c1e96349c4131a9d19b029362542b31ffd2340ea85dd8f28e271ff6d",
-      1,
-      cip68.prefix_222,
-    )
+  let ref_tkn = values.unique_token_name(tx_hash, 1, cip68.prefix_100)
+  let user_tkn = values.unique_token_name(tx_hash, 1, cip68.prefix_222)
 
   //   let ref_value = value.from_asset(own_cs, ref_tkn, 1)
   let ref_value = value.add(value.zero(), own_cs, ref_tkn, -1)
   let user_value = value.add(value.zero(), own_cs, user_tkn, -1)
   let minted_value = value.merge(ref_value, user_value)
-  //   let placeholder_utxo =
-  //     OutputReference { transaction_id: TransactionId(""), output_index: 0 }
-  let user_output =
-    Output {
-      address: Address(
-        credential.ScriptCredential(
-          #"746fa3ba2daded6ab9ccc1e39d3835aa1dfcb9b5a54acc2ebe6b79a4",
-        ),
-        None,
-      ),
-      value: value.add(
-        minted_value,
-        value.ada_policy_id,
-        value.ada_asset_name,
-        4_000_000,
-      ),
-      datum: InlineDatum(datum),
-      reference_script: None,
-    }
+
+  let user_input =
+    tests.test_context_input_02(init_output_ref, own_cs, user_value, NoDatum)
+  let service_input =
+    tests.test_context_input_02(script_output_ref, own_cs, ref_value, datum)
+
+  let user_output = tests.test_utxo_02(own_cs, user_value, datum)
+
+  // trace @"user_input"
+  // trace cbor.diagnostic(user_input)
+  // trace @"service_input"
+  // trace cbor.diagnostic(service_input)
+  // trace @"user_output"
+  // trace cbor.diagnostic(user_output)
   let context =
     ScriptContext {
       purpose: Mint(own_cs),
       transaction: Transaction {
-        inputs: [
-          Input {
-            output_reference: init_output_ref,
-            output: Output {
-              address: Address(credential.ScriptCredential(own_cs), None),
-              value: value.from_lovelace(4_000_000),
-              datum: NoDatum,
-              reference_script: None,
-            },
-          },
-        ],
+        // Should have two inputs
+        inputs: [user_input, service_input],
         reference_inputs: [],
+        // Should have one output
         outputs: [user_output],
         fee: value.zero(),
         mint: value.to_minted_value(minted_value),
@@ -427,119 +356,121 @@ test can_delete_service() {
         extra_signatories: [],
         redeemers: [],
         datums: dict.new(),
-        id: TransactionId {
-          hash: #"2c6dbc95c1e96349c4131a9d19b029362542b31ffd2340ea85dd8f28e271ff6d",
-        },
+        id: TransactionId { hash: tx_hash },
       },
     }
   mint_service(redeemer, context)
 }
 
 test can_update_service() {
-  let own_cs = #"746fa3ba2daded6ab9ccc1e39d3835aa1dfcb9b5a54acc2ebe6b79a4"
-  let init_output_ref =
-    OutputReference {
-      transaction_id: TransactionId {
-        hash: #"2c6dbc95c1e96349c4131a9d19b029362542b31ffd2340ea85dd8f28e271ff6d",
-      },
-      output_index: 1,
-    }
+  let own_cs = tests.test_224_01()
+  let tx_hash = tests.test_224_02()
+  let init_output_ref = tests.test_input_utxo_02(tx_hash)
+  let script_output_ref = tests.test_input_utxo_02(tests.test_224_01())
 
-  let datum =
-    ServiceDatum {
-      service_fee: AssetClass {
-        policy_id: value.ada_policy_id,
-        asset_name: value.ada_asset_name,
-      },
-      // Replace with actual AssetName
-      service_fee_qty: 100,
-      penalty_fee: AssetClass {
-        policy_id: value.ada_policy_id,
-        asset_name: value.ada_asset_name,
-      },
-      penalty_fee_qty: 1,
-      total_installments: 1,
-      min_sub_period: 1,
-    }
-
-  let new_datum =
-    ServiceDatum {
-      service_fee: AssetClass {
-        policy_id: value.ada_policy_id,
-        asset_name: value.ada_asset_name,
-      },
-      // Replace with actual AssetName
-      service_fee_qty: 90,
-      penalty_fee: AssetClass {
-        policy_id: value.ada_policy_id,
-        asset_name: value.ada_asset_name,
-      },
-      penalty_fee_qty: 1,
-      total_installments: 1,
-      min_sub_period: 1,
-    }
+  let datum = tests.test_datum_01(1, 1, 1, 1)
+  let new_datum = tests.test_datum_01(1, 1, 1, 1)
 
   let redeemer = UpdateService
 
-  let ref_tkn =
-    values.unique_token_name(
-      #"2c6dbc95c1e96349c4131a9d19b029362542b31ffd2340ea85dd8f28e271ff6d",
-      1,
-      cip68.prefix_100,
-    )
+  let ref_tkn = values.unique_token_name(tx_hash, 1, cip68.prefix_100)
+  let user_tkn = values.unique_token_name(tx_hash, 1, cip68.prefix_222)
 
-  let ref_value = value.from_asset(own_cs, ref_tkn, 1)
+  let ref_value = value.add(value.zero(), own_cs, ref_tkn, 1)
+  let user_value = value.add(value.zero(), own_cs, user_tkn, 1)
+  let minted_value = value.merge(ref_value, user_value)
 
-  // Create an input UTxO that includes the reference NFT
-  let input_value =
-    value.add(ref_value, value.ada_policy_id, value.ada_asset_name, 4_000_000)
+  let user_input =
+    tests.test_context_input_02(init_output_ref, own_cs, user_value, NoDatum)
+  let service_input =
+    tests.test_context_input_02(script_output_ref, own_cs, ref_value, datum)
 
-  // Create an input with the correct output reference and value
-  let input =
-    Input {
-      output_reference: init_output_ref,
-      output: Output {
-        address: Address(
-          credential.ScriptCredential(own_cs),
-          // Match the script's address
-          None,
-        ),
-        value: input_value,
-        datum: InlineDatum(datum),
-        // Include the correct datum
-        reference_script: None,
-      },
-    }
-  let user_output =
-    Output {
-      address: Address(
-        credential.ScriptCredential(
-          #"746fa3ba2daded6ab9ccc1e39d3835aa1dfcb9b5a54acc2ebe6b79a4",
-        ),
-        None,
-      ),
-      value: input_value,
-      datum: InlineDatum(new_datum),
-      reference_script: None,
-    }
+  let user_output = tests.test_utxo_02(own_cs, user_value, NoDatum)
+  let service_output = tests.test_utxo_02(own_cs, ref_value, new_datum)
+
+  trace @"user_input"
+  trace cbor.diagnostic(user_input)
+  trace @"service_input"
+  trace cbor.diagnostic(service_input)
+  trace @"user_output"
+  trace cbor.diagnostic(user_output)
+  trace @"service_output"
+  trace cbor.diagnostic(service_output)
+
   let context =
     ScriptContext {
-      purpose: Spend(init_output_ref),
+      purpose: Spend(script_output_ref),
       transaction: Transaction {
-        inputs: [input],
+        inputs: [user_input, service_input],
+        // Should have two inputs.
         reference_inputs: [],
-        outputs: [user_output],
+        outputs: [user_output, service_output],
         fee: value.zero(),
-        mint: value.to_minted_value(ref_value),
+        mint: value.to_minted_value(minted_value),
         certificates: [],
         withdrawals: [],
         validity_range: interval.everything(),
         extra_signatories: [],
         redeemers: [],
         datums: dict.new(),
-        id: TransactionId {
-          hash: #"2c6dbc95c1e96349c4131a9d19b029362542b31ffd2340ea85dd8f28e271ff6d",
-        },
+        id: TransactionId { hash: tx_hash },
+      },
+    }
+  spend_service(datum, redeemer, context)
+}
+
+test can_remove_service() {
+  let own_cs = tests.test_224_01()
+  let tx_hash = tests.test_224_02()
+  let init_output_ref = tests.test_input_utxo_02(tx_hash)
+  let script_output_ref = tests.test_input_utxo_02(tests.test_224_01())
+
+  let datum = tests.test_datum_01(1, 1, 1, 1)
+
+  // let new_datum = tests.test_datum_01(1, 1, 1, 1)
+  let redeemer = RemoveService
+
+  let ref_tkn = values.unique_token_name(tx_hash, 1, cip68.prefix_100)
+  let user_tkn = values.unique_token_name(tx_hash, 1, cip68.prefix_222)
+
+  let ref_value = value.add(value.zero(), own_cs, ref_tkn, -1)
+  let user_value = value.add(value.zero(), own_cs, user_tkn, -1)
+  let minted_value = value.merge(ref_value, user_value)
+
+  let user_input =
+    tests.test_context_input_02(init_output_ref, own_cs, user_value, NoDatum)
+  let service_input =
+    tests.test_context_input_02(script_output_ref, own_cs, ref_value, datum)
+
+  let user_output = tests.test_utxo_02(own_cs, user_value, NoDatum)
+
+  // let service_output = tests.test_utxo_02(own_cs, ref_value, new_datum)
+  trace @"user_input"
+  trace cbor.diagnostic(user_input)
+  trace @"service_input"
+  trace cbor.diagnostic(service_input)
+  trace @"user_output"
+  trace cbor.diagnostic(user_output)
+
+  // trace @"service_output"
+  // trace cbor.diagnostic(service_output)
+  let context =
+    ScriptContext {
+      purpose: Spend(script_output_ref),
+      transaction: Transaction {
+        inputs: [user_input, service_input],
+        // Should have two inputs.
+        reference_inputs: [],
+        outputs: [user_output],
+        fee: value.zero(),
+        mint: value.to_minted_value(minted_value),
+        certificates: [],
+        withdrawals: [],
+        validity_range: interval.everything(),
+        extra_signatories: [],
+        redeemers: [],
+        datums: dict.new(),
+        id: TransactionId { hash: tx_hash },
       },
     }
   spend_service(datum, redeemer, context)
