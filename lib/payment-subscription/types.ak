@@ -30,13 +30,9 @@ pub type ServiceDatum {
   // non-negative
   penalty_fee: AssetClass,
   penalty_fee_qty: Int,
-  // non-negative
-  total_installments: Int,
-  // Min 1
-  min_sub_period: Int,
+  // Subscription period Min 1
+  subscription_period: Int,
 }
-
-// Min 1 / Max
 
 // Service Mint Purpose Redeemer
 pub type MintService {

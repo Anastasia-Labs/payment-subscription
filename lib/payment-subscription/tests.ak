@@ -87,12 +87,7 @@ pub fn test_input_utxo_02(utxo_hash) {
   }
 }
 
-pub fn test_datum_01(
-  fee_qty: Int,
-  penalty_qty: Int,
-  installments: Int,
-  min_period: Int,
-) {
+pub fn test_datum_01(fee_qty: Int, penalty_qty: Int, subsc_period: Int) {
   ServiceDatum {
     service_fee: AssetClass {
       policy_id: value.ada_policy_id,
@@ -105,8 +100,7 @@ pub fn test_datum_01(
       asset_name: value.ada_asset_name,
     },
     penalty_fee_qty: penalty_qty,
-    total_installments: installments,
-    min_sub_period: min_period,
+    subscription_period: subsc_period,
   }
 }
 

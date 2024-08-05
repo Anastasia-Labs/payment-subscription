@@ -303,11 +303,9 @@ fn is_metadata_valid(datum: ServiceDatum) -> Bool {
     datum.service_fee_qty >= 1 && datum.service_fee_qty < 1_000_000_000_000
   let penalty_fee_valid =
     datum.penalty_fee_qty >= 0 && datum.penalty_fee_qty < 1_000_000_000_000
-  let total_installments_valid =
-    datum.total_installments >= 1 && datum.total_installments < 1_000_000_000_000
-  let min_sub_period_valid =
-    datum.min_sub_period >= 1 && datum.min_sub_period < 1_000_000_000_000
-  service_fee_valid && penalty_fee_valid && total_installments_valid && min_sub_period_valid
+  let subscription_period_valid =
+    datum.subscription_period >= 1 && datum.subscription_period < 1_000_000_000_000
+  service_fee_valid && penalty_fee_valid && subscription_period_valid
 }
 
 // Helper function to validate service fee changes
@@ -337,7 +335,7 @@ test can_create_service() {
   // trace cbor.diagnostic(tx_hash)
   // trace @"init_output_ref"
   // trace cbor.diagnostic(init_output_ref)
-  let datum = tests.test_datum_01(1, 1, 1, 1)
+  let datum = tests.test_datum_01(1, 1, 1)
   let redeemer =
     CreateService { output_reference: init_output_ref, input_index }
 
@@ -395,7 +393,7 @@ test can_delete_service() {
   let ref_tkn = values.unique_token_name(tx_hash, 1, cip68.prefix_100)
   let user_tkn = values.unique_token_name(tx_hash, 1, cip68.prefix_222)
 
-  let datum = tests.test_datum_01(1, 1, 1, 1)
+  let datum = tests.test_datum_01(1, 1, 1)
   let redeemer = DeleteService
 
   //   let ref_value = value.from_asset(own_cs, ref_tkn, 1)
@@ -445,8 +443,8 @@ test can_update_service() {
   let init_output_ref = tests.test_input_utxo_02(tx_hash)
   let script_output_ref = tests.test_input_utxo_02(tests.test_224_01())
 
-  let datum = tests.test_datum_01(1, 1, 1, 1)
-  let new_datum = tests.test_datum_01(1, 1, 1, 1)
+  let datum = tests.test_datum_01(1, 1, 1)
+  let new_datum = tests.test_datum_01(1, 1, 1)
 
   let redeemer = UpdateService
 
@@ -502,7 +500,7 @@ test can_remove_service() {
   let init_output_ref = tests.test_input_utxo_02(tx_hash)
   let script_output_ref = tests.test_input_utxo_02(tests.test_224_01())
 
-  let datum = tests.test_datum_01(1, 1, 1, 1)
+  let datum = tests.test_datum_01(1, 1, 1)
 
   // let new_datum = tests.test_datum_01(1, 1, 1, 1)
   let redeemer = RemoveService
