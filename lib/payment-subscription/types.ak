@@ -1,3 +1,4 @@
+use aiken/transaction.{OutputReference}
 // use aiken/transaction.{OutputReference}
 use aiken/transaction/value.{AssetName, PolicyId}
 
@@ -39,7 +40,7 @@ pub type ServiceDatum {
 
 // Service Mint Purpose Redeemer
 pub type MintService {
-  CreateService
+  CreateService { output_reference: OutputReference, input_index: Int }
   DeleteService
 }
 
@@ -51,11 +52,23 @@ pub type SpendService {
 
 // Account Mint Purpose Redeemer
 pub type MintAccount {
-  CreateAccount
+  CreateAccount { output_reference: OutputReference, input_index: Int }
   DeleteAccount
 }
 
-// Account Mint Purpose Redeemer
+pub type SpendAccount {
+  UpdateAccount
+  RemoveAccount
+}
+
+pub type AccountDatum {
+  email: ByteArray,
+  phone: ByteArray,
+  account_start: POSIXTime,
+  account_end: POSIXTime,
+}
+
+// Payment Mint Purpose Redeemer
 pub type MintPayment {
   InitSubscripton
   TerminateSubscription

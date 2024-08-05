@@ -6,7 +6,9 @@ use aiken/transaction.{
 }
 use aiken/transaction/credential.{Address, ScriptCredential}
 use aiken/transaction/value
-use payment_subscription/types.{AssetClass, ServiceDatum}
+use payment_subscription/types.{
+  AccountDatum, AssetClass, POSIXTime, ServiceDatum,
+}
 
 // Generate a bytearray with blake2b_256
 pub fn test_224_01() {
@@ -16,6 +18,11 @@ pub fn test_224_01() {
 // Generate a bytearray with blake2b_256
 pub fn test_224_02() {
   bytearray.take(blake2b_256(#"02"), 28)
+}
+
+// Generate a bytearray with blake2b_256
+pub fn test_224_03() {
+  bytearray.take(blake2b_256(#"03"), 28)
 }
 
 // Create a UTxO
@@ -36,6 +43,23 @@ pub fn test_utxo_02(own_cs, minted_value, datum) {
   Output {
     address: Address {
       payment_credential: ScriptCredential(own_cs),
+      stake_credential: None,
+    },
+    value: value.add(
+      minted_value,
+      value.ada_policy_id,
+      value.ada_asset_name,
+      4_000_000,
+    ),
+    datum: InlineDatum(datum),
+    reference_script: None,
+  }
+}
+
+pub fn test_user_utxo(pubkey_hash: ByteArray, minted_value, datum) {
+  Output {
+    address: Address {
+      payment_credential: credential.VerificationKeyCredential(pubkey_hash),
       stake_credential: None,
     },
     value: value.add(
@@ -113,4 +137,13 @@ pub fn test_context_input_02(output_ref, own_cs, minted_value, datum) {
       reference_script: None,
     },
   }
+}
+
+pub fn test_datum_02(
+  email: ByteArray,
+  phone: ByteArray,
+  account_start: POSIXTime,
+  account_end: POSIXTime,
+) {
+  AccountDatum { email, phone, account_start, account_end }
 }

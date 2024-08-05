@@ -11,6 +11,11 @@ name = "logicalmechanism/assist"
 version = "v0.4.10"
 source = "github"
 
+[[requirements]]
+name = "anastasia-labs/aiken-design-patterns"
+version = "9a1e82c"
+source = "github"
+
 [[packages]]
 name = "aiken-lang/stdlib"
 version = "1.9.0"
@@ -20,6 +25,12 @@ source = "github"
 [[packages]]
 name = "logicalmechanism/assist"
 version = "v0.4.10"
+requirements = []
+source = "github"
+
+[[packages]]
+name = "anastasia-labs/aiken-design-patterns"
+version = "9a1e82c"
 requirements = []
 source = "github"
 

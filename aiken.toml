@@ -19,3 +19,9 @@ source = "github"
 name = "logicalmechanism/assist"
 version = "v0.4.10"
 source = "github"
+
+
+[[dependencies]]
+name = "anastasia-labs/aiken-design-patterns"
+version = "9a1e82c"
+source = "github"
