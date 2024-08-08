@@ -1,117 +1,1078 @@
-// use aiken/bytearray
-// use aiken/cbor
-// use aiken/hash.{Blake2b_224, Hash}
-// // use aiken/dict.{to_pairs}
-// use aiken/list
-// use aiken/transaction.{
-//   InlineDatum, Mint, Output, OutputReference, ScriptContext, Transaction,
+use aiken/bytearray.{length}
+use aiken/cbor
+use aiken/dict
+use aiken/interval.{Finite, Interval, IntervalBound}
+use aiken/list
+use aiken/math
+use aiken/time.{PosixTime}
+use aiken/transaction.{
+  Input, Mint, NoDatum, Output, OutputReference, ScriptContext, Spend,
+  Transaction, TransactionId,
+}
+use aiken/transaction/credential.{ScriptCredential}
+use aiken/transaction/value.{from_minted_value}
+use assist/count
+use assist/data
+use assist/find.{output_by_addr_value}
+use assist/minting
+use assist/payout
+use assist/types/cip68
+use assist/values
+use payment_subscription/tests
+use payment_subscription/types.{
+  AccountDatum, AssetClass, Extend, InitSubscripton, MintPayment, POSIXTime,
+  Payment, PaymentDatum, PaymentValidatorDatum, Penalty, PenaltyDatum,
+  ServiceDatum, SpendPayment, TerminateSubscription, Unsubscribe, Withdraw,
+}
+use payment_subscription/utils.{validate_token_output}
+
+// TODO: List of all the Transactions that are required.
+// TODO: Validate the datum from the Service Contract as a reference input.
+validator(service_policy_id: ByteArray, account_policy_id: ByteArray) {
+  fn mint_payment(redeemer: MintPayment, ctx: ScriptContext) -> Bool {
+    let ScriptContext { transaction: tx, purpose } = ctx
+    expect Mint(own_policy) = purpose
+    let Transaction { inputs, reference_inputs, mint, outputs, .. } = tx
+
+    let minted_tokens = mint |> from_minted_value()
+    let payment_payment_credential = credential.ScriptCredential(own_policy)
+    when redeemer is {
+      InitSubscripton { output_reference, input_index } -> {
+        // Ensure this outref is spent in this transaction
+        expect [account_input, service_input, ..] = inputs
+        let is_outref_spent = account_input.output_reference == output_reference
+
+        trace @"on_account_input"
+        trace cbor.diagnostic(account_input)
+        trace @"on_service_input"
+        trace cbor.diagnostic(service_input)
+        trace @"own_policy"
+        trace cbor.diagnostic(own_policy)
+        trace @"service_policy_id"
+        trace cbor.diagnostic(service_policy_id)
+        trace @"account_policy_id"
+        trace cbor.diagnostic(account_policy_id)
+
+        let payment_tkn =
+          values.unique_token_name(
+            output_reference.transaction_id.hash,
+            output_reference.output_index,
+            #"",
+          )
+
+        let payment_value = value.from_asset(own_policy, payment_tkn, 1)
+
+        expect [user_output, payment_output, ..] = outputs
+        trace @"payment_output"
+        trace cbor.diagnostic(payment_output)
+
+        let payment_token_to_script =
+          validate_token_output(
+            payment_output,
+            own_policy,
+            payment_tkn,
+            payment_payment_credential,
+            True,
+          )
+
+        expect datum: PaymentDatum = data.output_datum(payment_output)
+        let datum_valid =
+          is_payment_datum_valid(datum, service_policy_id, account_policy_id)
+
+        trace @"datum.service_nft_tn"
+        trace cbor.diagnostic(datum.service_nft_tn)
+        trace @"datum.account_nft_tn"
+        trace cbor.diagnostic(datum.account_nft_tn)
+
+        // Check to ensure the subscription period matches the service's requirements
+        expect service_datum: ServiceDatum =
+          data.output_datum(service_input.output)
+        let subscription_period_valid =
+          datum.subscription_period == service_datum.subscription_period
+
+        // Debug: Print the entire value of service_input
+        trace @"service_input.output.value"
+        trace cbor.diagnostic(service_input.output.value)
+
+        // Verify the inputs contain 1 Service NFT Asset
+        let input_has_service_nft =
+          value.quantity_of(
+            service_input.output.value,
+            service_policy_id,
+            datum.service_nft_tn,
+          ) == 1
+
+        // check_nft_in_inputs(inputs, own_policy, service_token_name)
+        trace @"input_has_service_nft"
+        trace cbor.diagnostic(input_has_service_nft)
+        // Verify the inputs contain 1 Account NFT Asset
+        let input_has_account_nft =
+          list.any(
+            inputs,
+            fn(input) {
+              value.quantity_of(
+                input.output.value,
+                account_policy_id,
+                datum.account_nft_tn,
+              ) == 1
+            },
+          )
+        trace @"input_has_account_nft"
+        trace cbor.diagnostic(input_has_account_nft)
+
+        let user_token_not_to_script =
+          validate_token_output(
+            user_output,
+            account_policy_id,
+            datum.account_nft_tn,
+            payment_payment_credential,
+            False,
+          )
+        // Verify the correct amount is locked
+        let locked_amount =
+          value.quantity_of(
+            payment_output.value,
+            datum.subscription_fee.policy_id,
+            datum.subscription_fee.asset_name,
+          )
+        let expected_amount = datum.subscription_fee_qty
+
+        let locked_amount_valid = locked_amount >= expected_amount
+
+        trace @"locked_amount"
+        trace cbor.diagnostic(locked_amount)
+        trace @"expected_amount"
+        trace cbor.diagnostic(expected_amount)
+        trace @"locked_amount_valid"
+        trace cbor.diagnostic(locked_amount_valid)
+        and {
+          is_outref_spent?,
+          input_has_service_nft?,
+          input_has_account_nft?,
+          datum_valid?,
+          (payment_value == minted_tokens)?,
+          payment_token_to_script?,
+          user_token_not_to_script?,
+          locked_amount_valid?,
+          subscription_period_valid?,
+        }
+      }
+
+      // TODO: Validate the datum from the Service Contract as a reference input
+      TerminateSubscription { output_reference } -> {
+        // Find the input that's being spent (the one containing our NFT)
+        expect Some(input) = transaction.find_input(tx.inputs, output_reference)
+
+        // Extract the payment datum from the input
+        expect payment_datum: PaymentDatum = data.output_datum(input.output)
+        // Extract the NFT from the input
+        let payment_nft =
+          input.output.value
+            |> value.without_lovelace()
+            |> value.flatten()
+
+        // Ensure there's exactly one token and extract its details
+        expect [(token_policy, token_name, _)] = payment_nft
+
+        // Get the tokens being minted (or burned) in this transaction
+        let minted_tokens = tx.mint |> value.from_minted_value()
+
+        // Ensure exactly one token is affected and extract its details
+        expect [(pid, tkn, amt)] = value.flatten(minted_tokens)
+
+        // Calculate refund amount
+        let current_time = get_current_time(tx.validity_range)
+        let total_subscription_time =
+          payment_datum.subscription_end - payment_datum.subscription_start
+        let time_elapsed =
+          math.min(
+            current_time - payment_datum.subscription_start,
+            total_subscription_time,
+          )
+        let refund_amount =
+          payment_datum.subscription_fee_qty * (
+            total_subscription_time - time_elapsed
+          ) / total_subscription_time
+
+        trace @"refund_amount"
+        trace cbor.diagnostic(refund_amount)
+
+        // Verify all conditions are met
+        and {
+          // The token in the input must be from our policy
+          (token_policy == own_policy)?,
+          // The token being burned must be from our policy
+          (pid == own_policy)?,
+          // The token being burned must match the one from the input
+          (tkn == token_name)?,
+          // Exactly one token must be burned (negative amount)
+          (amt == -1)?,
+        }
+      }
+    }
+  }
+
+  fn spend_payment(
+    datum: PaymentValidatorDatum,
+    redeemer: SpendPayment,
+    ctx: ScriptContext,
+  ) -> Bool {
+    let ScriptContext { transaction: tx, purpose } = ctx
+    // let Transaction { inputs, reference_inputs, outputs, .. } = tx
+    expect Spend(output_reference) = purpose
+
+    when redeemer is {
+      Extend(output_reference) -> validate_extend(datum, output_reference, tx)
+      Unsubscribe -> validate_unsubscribe(datum, output_reference, tx)
+      Withdraw -> validate_withdraw(datum, output_reference, tx)
+    }
+  }
+}
+
+fn validate_extend(
+  datum: PaymentValidatorDatum,
+  output_reference: OutputReference,
+  tx: Transaction,
+) -> Bool {
+  when datum is {
+    Payment(payment_datum) -> {
+      // Find the input being spent (current Payment Validator UTxO)
+      expect Some(payment_input) =
+        transaction.find_input(tx.inputs, output_reference)
+      let payment_addr = payment_input.output.address
+      // let payment_credential =
+      //   credential.from_script(ctx.get_current_validator_hash())
+      // Extract the payment NFT from the input
+      let payment_nft =
+        payment_input.output.value
+          |> value.without_lovelace()
+      expect [(policy_id, asset_name, _)] = value.flatten(payment_nft)
+
+      // Find the new payment output
+      expect [user_output, payment_output, ..] = tx.outputs
+
+      // Extract and validate the new datum
+      expect new_datum: PaymentDatum = data.output_datum(payment_output)
+
+      // Get the service input from reference inputs
+      expect [service_input, ..] = tx.reference_inputs
+      expect service_datum: ServiceDatum =
+        data.output_datum(service_input.output)
+
+      trace @"service_input"
+      trace cbor.diagnostic(service_input)
+
+      // Verify the new payment output
+      let original_amount = value.lovelace_of(payment_input.output.value)
+      let new_amount = value.lovelace_of(payment_output.value)
+      let amount_increased = new_amount > original_amount
+      let extension_amount = new_amount - original_amount
+
+      // Validate that the extension follows the Service provider rules
+      let valid_extension =
+        validate_extension_datum(
+          payment_datum,
+          new_datum,
+          extension_amount,
+          service_datum,
+        )
+
+      trace @"payment_output"
+      trace cbor.diagnostic(payment_output)
+      trace @"user_output"
+      trace cbor.diagnostic(user_output)
+
+      // Calculate and validate the fee increase
+      let fee_per_period =
+        payment_datum.subscription_fee_qty / payment_datum.subscription_period
+      let expected_fee_increase =
+        fee_per_period * (
+          new_datum.subscription_period - payment_datum.subscription_period
+        )
+      let actual_fee_increase = new_amount - original_amount
+      let fee_increase_valid = actual_fee_increase == expected_fee_increase
+
+      // Verify the payment NFT is preserved
+      let payment_nft_preserved =
+        value.quantity_of(payment_output.value, policy_id, asset_name) == 1
+
+      // Verify the output goes back to the same script address
+      let correct_output_address = payment_output.address == payment_addr
+
+      // Verify subscriber's input
+      let subscriber_input_valid =
+        list.any(
+          tx.inputs,
+          fn(input) {
+            value.lovelace_of(input.output.value) >= new_amount - original_amount && input.output.address != payment_addr
+          },
+        )
+
+      and {
+        amount_increased?,
+        valid_extension?,
+        fee_increase_valid?,
+        payment_nft_preserved?,
+        subscriber_input_valid?,
+        correct_output_address?,
+        payout.at_least(payment_addr, payment_input.output.value, tx.outputs)?,
+      }
+    }
+
+    Penalty(_) -> False
+  }
+}
+
+fn validate_unsubscribe(
+  datum: PaymentValidatorDatum,
+  output_reference: OutputReference,
+  tx: Transaction,
+) -> Bool {
+  when datum is {
+    Payment(payment_datum) -> {
+      // Find the input being spent (current Payment Validator UTxO)
+      expect Some(payment_input) =
+        transaction.find_input(tx.inputs, output_reference)
+
+      // Verify that the user has the Account NFT
+      let has_account_nft =
+        list.any(
+          tx.inputs,
+          fn(input) {
+            value.quantity_of(
+              input.output.value,
+              payment_datum.account_nft_tn,
+              #"",
+            ) == 1
+          },
+        )
+
+      // Calculate refund amount (remaining prepaid subscription fee)
+      let current_time = get_current_time(tx.validity_range)
+      let total_subscription_time =
+        payment_datum.subscription_end - payment_datum.subscription_start
+      let time_elapsed =
+        math.min(
+          current_time - payment_datum.subscription_start,
+          total_subscription_time,
+        )
+      let refund_amount =
+        payment_datum.subscription_fee_qty * (
+          total_subscription_time - time_elapsed
+        ) / total_subscription_time
+
+      // Verify refund output to subscriber
+      // Note: We're not checking the subscriber's address directly, as it's not in the datum
+      let refund_output_valid =
+        list.any(
+          tx.outputs,
+          fn(output) {
+            value.quantity_of(
+              output.value,
+              payment_datum.subscription_fee.policy_id,
+              payment_datum.subscription_fee.asset_name,
+            ) >= refund_amount
+          },
+        )
+
+      // Verify Penalty UTxO is created
+      let penalty_output_valid =
+        list.any(
+          tx.outputs,
+          fn(output) {
+            expect penalty: PenaltyDatum = data.output_datum(output)
+            penalty.service_nft_tn == payment_datum.service_nft_tn && value.quantity_of(
+              output.value,
+              penalty.penalty_fee.policy_id,
+              penalty.penalty_fee.asset_name,
+            ) == penalty.penalty_fee_qty
+          },
+        )
+
+      // Verify the Payment NFT is burned
+      let payment_nft_burned =
+        value.quantity_of(
+          value.from_minted_value(tx.mint),
+          payment_datum.service_nft_tn,
+          #"",
+        ) == -1
+
+      and {
+        has_account_nft?,
+        refund_output_valid?,
+        penalty_output_valid?,
+        payment_nft_burned?,
+      }
+    }
+    Penalty(_) -> False
+  }
+}
+
+fn get_current_time(validity_range: Interval<PosixTime>) -> PosixTime {
+  when validity_range.lower_bound is {
+    IntervalBound { bound_type: Finite(time), is_inclusive: _ } -> time
+    _ -> fail @"Invalid lower bound"
+  }
+}
+
+// Updated validate_withdraw function with linear vesting
+fn validate_withdraw(
+  datum: PaymentValidatorDatum,
+  output_reference: OutputReference,
+  tx: Transaction,
+) -> Bool {
+  when datum is {
+    Payment(payment_datum) -> {
+      // Find the input being spent (current Payment Validator UTxO)
+      expect Some(payment_input) =
+        transaction.find_input(tx.inputs, output_reference)
+      let payment_addr = payment_input.output.address
+
+      // Verify that the merchant has the Service NFT
+      let has_service_nft =
+        list.any(
+          tx.inputs,
+          fn(input) {
+            value.quantity_of(
+              input.output.value,
+              payment_datum.service_nft_tn,
+              #"",
+            ) == 1
+          },
+        )
+
+      // Get the current time
+      let current_time = get_current_time(tx.validity_range)
+
+      // Calculate vesting-related values
+      let total_subscription_time =
+        payment_datum.subscription_end - payment_datum.subscription_start
+      let time_elapsed =
+        math.min(
+          current_time - payment_datum.subscription_start,
+          total_subscription_time,
+        )
+      // Calculate withdrawable amount using linear vesting
+      let withdrawable_amount =
+        payment_datum.subscription_fee_qty * time_elapsed / total_subscription_time
+
+      // Verify withdrawal output
+      let withdrawal_output_valid =
+        list.any(
+          tx.outputs,
+          fn(output) {
+            value.quantity_of(
+              output.value,
+              payment_datum.subscription_fee.policy_id,
+              payment_datum.subscription_fee.asset_name,
+            ) == withdrawable_amount
+          },
+        )
+
+      // Verify the Payment NFT is burned
+      let payment_nft_burned =
+        value.quantity_of(
+          value.from_minted_value(tx.mint),
+          payment_datum.service_nft_tn,
+          #"",
+        ) == -1
+
+      // Verify that any remaining funds are returned to the payment validator
+      let remaining_amount =
+        payment_datum.subscription_fee_qty - withdrawable_amount
+      let remaining_funds_returned =
+        if remaining_amount > 0 {
+          list.any(
+            tx.outputs,
+            fn(output) {
+              output.address == payment_addr && value.quantity_of(
+                output.value,
+                payment_datum.subscription_fee.policy_id,
+                payment_datum.subscription_fee.asset_name,
+              ) == remaining_amount
+            },
+          )
+        } else {
+          True
+        }
+
+      and {
+        // Ensure only one input from this script is being spent
+        // count_inputs_at_script(payment_addr, tx.inputs) == 1,
+        has_service_nft?,
+        withdrawal_output_valid?,
+        payment_nft_burned?,
+        remaining_funds_returned?,
+      }
+    }
+
+    Penalty(penalty_datum) -> {
+      // Verify that the merchant has the Service NFT
+      let has_service_nft =
+        list.any(
+          tx.inputs,
+          fn(input) {
+            value.quantity_of(
+              input.output.value,
+              penalty_datum.service_nft_tn,
+              #"",
+            ) == 1
+          },
+        )
+
+      // Verify withdrawal of penalty to merchant
+      let penalty_withdrawal_valid =
+        list.any(
+          tx.outputs,
+          fn(output) {
+            value.quantity_of(
+              output.value,
+              penalty_datum.penalty_fee.policy_id,
+              penalty_datum.penalty_fee.asset_name,
+            ) == penalty_datum.penalty_fee_qty
+          },
+        )
+
+      // Verify the Penalty NFT is burned
+      let penalty_nft_burned =
+        value.quantity_of(
+          value.from_minted_value(tx.mint),
+          penalty_datum.service_nft_tn,
+          #"",
+        ) == -1
+
+      and {
+        has_service_nft?,
+        penalty_withdrawal_valid?,
+        penalty_nft_burned?,
+      }
+    }
+  }
+}
+
+fn validate_extension_datum(
+  old_datum: PaymentDatum,
+  new_datum: PaymentDatum,
+  extension_amount: Int,
+  service_datum: ServiceDatum,
+) -> Bool {
+  let unchanged_fields_valid =
+    old_datum.service_nft_tn == new_datum.service_nft_tn && old_datum.account_nft_tn == new_datum.account_nft_tn && old_datum.subscription_start == new_datum.subscription_start
+
+  let extension_period = new_datum.subscription_end - old_datum.subscription_end
+  let period_extension_valid =
+    extension_period >= service_datum.subscription_period
+
+  //   let period_increased =
+  //     new_datum.subscription_period > old_datum.subscription_period
+  // Updated calculation
+  let expected_fee_increase =
+    extension_period * service_datum.service_fee_qty / service_datum.subscription_period
+
+  let fee_increase_valid = extension_amount >= expected_fee_increase
+  trace @"extension_amount"
+  trace cbor.diagnostic(extension_amount)
+  trace @"expected_fee_increase"
+  trace cbor.diagnostic(expected_fee_increase)
+
+  let valid_end_date = new_datum.subscription_end > new_datum.subscription_start
+
+  // Validate that the extension follows the Service provider rules
+  let follows_service_rules =
+    new_datum.subscription_fee == service_datum.service_fee && new_datum.subscription_period % service_datum.subscription_period == 0
+
+  trace @"unchanged_fields_valid"
+  trace cbor.diagnostic(unchanged_fields_valid)
+  trace @"period_extension_valid"
+  trace cbor.diagnostic(period_extension_valid)
+  trace @"fee_increase_valid"
+  trace cbor.diagnostic(fee_increase_valid)
+  trace @"valid_end_date"
+  trace cbor.diagnostic(valid_end_date)
+  trace @"follows_service_rules"
+  trace cbor.diagnostic(follows_service_rules)
+
+  and {
+    unchanged_fields_valid,
+    period_extension_valid,
+    fee_increase_valid,
+    valid_end_date,
+    follows_service_rules,
+  }
+}
+
+// Helper function to validate payment datum
+fn is_payment_datum_valid(
+  datum: PaymentDatum,
+  service_policy_id: ByteArray,
+  account_policy_id: ByteArray,
+) -> Bool {
+  trace @"Full service_nft_tn"
+  trace cbor.diagnostic(datum.service_nft_tn)
+  trace @"Full account_nft_tn"
+  trace cbor.diagnostic(datum.account_nft_tn)
+
+  trace @"service_policy_id"
+  trace cbor.diagnostic(service_policy_id)
+  trace @"Length"
+  trace cbor.diagnostic(length(service_policy_id))
+  trace @"account_policy_id"
+  trace cbor.diagnostic(account_policy_id)
+
+  // TODO: Verify if the service  NFT and account NFT are valid.
+  //   let service_policy_slice =
+  //     bytearray.slice(datum.service_nft_tn, 0, length(service_policy_id))
+  //   let account_policy_slice =
+  //     bytearray.slice(datum.account_nft_tn, 0, length(account_policy_id))
+  let service_policy_slice =
+    bytearray.take(datum.service_nft_tn, length(service_policy_id))
+  let account_policy_slice =
+    bytearray.take(datum.account_nft_tn, length(account_policy_id))
+
+  trace @"service_policy_slice"
+  trace cbor.diagnostic(service_policy_slice)
+  trace @"account_policy_slice"
+  trace cbor.diagnostic(account_policy_slice)
+
+  let service_nft_valid = service_policy_slice == service_policy_id
+  let account_nft_valid = account_policy_slice == account_policy_id
+
+  let time_valid = datum.subscription_start < datum.subscription_end
+  let amounts_valid =
+    datum.subscription_fee_qty > 0 && datum.subscription_period > 0
+  let period_valid =
+    datum.subscription_end - datum.subscription_start == datum.subscription_period
+
+  trace @"service_nft_valid"
+  trace cbor.diagnostic(service_nft_valid)
+  trace @"account_nft_valid"
+  trace cbor.diagnostic(account_nft_valid)
+  trace @"time_valid"
+  trace cbor.diagnostic(time_valid)
+  trace @"amounts_valid"
+  trace cbor.diagnostic(amounts_valid)
+  trace @"period_valid"
+  trace cbor.diagnostic(period_valid)
+
+  service_nft_valid && account_nft_valid && time_valid && amounts_valid && period_valid
+}
+
+test succeed_initiate_subscription() {
+  let own_cs = tests.test_224_01()
+  let account_cs = tests.test_224_02()
+  let service_cs = tests.test_224_03()
+
+  trace @"service_cs"
+  trace cbor.diagnostic(service_cs)
+  trace @"account_cs"
+  trace cbor.diagnostic(account_cs)
+
+  let tx_hash = tests.test_224_01()
+  let account_tx_hash = tests.test_224_02()
+  let service_tx_hash = tests.test_224_03()
+
+  let init_output_ref = tests.test_input_utxo_02(tx_hash)
+  let input_index = 0
+
+  //   trace @"tx_hash"
+  //   trace cbor.diagnostic(tx_hash)
+  //   trace @"init_output_ref"
+  //   trace cbor.diagnostic(init_output_ref)
+  let payment_tkn = values.unique_token_name(tx_hash, 1, #"")
+  let service_tkn =
+    values.unique_token_name(service_tx_hash, 1, cip68.prefix_100)
+  let user_account_tkn =
+    values.unique_token_name(account_tx_hash, 1, cip68.prefix_222)
+
+  let service_full_tn = bytearray.concat(service_cs, service_tkn)
+  let user_full_tn = bytearray.concat(account_cs, user_account_tkn)
+
+  trace @"service_full_tn"
+  trace cbor.diagnostic(service_full_tn)
+  trace @"user_full_tn"
+  trace cbor.diagnostic(user_full_tn)
+
+  let current_time = 1000000
+  let subscription_period = 30 * 24 * 60 * 60 * 1000
+  // 30 days in milliseconds
+  let service_fee_qty = 10_000_000
+  let penalty_qty = 1_000_000
+
+  // 30 days in milliseconds
+  let service_datum =
+    tests.test_datum_01(service_fee_qty, penalty_qty, subscription_period)
+
+  let payment_fee_qty = 10_000_000
+
+  let payment_datum =
+    tests.test_datum_03(
+      service_full_tn,
+      user_full_tn,
+      payment_fee_qty,
+      current_time,
+      current_time + subscription_period,
+      subscription_period,
+    )
+  let redeemer =
+    InitSubscripton { output_reference: init_output_ref, input_index }
+
+  let payment_value = value.add(value.zero(), own_cs, payment_tkn, 1)
+  let service_value = value.add(value.zero(), service_cs, service_full_tn, 1)
+  let account_value = value.add(value.zero(), account_cs, user_full_tn, 1)
+
+  //   let minted_value = value.merge(service_value, user_value)
+  // trace @"user_output"
+  // trace cbor.diagnostic(user_output)
+  // trace @"script_output"
+  // trace cbor.diagnostic(script_output)
+  let service_input =
+    tests.test_context_input_02(
+      init_output_ref,
+      service_cs,
+      service_value,
+      service_datum,
+    )
+  let account_input =
+    tests.test_context_input_02(
+      init_output_ref,
+      account_cs,
+      account_value,
+      NoDatum,
+    )
+
+  let user_pubkey_hash = tests.test_224_03()
+  let user_output = tests.test_utxo_02(user_pubkey_hash, account_value, NoDatum)
+  let payment_output = tests.test_utxo_02(own_cs, payment_value, payment_datum)
+
+  let insert_timerange =
+    Interval {
+      lower_bound: IntervalBound {
+        bound_type: Finite(current_time),
+        is_inclusive: True,
+      },
+      upper_bound: IntervalBound {
+        bound_type: Finite(current_time + 1),
+        is_inclusive: False,
+      },
+    }
+  let context =
+    ScriptContext {
+      purpose: Mint(own_cs),
+      transaction: Transaction {
+        inputs: [account_input, service_input],
+        reference_inputs: [],
+        // There should be two outputs.
+        outputs: [user_output, payment_output],
+        fee: value.zero(),
+        mint: value.to_minted_value(payment_value),
+        certificates: [],
+        withdrawals: [],
+        validity_range: insert_timerange,
+        extra_signatories: [],
+        redeemers: [],
+        datums: dict.new(),
+        id: TransactionId { hash: tx_hash },
+      },
+    }
+
+  trace @"payment_datum"
+  trace cbor.diagnostic(payment_datum)
+
+  trace @"service_datum"
+  trace cbor.diagnostic(service_datum)
+
+  trace @"account_input"
+  trace cbor.diagnostic(account_input)
+
+  trace @"service_input"
+  trace cbor.diagnostic(service_input)
+
+  trace @"payment_output"
+  trace cbor.diagnostic(payment_output)
+  mint_payment(service_cs, account_cs, redeemer, context)
+}
+
+test succeed_terminate_subscription() {
+  let own_cs = tests.test_224_01()
+  let account_cs = tests.test_224_02()
+  let service_cs = tests.test_224_03()
+
+  let tx_hash = tests.test_224_01()
+  let payment_tx_hash = tests.test_224_02()
+
+  let terminate_output_ref = tests.test_input_utxo_02(payment_tx_hash)
+
+  let payment_tkn = values.unique_token_name(payment_tx_hash, 1, #"")
+
+  let current_time = 1000000
+  // 30 days in milliseconds
+  let subscription_period = 30 * 24 * 60 * 60 * 1000
+  let payment_fee_qty = 10_000_000
+
+  let payment_datum =
+    tests.test_datum_03(
+      service_cs,
+      account_cs,
+      payment_fee_qty,
+      current_time,
+      current_time + subscription_period,
+      subscription_period,
+    )
+  // Create the payment input (the one being spent)
+  let payment_value = value.add(value.zero(), own_cs, payment_tkn, 1)
+
+  let payment_input =
+    tests.test_context_input_02(
+      terminate_output_ref,
+      own_cs,
+      payment_value,
+      payment_datum,
+    )
+
+  // Calculate refund amount (assuming half of the subscription period has passed)
+  let time_elapsed = subscription_period / 2
+  let refund_amount = payment_fee_qty / 2
+
+  // Create refund output
+  let refund_output =
+    tests.test_utxo_02(account_cs, value.from_lovelace(refund_amount), NoDatum)
+
+  // Create penalty output
+  let penalty_fee_qty = 1_000_000
+  let penalty_datum =
+    PenaltyDatum {
+      service_nft_tn: service_cs,
+      penalty_fee: AssetClass {
+        policy_id: value.ada_policy_id,
+        asset_name: value.ada_asset_name,
+      },
+      penalty_fee_qty,
+    }
+  let penalty_output =
+    tests.test_utxo_02(
+      service_cs,
+      value.from_lovelace(penalty_fee_qty),
+      penalty_datum,
+    )
+  // Create the redeemer
+  let redeemer =
+    TerminateSubscription { output_reference: terminate_output_ref }
+
+  let insert_timerange =
+    Interval {
+      lower_bound: IntervalBound {
+        bound_type: Finite(current_time + time_elapsed),
+        is_inclusive: True,
+      },
+      upper_bound: IntervalBound {
+        bound_type: Finite(current_time + time_elapsed + 1),
+        is_inclusive: False,
+      },
+    }
+  // Create the transaction
+  let context =
+    ScriptContext {
+      purpose: Mint(own_cs),
+      transaction: Transaction {
+        inputs: [payment_input],
+        reference_inputs: [],
+        outputs: [refund_output, penalty_output],
+        fee: value.zero(),
+        mint: value.to_minted_value(
+          value.add(value.zero(), own_cs, payment_tkn, -1),
+        ),
+        certificates: [],
+        withdrawals: [],
+        validity_range: insert_timerange,
+        extra_signatories: [],
+        redeemers: [],
+        datums: dict.new(),
+        id: TransactionId { hash: tx_hash },
+      },
+    }
+
+  trace @"own_cs"
+  trace cbor.diagnostic(own_cs)
+  trace @"payment_tkn"
+  trace cbor.diagnostic(payment_tkn)
+  trace @"payment_input"
+  trace cbor.diagnostic(payment_input)
+  trace @"minted_tokens"
+  trace cbor.diagnostic(context.transaction.mint)
+
+  mint_payment(service_cs, account_cs, redeemer, context)
+}
+
+test succeed_extend_subscription() {
+  let own_cs = tests.test_224_01()
+  let account_cs = tests.test_224_02()
+  let service_cs = tests.test_224_03()
+
+  let tx_hash = tests.test_224_01()
+  let payment_tx_hash = tests.test_224_02()
+
+  let extend_output_ref = tests.test_input_utxo_02(payment_tx_hash)
+
+  let payment_tkn = values.unique_token_name(payment_tx_hash, 1, #"")
+
+  let current_time = 1000000
+  // 30 days in milliseconds
+  let initial_subscription_period = 30 * 24 * 60 * 60 * 1000
+  // 1 day subscription period
+  let initial_payment_fee_qty = 10_000_000
+
+  // Create the initial payment datum
+  let initial_payment_datum =
+    tests.test_datum_03(
+      service_cs,
+      account_cs,
+      // (initial_subscription_period / (24 * 60 * 60 * 1000)), // Daily rate
+      initial_payment_fee_qty,
+      current_time,
+      current_time + initial_subscription_period,
+      // 1 day subscription period
+      initial_subscription_period,
+    )
+
+  // Create the payment input (the one being spent)
+  let initial_payment_value =
+    value.add(
+      value.from_lovelace(initial_payment_fee_qty),
+      own_cs,
+      payment_tkn,
+      1,
+    )
+  let payment_input =
+    tests.test_context_input_02(
+      extend_output_ref,
+      own_cs,
+      initial_payment_value,
+      initial_payment_datum,
+    )
+
+  // Define extension parameters
+  let extension_period = 30 * 24 * 60 * 60 * 1000
+  // 30 more days
+  let extension_fee = 10_000_000
+
+  // Same as initial fee for simplicity
+  // Create the new payment datum with extended period and increased fee
+  let new_payment_datum =
+    tests.test_datum_03(
+      service_cs,
+      account_cs,
+      initial_payment_fee_qty + extension_fee,
+      current_time,
+      initial_payment_datum.subscription_end + extension_period,
+      initial_subscription_period + extension_period,
+    )
+
+  // Create the new payment output
+  let new_payment_value =
+    value.add(
+      value.from_lovelace(initial_payment_fee_qty + extension_fee),
+      own_cs,
+      payment_tkn,
+      1,
+    )
+  let new_payment_output =
+    tests.test_utxo_02(own_cs, new_payment_value, new_payment_datum)
+
+  // Create a mock subscriber input (to pay for the extension)
+  let subscriber_pkh = tests.test_224_04()
+  // Assuming this function exists to generate a different hash
+  let subscriber_input =
+    tests.test_context_input_02(
+      tests.test_input_utxo_02(tx_hash),
+      subscriber_pkh,
+      value.from_lovelace(extension_fee + 2_000_000),
+      // Extra for fees
+      NoDatum,
+    )
+
+  // Create the service datum and input
+  let service_datum =
+    tests.test_datum_01(
+      initial_payment_fee_qty,
+      1_000_000,
+      initial_subscription_period,
+    )
+  let service_input =
+    tests.test_context_input_02(
+      tests.test_input_utxo_02(service_cs),
+      service_cs,
+      value.add(value.zero(), service_cs, #"", 1),
+      service_datum,
+    )
+
+  // Create the redeemer
+  let redeemer = Extend(extend_output_ref)
+
+  let insert_timerange =
+    Interval {
+      lower_bound: IntervalBound {
+        bound_type: Finite(current_time),
+        is_inclusive: True,
+      },
+      upper_bound: IntervalBound {
+        bound_type: Finite(current_time + 1),
+        is_inclusive: False,
+      },
+    }
+
+  // Create a user output for change
+  let change_amount = 3_000_000
+
+  // Assuming 2_000_000 for fees
+  let user_change_output =
+    tests.test_user_utxo(
+      subscriber_pkh,
+      value.from_lovelace(change_amount),
+      NoDatum,
+    )
+  // Create the transaction
+  let context =
+    ScriptContext {
+      purpose: Spend(extend_output_ref),
+      transaction: Transaction {
+        inputs: [payment_input, subscriber_input],
+        reference_inputs: [service_input],
+        outputs: [user_change_output, new_payment_output],
+        fee: value.from_lovelace(2_000_000),
+        mint: value.to_minted_value(value.zero()),
+        certificates: [],
+        withdrawals: [],
+        validity_range: insert_timerange,
+        extra_signatories: [],
+        redeemers: [],
+        datums: dict.new(),
+        id: TransactionId { hash: tx_hash },
+      },
+    }
+
+  trace @"Initial Payment Datum"
+  trace cbor.diagnostic(initial_payment_datum)
+  trace @"New Payment Datum"
+  trace cbor.diagnostic(new_payment_datum)
+  trace @"Payment Input"
+  trace cbor.diagnostic(payment_input)
+  trace @"New Payment Output"
+  trace cbor.diagnostic(new_payment_output)
+
+  spend_payment(
+    service_cs,
+    account_cs,
+    Payment(initial_payment_datum),
+    redeemer,
+    context,
+  )
+}
+// test spend_unsubscribe() {
+//   // TODO: Test unsubscribe
+//   True
 // }
-// use aiken/transaction/credential.{ScriptCredential, VerificationKey}
-// use aiken/transaction/value.{AssetName, flatten, from_minted_value}
-// // use assist/count
-// use assist/find
-// use assist/minting
-// use assist/payout
-// use assist/signing
-// use assist/types/cip68
-// use assist/values
-// use payment_subscription/types.{
-//   InitSubscripton, MintPayment, PaymentDatum, TerminateSubscription,
-// }
-// use payment_subscription/utils
 
-// // Use redeemer to burn or mint
-// validator(
-//   issuer: Hash<Blake2b_224, VerificationKey>,
-//   utxo_ref: OutputReference,
-//   store: Hash<Blake2b_224, VerificationKey>,
-// ) {
-//   fn mint(r: MintPayment, ctx: ScriptContext) -> Bool {
-//     let ScriptContext { transaction: tx, purpose } = ctx
-//     expect Mint(own_policy) = purpose
-
-//     let Transaction { inputs, mint, outputs, .. } = tx
-
-//     // TODO: Convert to expect
-//     // Ensure only one NFT is being minted.
-//     let mint_flat =
-//       mint
-//         |> from_minted_value()
-//         |> flatten()
-
-//     when r is {
-//       types.InitSubscripton -> {
-//         let first_txid = find.first_input_txid(inputs)
-//         let first_idx = find.first_input_index(inputs)
-
-//         let ref_tkn =
-//           values.unique_token_name(first_txid, first_idx, cip68.prefix_100)
-//         let ref_value = value.from_asset(own_policy, ref_tkn, 1)
-
-//         let user_tkn =
-//           values.unique_token_name(first_txid, first_idx, cip68.prefix_222)
-
-//         let store_address = credential.from_script(store)
-//         trace cbor.diagnostic(ref_value)
-
-//         let output_utxo =
-//           utils.output_by_addr_value(outputs, store_address, ref_value)
-
-//         // Only one UTxO must be produced at the script address.
-//         //Ensure that the value carries a propper NFT.
-//         // expect [
-//         //   Output {
-//         //     datum: InlineDatum(list_head_datum),
-//         //     value: list_head_value,
-//         //     ..
-//         //   },
-//         // ] =
-//         //   list.filter(
-//         //     outputs,
-//         //     fn(output) {
-//         //       output.address.payment_credential == ScriptCredential(own_policy)
-//         //     },
-//         //   )
-//         // trace cbor.diagnostic(ref_value)
-//         and {
-//           signing.verify_sig(tx.extra_signatories, issuer)?,
-//           // Allow only two nfts to be minted at once
-//           (list.length(mint_flat) == 2)?,
-//           // Prevent byte overflow leading to duplicate asset names
-//           first_idx < 256,
-//           // Check reference nft being minted
-//           minting.exact(mint_flat, own_policy, ref_tkn, 1)?,
-//           // Check user nft being minted
-//           minting.exact(mint_flat, own_policy, user_tkn, 1)?,
-//           // Must send the reference nft to store address
-//           payout.at_least(store_address, ref_value, outputs)?,
-//           utils.check_output_utxo(output_utxo)?,
-//         }
-//       }
-//       // expect
-//       //   list.any(inputs, fn(input) { input.output_reference == utxo_ref })
-//       // expect (1 == amount)?
-//       // expect (asset_name == token_name)?
-//       // True
-//       types.TerminateSubscription -> and {
-//           signing.verify_sig(tx.extra_signatories, issuer)?,
-//           // Check nfts with ref and user token prefixes are burnt
-//           minting.by_prefix(mint_flat, own_policy, cip68.prefix_100, -1)?,
-//           minting.by_prefix(mint_flat, own_policy, cip68.prefix_222, -1)?,
-//           // Must burn exactly one nft pair. Check token names to ensure the nft pairs are correct
-//           when mint_flat is {
-//             [(_pid1, tkn1, _amt1), (_pid2, tkn2, _amt2)] ->
-//               bytearray.compare(
-//                 bytearray.drop(tkn1, 4),
-//                 bytearray.drop(tkn2, 4),
-//               ) == Equal
-//             _ -> False
-//           },
-//         }
-//     }
-//   }
-
-//   fn spend(datum: PaymentDatum, _redeemer: Void, ctx: ScriptContext) -> Bool {
-//     todo
-//   }
+// test spend_withdraw() {
+//   // TODO: Test withdraw
+//   True
 // }

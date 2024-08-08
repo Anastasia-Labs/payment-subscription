@@ -24,15 +24,15 @@ use payment_subscription/types.{
   CreateService, DeleteService, MintService, RemoveService, ServiceDatum,
   SpendService, UpdateService,
 }
-use payment_subscription/utils
+use payment_subscription/utils.{validate_token_output}
 
 // This validator script handles minting and spending of service NFTs
-// TODO: Multiplier for the discount and the Penalty.
-// TODO: Ensure deadline  for withdrawing when Service NFT has been removed.
-// TODO: Allow staking rewards for the subscriber 
-// TODO: Allow Fixed subscription Period
+// TODO: Multiplier for the discount and the Penalty (Last).
+// TODO: Ensure deadline  for withdrawing when Service NFT has been removed. (Later)
+// TODO: Allow staking rewards for the subscriber (Later)
 // TODO: Last Claimed in datum and Can't claim until one month has passed.(Add counter)
 // TODO: Reference the penalty datum from the Service validator as Datum in Payments
+
 validator {
   // Minting function: handles creation and deletion of service NFTs
   fn mint_service(r: MintService, ctx: ScriptContext) -> Bool {
@@ -45,7 +45,7 @@ validator {
     // Provide the OutRef as the Redeemer
     when r is {
       CreateService { output_reference, input_index } -> {
-        // TODO: Ensure this outref is spent in this transaction
+        // Ensure this outref is spent in this transaction
         expect Some(input) = list.at(inputs, input_index)
         let is_outref_spent = input.output_reference == output_reference
 
@@ -277,24 +277,6 @@ validator {
 }
 
 // Helper function to validate service fee changes
-fn validate_token_output(
-  output: Output,
-  policy: PolicyId,
-  token_name: ByteArray,
-  expected_credential: Credential,
-  expect_script: Bool,
-) -> Bool {
-  let token_quantity = value.quantity_of(output.value, policy, token_name)
-  let payment_credential = output.address.payment_credential
-
-  token_quantity == 1 && if expect_script {
-    payment_credential == expected_credential
-  } else {
-    payment_credential != expected_credential
-  }
-}
-
-// Helper function to validate service fee changes
 fn is_metadata_valid(datum: ServiceDatum) -> Bool {
   // Implement logic to ensure fee changes are within acceptable range
   // For example, limit changes to ±10%
@@ -325,7 +307,7 @@ fn is_fee_change_valid(old_fee: Int, new_fee: Int) -> Bool {
   abs(new_fee - old_fee) <= max_change
 }
 
-test can_create_service() {
+test success_create_service() {
   let own_cs = tests.test_224_01()
   let tx_hash = tests.test_224_02()
   let init_output_ref = tests.test_input_utxo_02(tx_hash)
@@ -384,7 +366,7 @@ test can_create_service() {
 // Token Spam Attacks
 // Unbounded datums
 // Staking theft attack (Change Staking Credentials)
-test can_delete_service() {
+test success_delete_service() {
   let own_cs = tests.test_224_01()
   let tx_hash = tests.test_224_02()
   let init_output_ref = tests.test_input_utxo_02(tx_hash)
@@ -437,7 +419,7 @@ test can_delete_service() {
   mint_service(redeemer, context)
 }
 
-test can_update_service() {
+test success_update_service() {
   let own_cs = tests.test_224_01()
   let tx_hash = tests.test_224_02()
   let init_output_ref = tests.test_input_utxo_02(tx_hash)
@@ -494,7 +476,7 @@ test can_update_service() {
   spend_service(datum, redeemer, context)
 }
 
-test can_remove_service() {
+test success_remove_service() {
   let own_cs = tests.test_224_01()
   let tx_hash = tests.test_224_02()
   let init_output_ref = tests.test_input_utxo_02(tx_hash)

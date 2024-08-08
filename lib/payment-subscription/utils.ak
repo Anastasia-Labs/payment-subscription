@@ -1,8 +1,8 @@
 use aiken/cbor
 use aiken/list
 use aiken/transaction.{Output}
-use aiken/transaction/credential.{Address}
-use aiken/transaction/value.{Value}
+use aiken/transaction/credential.{Address, Credential}
+use aiken/transaction/value.{PolicyId, Value}
 use assist/values
 
 // use payment_subscription/types.{MetaDatum}
@@ -63,5 +63,28 @@ pub fn output_by_value(outputs: List<Output>, value: Value) -> Output {
       }
     // nothing was found
     [] -> fail @"No Output found"
+  }
+}
+
+// Helper function to validate where the NFT goes
+pub fn validate_token_output(
+  output: Output,
+  policy: PolicyId,
+  token_name: ByteArray,
+  expected_credential: Credential,
+  expect_script: Bool,
+) -> Bool {
+  let token_quantity = value.quantity_of(output.value, policy, token_name)
+  let payment_credential = output.address.payment_credential
+
+  trace @"token_name"
+  trace cbor.diagnostic(token_name)
+  trace @"token_quantity"
+  trace cbor.diagnostic(token_quantity)
+
+  token_quantity == 1 && if expect_script {
+    payment_credential == expected_credential
+  } else {
+    payment_credential != expected_credential
   }
 }

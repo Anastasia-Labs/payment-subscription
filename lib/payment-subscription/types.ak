@@ -66,8 +66,15 @@ pub type AccountDatum {
 
 // Payment Mint Purpose Redeemer
 pub type MintPayment {
-  InitSubscripton
-  TerminateSubscription
+  InitSubscripton { output_reference: OutputReference, input_index: Int }
+  TerminateSubscription { output_reference: OutputReference }
+}
+
+// Payment Spend Purpose Redeemer
+pub type SpendPayment {
+  Extend { output_reference: OutputReference }
+  Unsubscribe
+  Withdraw
 }
 
 // Datum type 
@@ -78,11 +85,17 @@ pub type PaymentDatum {
   subscription_fee_qty: Int,
   subscription_start: POSIXTime,
   subscription_end: POSIXTime,
-  total_installments: Int,
+  subscription_period: Int,
 }
-// // Datum type 
-// pub type MetaDatum {
-//   metadata: Dict<ByteArray, Data>,
-//   version: Int,
-//   extra: ByteArray,
-// }
+
+// penalty_datum
+pub type PenaltyDatum {
+  service_nft_tn: AssetName,
+  penalty_fee: AssetClass,
+  penalty_fee_qty: Int,
+}
+
+pub type PaymentValidatorDatum {
+  Payment(PaymentDatum)
+  Penalty(PenaltyDatum)
+}

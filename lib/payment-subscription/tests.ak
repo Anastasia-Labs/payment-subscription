@@ -7,7 +7,7 @@ use aiken/transaction.{
 use aiken/transaction/credential.{Address, ScriptCredential}
 use aiken/transaction/value
 use payment_subscription/types.{
-  AccountDatum, AssetClass, POSIXTime, ServiceDatum,
+  AccountDatum, AssetClass, POSIXTime, PaymentDatum, ServiceDatum,
 }
 
 // Generate a bytearray with blake2b_256
@@ -23,6 +23,10 @@ pub fn test_224_02() {
 // Generate a bytearray with blake2b_256
 pub fn test_224_03() {
   bytearray.take(blake2b_256(#"03"), 28)
+}
+
+pub fn test_224_04() {
+  bytearray.take(blake2b_256(#"04"), 28)
 }
 
 // Create a UTxO
@@ -49,7 +53,7 @@ pub fn test_utxo_02(own_cs, minted_value, datum) {
       minted_value,
       value.ada_policy_id,
       value.ada_asset_name,
-      4_000_000,
+      40_000_000,
     ),
     datum: InlineDatum(datum),
     reference_script: None,
@@ -140,4 +144,26 @@ pub fn test_datum_02(
   account_end: POSIXTime,
 ) {
   AccountDatum { email, phone, account_start, account_end }
+}
+
+pub fn test_datum_03(
+  service_tn: ByteArray,
+  account_tn: ByteArray,
+  fee_qty: Int,
+  subsc_start: POSIXTime,
+  subsc_end: POSIXTime,
+  subsc_period: POSIXTime,
+) {
+  PaymentDatum {
+    service_nft_tn: service_tn,
+    account_nft_tn: account_tn,
+    subscription_fee: AssetClass {
+      policy_id: value.ada_policy_id,
+      asset_name: value.ada_asset_name,
+    },
+    subscription_fee_qty: fee_qty,
+    subscription_start: subsc_start,
+    subscription_end: subsc_end,
+    subscription_period: subsc_period,
+  }
 }
