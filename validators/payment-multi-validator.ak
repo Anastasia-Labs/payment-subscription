@@ -213,6 +213,8 @@ validator(service_policy_id: ByteArray, account_policy_id: ByteArray) {
   }
 
   fn spend_payment(
+    // service_policy_id: ByteArray,
+    // account_policy_id: ByteArray,
     datum: PaymentValidatorDatum,
     redeemer: SpendPayment,
     ctx: ScriptContext,
@@ -222,7 +224,14 @@ validator(service_policy_id: ByteArray, account_policy_id: ByteArray) {
     expect Spend(output_reference) = purpose
 
     when redeemer is {
-      Extend(output_reference) -> validate_extend(datum, output_reference, tx)
+      Extend(output_reference) ->
+        validate_extend(
+          service_policy_id,
+          account_policy_id,
+          datum,
+          output_reference,
+          tx,
+        )
       Unsubscribe -> validate_unsubscribe(datum, output_reference, tx)
       Withdraw -> validate_withdraw(datum, output_reference, tx)
     }
@@ -230,6 +239,8 @@ validator(service_policy_id: ByteArray, account_policy_id: ByteArray) {
 }
 
 fn validate_extend(
+  service_policy_id: ByteArray,
+  account_policy_id: ByteArray,
   datum: PaymentValidatorDatum,
   output_reference: OutputReference,
   tx: Transaction,
@@ -237,23 +248,49 @@ fn validate_extend(
   when datum is {
     Payment(payment_datum) -> {
       // Find the input being spent (current Payment Validator UTxO)
-      expect Some(payment_input) =
-        transaction.find_input(tx.inputs, output_reference)
+      //   expect Some(payment_input) =
+      //     transaction.find_input(tx.inputs, output_reference)
+      expect [account_input, payment_input, ..] = tx.inputs
+
+      trace @"account_input"
+      trace cbor.diagnostic(account_input)
+      trace @"payment_input"
+      trace cbor.diagnostic(payment_input)
+
       let payment_addr = payment_input.output.address
       // let payment_credential =
       //   credential.from_script(ctx.get_current_validator_hash())
       // Extract the payment NFT from the input
-      let payment_nft =
-        payment_input.output.value
-          |> value.without_lovelace()
-      expect [(policy_id, asset_name, _)] = value.flatten(payment_nft)
+      let payment_nft = payment_input.output.value |> value.without_lovelace()
+      expect [(policy_id, asset_name, 1)] = value.flatten(payment_nft)
 
       // Find the new payment output
-      expect [user_output, payment_output, ..] = tx.outputs
+      expect [account_output, payment_output, ..] = tx.outputs
 
-      // Extract and validate the new datum
-      expect new_datum: PaymentDatum = data.output_datum(payment_output)
+      // let payment_policy_id = policy_id
+      // Verify the payment NFT is preserved
+      let payment_nft_preserved =
+        value.quantity_of(payment_output.value, policy_id, asset_name) == 1
 
+      // Extract the account NFT from the input
+      // let account_nft = account_input.output.value |> value.without_lovelace()
+      // expect [(policy_id, asset_name, 1)] = value.flatten(account_nft)
+      // Verify the account NFT is preserved
+      // let account_nft_preserved =
+      //   value.quantity_of(account_output.value, account_policy_id, asset_name) == 1
+      trace @"accouaccount_nftnt_input"
+      trace cbor.diagnostic(account_input)
+      trace @"policy_id"
+      trace cbor.diagnostic(policy_id)
+      trace @"account_policy_id"
+      trace cbor.diagnostic(account_policy_id)
+
+      // let validate_account_policy = account_policy_id == policy_id
+      trace @"payment_nft"
+      trace cbor.diagnostic(payment_nft)
+
+      // trace @"account_nft"
+      // trace cbor.diagnostic(account_nft)
       // Get the service input from reference inputs
       expect [service_input, ..] = tx.reference_inputs
       expect service_datum: ServiceDatum =
@@ -265,8 +302,29 @@ fn validate_extend(
       // Verify the new payment output
       let original_amount = value.lovelace_of(payment_input.output.value)
       let new_amount = value.lovelace_of(payment_output.value)
-      let amount_increased = new_amount > original_amount
+      let amount_increased = new_amount >= original_amount
       let extension_amount = new_amount - original_amount
+
+      // Extract and validate the new datum
+      expect new_datum: PaymentDatum = data.output_datum(payment_output)
+
+      trace @"original_amount"
+      trace cbor.diagnostic(original_amount)
+      trace @"new_amount"
+      trace cbor.diagnostic(new_amount)
+      trace @"amount_increased"
+      trace cbor.diagnostic(amount_increased)
+
+      // Calculate and validate the fee increase
+      let extension_period =
+        new_datum.subscription_end - payment_datum.subscription_end
+      let service_fee_rate =
+        service_datum.service_fee_qty / service_datum.subscription_period
+      let minimum_expected_fee_increase = extension_period * service_fee_rate
+
+      let actual_fee_increase = new_amount - original_amount
+      let fee_increase_valid =
+        actual_fee_increase >= minimum_expected_fee_increase
 
       // Validate that the extension follows the Service provider rules
       let valid_extension =
@@ -277,43 +335,30 @@ fn validate_extend(
           service_datum,
         )
 
-      trace @"payment_output"
-      trace cbor.diagnostic(payment_output)
-      trace @"user_output"
-      trace cbor.diagnostic(user_output)
-
-      // Calculate and validate the fee increase
-      let fee_per_period =
-        payment_datum.subscription_fee_qty / payment_datum.subscription_period
-      let expected_fee_increase =
-        fee_per_period * (
-          new_datum.subscription_period - payment_datum.subscription_period
-        )
-      let actual_fee_increase = new_amount - original_amount
-      let fee_increase_valid = actual_fee_increase == expected_fee_increase
-
-      // Verify the payment NFT is preserved
-      let payment_nft_preserved =
-        value.quantity_of(payment_output.value, policy_id, asset_name) == 1
-
-      // Verify the output goes back to the same script address
       let correct_output_address = payment_output.address == payment_addr
 
-      // Verify subscriber's input
-      let subscriber_input_valid =
-        list.any(
-          tx.inputs,
-          fn(input) {
-            value.lovelace_of(input.output.value) >= new_amount - original_amount && input.output.address != payment_addr
-          },
-        )
+      trace @"valid_extension"
+      trace cbor.diagnostic(valid_extension)
+      trace @"fee_increase_valid"
+      trace cbor.diagnostic(fee_increase_valid)
+      // trace @"account_nft_preserved"
+      // trace cbor.diagnostic(account_nft_preserved)
+      trace @"payment_nft_preserved"
+      trace cbor.diagnostic(payment_nft_preserved)
+      trace @"fee_increase_valid"
+      trace cbor.diagnostic(fee_increase_valid)
+      // trace @"service_nft_present"
+      // trace cbor.diagnostic(service_nft_present)
+      trace @"correct_output_address"
+      trace cbor.diagnostic(correct_output_address)
 
       and {
+        // validate_account_policy?,
         amount_increased?,
         valid_extension?,
         fee_increase_valid?,
+        // account_nft_preserved?,
         payment_nft_preserved?,
-        subscriber_input_valid?,
         correct_output_address?,
         payout.at_least(payment_addr, payment_input.output.value, tx.outputs)?,
       }
@@ -405,13 +450,6 @@ fn validate_unsubscribe(
       }
     }
     Penalty(_) -> False
-  }
-}
-
-fn get_current_time(validity_range: Interval<PosixTime>) -> PosixTime {
-  when validity_range.lower_bound is {
-    IntervalBound { bound_type: Finite(time), is_inclusive: _ } -> time
-    _ -> fail @"Invalid lower bound"
   }
 }
 
@@ -593,11 +631,18 @@ fn validate_extension_datum(
   trace cbor.diagnostic(follows_service_rules)
 
   and {
-    unchanged_fields_valid,
-    period_extension_valid,
-    fee_increase_valid,
-    valid_end_date,
-    follows_service_rules,
+    unchanged_fields_valid?,
+    period_extension_valid?,
+    fee_increase_valid?,
+    valid_end_date?,
+    follows_service_rules?,
+  }
+}
+
+fn get_current_time(validity_range: Interval<PosixTime>) -> PosixTime {
+  when validity_range.lower_bound is {
+    IntervalBound { bound_type: Finite(time), is_inclusive: _ } -> time
+    _ -> fail @"Invalid lower bound"
   }
 }
 
@@ -693,8 +738,8 @@ test succeed_initiate_subscription() {
   trace cbor.diagnostic(user_full_tn)
 
   let current_time = 1000000
-  let subscription_period = 30 * 24 * 60 * 60 * 1000
   // 30 days in milliseconds
+  let subscription_period = 30 * 24 * 60 * 60 * 1000
   let service_fee_qty = 10_000_000
   let penalty_qty = 1_000_000
 
@@ -800,7 +845,8 @@ test succeed_terminate_subscription() {
   let tx_hash = tests.test_224_01()
   let payment_tx_hash = tests.test_224_02()
 
-  let terminate_output_ref = tests.test_input_utxo_02(payment_tx_hash)
+  let init_output_ref = tests.test_input_utxo_02(tx_hash)
+  let script_output_ref = tests.test_input_utxo_02(payment_tx_hash)
 
   let payment_tkn = values.unique_token_name(payment_tx_hash, 1, #"")
 
@@ -818,12 +864,22 @@ test succeed_terminate_subscription() {
       current_time + subscription_period,
       subscription_period,
     )
-  // Create the payment input (the one being spent)
-  let payment_value = value.add(value.zero(), own_cs, payment_tkn, 1)
 
+  let user_account_tkn = values.unique_token_name(tx_hash, 1, cip68.prefix_222)
+  let payment_tkn = values.unique_token_name(payment_tx_hash, 1, #"")
+
+  let payment_full_tn = bytearray.concat(own_cs, payment_tkn)
+  let user_full_tn = bytearray.concat(account_cs, user_account_tkn)
+
+  let payment_value = value.add(value.zero(), own_cs, payment_tkn, 1)
+  let account_value = value.add(value.zero(), account_cs, user_full_tn, 1)
+
+  // Create the payment input (the one being spent)
+  let user_input =
+    tests.test_context_input_02(init_output_ref, own_cs, account_value, NoDatum)
   let payment_input =
     tests.test_context_input_02(
-      terminate_output_ref,
+      script_output_ref,
       own_cs,
       payment_value,
       payment_datum,
@@ -855,8 +911,7 @@ test succeed_terminate_subscription() {
       penalty_datum,
     )
   // Create the redeemer
-  let redeemer =
-    TerminateSubscription { output_reference: terminate_output_ref }
+  let redeemer = TerminateSubscription { output_reference: script_output_ref }
 
   let insert_timerange =
     Interval {
@@ -874,7 +929,7 @@ test succeed_terminate_subscription() {
     ScriptContext {
       purpose: Mint(own_cs),
       transaction: Transaction {
-        inputs: [payment_input],
+        inputs: [user_input, payment_input],
         reference_inputs: [],
         outputs: [refund_output, penalty_output],
         fee: value.zero(),
@@ -910,15 +965,21 @@ test succeed_extend_subscription() {
 
   let tx_hash = tests.test_224_01()
   let payment_tx_hash = tests.test_224_02()
+  let service_tx_hash = tests.test_224_03()
 
   let extend_output_ref = tests.test_input_utxo_02(payment_tx_hash)
 
   let payment_tkn = values.unique_token_name(payment_tx_hash, 1, #"")
+  let service_tkn =
+    values.unique_token_name(service_tx_hash, 1, cip68.prefix_100)
+  let user_account_tkn = values.unique_token_name(tx_hash, 1, cip68.prefix_222)
+
+  let service_value = value.add(value.zero(), service_cs, service_tkn, 1)
+  let user_value = value.add(value.zero(), account_cs, user_account_tkn, 1)
 
   let current_time = 1000000
   // 30 days in milliseconds
   let initial_subscription_period = 30 * 24 * 60 * 60 * 1000
-  // 1 day subscription period
   let initial_payment_fee_qty = 10_000_000
 
   // Create the initial payment datum
@@ -930,10 +991,8 @@ test succeed_extend_subscription() {
       initial_payment_fee_qty,
       current_time,
       current_time + initial_subscription_period,
-      // 1 day subscription period
       initial_subscription_period,
     )
-
   // Create the payment input (the one being spent)
   let initial_payment_value =
     value.add(
@@ -949,12 +1008,10 @@ test succeed_extend_subscription() {
       initial_payment_value,
       initial_payment_datum,
     )
-
   // Define extension parameters
-  let extension_period = 30 * 24 * 60 * 60 * 1000
   // 30 more days
+  let extension_period = 30 * 24 * 60 * 60 * 1000
   let extension_fee = 10_000_000
-
   // Same as initial fee for simplicity
   // Create the new payment datum with extended period and increased fee
   let new_payment_datum =
@@ -966,7 +1023,6 @@ test succeed_extend_subscription() {
       initial_payment_datum.subscription_end + extension_period,
       initial_subscription_period + extension_period,
     )
-
   // Create the new payment output
   let new_payment_value =
     value.add(
@@ -977,19 +1033,17 @@ test succeed_extend_subscription() {
     )
   let new_payment_output =
     tests.test_utxo_02(own_cs, new_payment_value, new_payment_datum)
-
   // Create a mock subscriber input (to pay for the extension)
   let subscriber_pkh = tests.test_224_04()
   // Assuming this function exists to generate a different hash
-  let subscriber_input =
+  let account_input =
     tests.test_context_input_02(
       tests.test_input_utxo_02(tx_hash),
       subscriber_pkh,
-      value.from_lovelace(extension_fee + 2_000_000),
+      user_value,
       // Extra for fees
       NoDatum,
     )
-
   // Create the service datum and input
   let service_datum =
     tests.test_datum_01(
@@ -1001,13 +1055,11 @@ test succeed_extend_subscription() {
     tests.test_context_input_02(
       tests.test_input_utxo_02(service_cs),
       service_cs,
-      value.add(value.zero(), service_cs, #"", 1),
+      service_value,
       service_datum,
     )
-
   // Create the redeemer
   let redeemer = Extend(extend_output_ref)
-
   let insert_timerange =
     Interval {
       lower_bound: IntervalBound {
@@ -1019,10 +1071,8 @@ test succeed_extend_subscription() {
         is_inclusive: False,
       },
     }
-
   // Create a user output for change
   let change_amount = 3_000_000
-
   // Assuming 2_000_000 for fees
   let user_change_output =
     tests.test_user_utxo(
@@ -1035,10 +1085,11 @@ test succeed_extend_subscription() {
     ScriptContext {
       purpose: Spend(extend_output_ref),
       transaction: Transaction {
-        inputs: [payment_input, subscriber_input],
+        inputs: [account_input, payment_input],
         reference_inputs: [service_input],
         outputs: [user_change_output, new_payment_output],
-        fee: value.from_lovelace(2_000_000),
+        // fee: value.from_lovelace(2_000_000),
+        fee: value.zero(),
         mint: value.to_minted_value(value.zero()),
         certificates: [],
         withdrawals: [],
@@ -1049,7 +1100,6 @@ test succeed_extend_subscription() {
         id: TransactionId { hash: tx_hash },
       },
     }
-
   trace @"Initial Payment Datum"
   trace cbor.diagnostic(initial_payment_datum)
   trace @"New Payment Datum"
@@ -1058,7 +1108,6 @@ test succeed_extend_subscription() {
   trace cbor.diagnostic(payment_input)
   trace @"New Payment Output"
   trace cbor.diagnostic(new_payment_output)
-
   spend_payment(
     service_cs,
     account_cs,
@@ -1067,11 +1116,6 @@ test succeed_extend_subscription() {
     context,
   )
 }
-// test spend_unsubscribe() {
-//   // TODO: Test unsubscribe
-//   True
-// }
-
 // test spend_withdraw() {
 //   // TODO: Test withdraw
 //   True
