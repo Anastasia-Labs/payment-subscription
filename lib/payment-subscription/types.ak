@@ -85,12 +85,15 @@ pub type PaymentDatum {
   subscription_fee_qty: Int,
   subscription_start: POSIXTime,
   subscription_end: POSIXTime,
-  subscription_period: Int,
+  subscription_period: POSIXTime,
+  penalty_fee: AssetClass,
+  penalty_fee_qty: Int,
 }
 
 // penalty_datum
 pub type PenaltyDatum {
   service_nft_tn: AssetName,
+  account_nft_tn: AssetName,
   penalty_fee: AssetClass,
   penalty_fee_qty: Int,
 }

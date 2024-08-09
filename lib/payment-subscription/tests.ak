@@ -1,13 +1,16 @@
 use aiken/bytearray
+use aiken/dict
 use aiken/hash.{blake2b_256}
+use aiken/interval.{Finite, Interval, IntervalBound}
 // use aiken/list
 use aiken/transaction.{
-  InlineDatum, Input, Output, OutputReference, TransactionId,
+  InlineDatum, Input, Output, OutputReference, ScriptContext, Spend, Transaction,
+  TransactionId,
 }
 use aiken/transaction/credential.{Address, ScriptCredential}
 use aiken/transaction/value
 use payment_subscription/types.{
-  AccountDatum, AssetClass, POSIXTime, PaymentDatum, ServiceDatum,
+  AccountDatum, AssetClass, POSIXTime, PaymentDatum, PenaltyDatum, ServiceDatum,
 }
 
 // Generate a bytearray with blake2b_256
@@ -27,6 +30,19 @@ pub fn test_224_03() {
 
 pub fn test_224_04() {
   bytearray.take(blake2b_256(#"04"), 28)
+}
+
+// Generate a bytearray with blake2b_256
+pub fn test_account_cs() {
+  bytearray.take(blake2b_256(#"05"), 28)
+}
+
+pub fn test_service_cs() {
+  bytearray.take(blake2b_256(#"06"), 28)
+}
+
+pub fn test_payment_cs() {
+  bytearray.take(blake2b_256(#"07"), 28)
 }
 
 // Create a UTxO
@@ -153,6 +169,7 @@ pub fn test_datum_03(
   subsc_start: POSIXTime,
   subsc_end: POSIXTime,
   subsc_period: POSIXTime,
+  penalty_fee: Int,
 ) {
   PaymentDatum {
     service_nft_tn: service_tn,
@@ -165,5 +182,72 @@ pub fn test_datum_03(
     subscription_start: subsc_start,
     subscription_end: subsc_end,
     subscription_period: subsc_period,
+    penalty_fee: AssetClass {
+      policy_id: value.ada_policy_id,
+      asset_name: value.ada_asset_name,
+    },
+    penalty_fee_qty: penalty_fee,
+  }
+}
+
+pub fn test_time_range(lower_bound: POSIXTime, upper_bound: POSIXTime) {
+  Interval {
+    lower_bound: IntervalBound {
+      bound_type: Finite(lower_bound),
+      is_inclusive: True,
+    },
+    upper_bound: IntervalBound {
+      bound_type: Finite(upper_bound),
+      is_inclusive: False,
+    },
+  }
+}
+
+pub fn test_penalty_datum(
+  service_tn: ByteArray,
+  account_tn: ByteArray,
+  fee_qty: Int,
+) {
+  PenaltyDatum {
+    service_nft_tn: service_tn,
+    account_nft_tn: account_tn,
+    penalty_fee: AssetClass {
+      policy_id: value.ada_policy_id,
+      asset_name: value.ada_asset_name,
+    },
+    penalty_fee_qty: fee_qty,
+  }
+}
+
+pub fn test_spend_script_context(
+  output_ref,
+  // can be one or many
+  main_inputs,
+  // can be one or many
+  ref_inputs,
+  // can be one or many
+  main_outputs,
+  // can be one or many
+  minted_value,
+  time_range,
+  tx_hash: ByteArray,
+) {
+  ScriptContext {
+    purpose: Spend(output_ref),
+    transaction: Transaction {
+      inputs: main_inputs,
+      reference_inputs: ref_inputs,
+      outputs: main_outputs,
+      // fee: value.from_lovelace(2_000_000),
+      fee: value.zero(),
+      mint: value.to_minted_value(minted_value),
+      certificates: [],
+      withdrawals: [],
+      validity_range: time_range,
+      extra_signatories: [],
+      redeemers: [],
+      datums: dict.new(),
+      id: TransactionId { hash: tx_hash },
+    },
   }
 }

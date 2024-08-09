@@ -232,8 +232,22 @@ validator(service_policy_id: ByteArray, account_policy_id: ByteArray) {
           output_reference,
           tx,
         )
-      Unsubscribe -> validate_unsubscribe(datum, output_reference, tx)
-      Withdraw -> validate_withdraw(datum, output_reference, tx)
+      Unsubscribe ->
+        validate_unsubscribe(
+          service_policy_id,
+          account_policy_id,
+          datum,
+          output_reference,
+          tx,
+        )
+      Withdraw ->
+        validate_withdraw(
+          service_policy_id,
+          account_policy_id,
+          datum,
+          output_reference,
+          tx,
+        )
     }
   }
 }
@@ -368,7 +382,11 @@ fn validate_extend(
   }
 }
 
+// Validate that the logic follows the Service provider rules / datum as a refernce input to ensure the
+// penalty goes to the merchant when paying the penalty fees.
 fn validate_unsubscribe(
+  service_policy_id: ByteArray,
+  account_policy_id: ByteArray,
   datum: PaymentValidatorDatum,
   output_reference: OutputReference,
   tx: Transaction,
@@ -376,22 +394,53 @@ fn validate_unsubscribe(
   when datum is {
     Payment(payment_datum) -> {
       // Find the input being spent (current Payment Validator UTxO)
-      expect Some(payment_input) =
-        transaction.find_input(tx.inputs, output_reference)
+      // expect Some(payment_input) =
+      //   transaction.find_input(tx.inputs, output_reference)
 
       // Verify that the user has the Account NFT
-      let has_account_nft =
-        list.any(
-          tx.inputs,
-          fn(input) {
-            value.quantity_of(
-              input.output.value,
-              payment_datum.account_nft_tn,
-              #"",
-            ) == 1
-          },
-        )
+      expect [account_input, payment_input, ..] = tx.inputs
 
+      let account_nft = account_input.output.value |> value.without_lovelace()
+      expect [(policy_id, asset_name, 1)] = value.flatten(account_nft)
+
+      let has_account_nft =
+        policy_id == account_policy_id && asset_name == payment_datum.account_nft_tn
+
+      let payment_nft = payment_input.output.value |> value.without_lovelace()
+      expect [(policy_id, asset_name, 1)] = value.flatten(payment_nft)
+
+      // Verify Penalty UTxO is created
+      expect [account_output, penalty_output, ..] = tx.outputs
+
+      let payment_payment_credential = credential.ScriptCredential(policy_id)
+
+      // let payment_token_to_script =
+      //   validate_token_output(
+      //     penalty_output,
+      //     policy_id,
+      //     asset_name,
+      //     payment_payment_credential,
+      //     True,
+      //   )
+      // let payment_nft_preserved =
+      //   value.quantity_of(penalty_output.value, policy_id, asset_name) == 1
+      // TODO: Use this to be more specific. 
+      // let has_account_nft =
+      //   value.quantity_of(
+      //     account_input.output.value,
+      //     policy_id,
+      //     payment_datum.account_nft_tn,
+      //   ) == 1
+      trace @"policy_id"
+      trace cbor.diagnostic(policy_id)
+      trace @"asset_name"
+      trace cbor.diagnostic(asset_name)
+      trace @"payment_datum.account_nft_tn"
+      trace cbor.diagnostic(payment_datum.account_nft_tn)
+      // trace @"Payment Input"
+      // trace cbor.diagnostic(payment_input)
+      // trace @"New Payment Output"
+      // trace cbor.diagnostic(new_payment_output)
       // Calculate refund amount (remaining prepaid subscription fee)
       let current_time = get_current_time(tx.validity_range)
       let total_subscription_time =
@@ -407,46 +456,41 @@ fn validate_unsubscribe(
         ) / total_subscription_time
 
       // Verify refund output to subscriber
-      // Note: We're not checking the subscriber's address directly, as it's not in the datum
       let refund_output_valid =
-        list.any(
-          tx.outputs,
-          fn(output) {
-            value.quantity_of(
-              output.value,
-              payment_datum.subscription_fee.policy_id,
-              payment_datum.subscription_fee.asset_name,
-            ) >= refund_amount
-          },
-        )
-
-      // Verify Penalty UTxO is created
-      let penalty_output_valid =
-        list.any(
-          tx.outputs,
-          fn(output) {
-            expect penalty: PenaltyDatum = data.output_datum(output)
-            penalty.service_nft_tn == payment_datum.service_nft_tn && value.quantity_of(
-              output.value,
-              penalty.penalty_fee.policy_id,
-              penalty.penalty_fee.asset_name,
-            ) == penalty.penalty_fee_qty
-          },
-        )
-
-      // Verify the Payment NFT is burned
-      let payment_nft_burned =
         value.quantity_of(
-          value.from_minted_value(tx.mint),
-          payment_datum.service_nft_tn,
-          #"",
-        ) == -1
+          account_output.value,
+          payment_datum.subscription_fee.policy_id,
+          payment_datum.subscription_fee.asset_name,
+        ) >= refund_amount
 
+      // Verify Penalty UTxO
+      expect penalty: PenaltyDatum = data.output_datum(penalty_output)
+      let penalty_output_valid =
+        penalty.service_nft_tn == payment_datum.service_nft_tn && penalty.account_nft_tn == payment_datum.account_nft_tn && payment_datum.penalty_fee_qty == penalty.penalty_fee_qty
+
+      trace @"penalty.service_nft_tn"
+      trace cbor.diagnostic(penalty.service_nft_tn)
+      trace @"payment_datum.service_nft_tn"
+      trace cbor.diagnostic(payment_datum.service_nft_tn)
+      trace @"penalty.account_nft_tn"
+      trace cbor.diagnostic(penalty.account_nft_tn)
+      trace @"payment_datum.account_nft_tn"
+      trace cbor.diagnostic(payment_datum.account_nft_tn)
+      trace @"payment_datum.penalty_fee_qty"
+      trace cbor.diagnostic(payment_datum.penalty_fee_qty)
+      trace @"penalty_output.penalty_fee_qty"
+      trace cbor.diagnostic(penalty.penalty_fee_qty)
+      // trace @"Payment Input"
+      // trace cbor.diagnostic(payment_input)
+      // trace @"New Payment Output"
+      // trace cbor.diagnostic(new_payment_output)
+      // Verify the Payment NFT is preserved in the penalty output
       and {
         has_account_nft?,
         refund_output_valid?,
+        // payment_nft_preserved?,
+        // payment_token_to_script?,
         penalty_output_valid?,
-        payment_nft_burned?,
       }
     }
     Penalty(_) -> False
@@ -455,32 +499,43 @@ fn validate_unsubscribe(
 
 // Updated validate_withdraw function with linear vesting
 fn validate_withdraw(
+  service_policy_id: ByteArray,
+  account_policy_id: ByteArray,
   datum: PaymentValidatorDatum,
   output_reference: OutputReference,
   tx: Transaction,
 ) -> Bool {
+  // let ScriptContext { transaction: tx, purpose } = ctx
+  // expect Spend(output_reference) = purpose
+
   when datum is {
     Payment(payment_datum) -> {
-      // Find the input being spent (current Payment Validator UTxO)
-      expect Some(payment_input) =
-        transaction.find_input(tx.inputs, output_reference)
+      expect [account_input, payment_input, ..] = tx.inputs
       let payment_addr = payment_input.output.address
 
       // Verify that the merchant has the Service NFT
       let has_service_nft =
-        list.any(
-          tx.inputs,
-          fn(input) {
-            value.quantity_of(
-              input.output.value,
-              payment_datum.service_nft_tn,
-              #"",
-            ) == 1
-          },
-        )
+        value.quantity_of(
+          account_input.output.value,
+          service_policy_id,
+          payment_datum.service_nft_tn,
+        ) == 1
+
+      // Verify the Service datum from reference input
+      expect [service_input, ..] = tx.reference_inputs
+      expect service_datum: ServiceDatum =
+        data.output_datum(service_input.output)
+
+      // Validate payment datum against service datum
+      let payment_datum_valid =
+        validate_payment_datum(payment_datum, service_datum)
 
       // Get the current time
       let current_time = get_current_time(tx.validity_range)
+
+      // Check for collection deadline
+      let collection_deadline_valid =
+        current_time >= payment_datum.subscription_end
 
       // Calculate vesting-related values
       let total_subscription_time =
@@ -494,89 +549,75 @@ fn validate_withdraw(
       let withdrawable_amount =
         payment_datum.subscription_fee_qty * time_elapsed / total_subscription_time
 
+      expect [merchant_output, remaining_output, ..] = tx.outputs
+
       // Verify withdrawal output
       let withdrawal_output_valid =
-        list.any(
-          tx.outputs,
-          fn(output) {
-            value.quantity_of(
-              output.value,
-              payment_datum.subscription_fee.policy_id,
-              payment_datum.subscription_fee.asset_name,
-            ) == withdrawable_amount
-          },
-        )
-
-      // Verify the Payment NFT is burned
-      let payment_nft_burned =
         value.quantity_of(
-          value.from_minted_value(tx.mint),
+          merchant_output.value,
+          payment_datum.subscription_fee.policy_id,
+          payment_datum.subscription_fee.asset_name,
+        ) == withdrawable_amount
+
+      // Verify that the Payment NFT is preserved
+      let payment_nft_preserved =
+        value.quantity_of(
+          merchant_output.value,
+          service_policy_id,
           payment_datum.service_nft_tn,
-          #"",
-        ) == -1
+        ) == 1
 
       // Verify that any remaining funds are returned to the payment validator
       let remaining_amount =
         payment_datum.subscription_fee_qty - withdrawable_amount
       let remaining_funds_returned =
         if remaining_amount > 0 {
-          list.any(
-            tx.outputs,
-            fn(output) {
-              output.address == payment_addr && value.quantity_of(
-                output.value,
-                payment_datum.subscription_fee.policy_id,
-                payment_datum.subscription_fee.asset_name,
-              ) == remaining_amount
-            },
-          )
+          remaining_output.address == payment_addr && value.quantity_of(
+            remaining_output.value,
+            payment_datum.subscription_fee.policy_id,
+            payment_datum.subscription_fee.asset_name,
+          ) == remaining_amount
         } else {
           True
         }
 
       and {
-        // Ensure only one input from this script is being spent
-        // count_inputs_at_script(payment_addr, tx.inputs) == 1,
         has_service_nft?,
+        payment_datum_valid?,
+        collection_deadline_valid?,
         withdrawal_output_valid?,
-        payment_nft_burned?,
+        payment_nft_preserved?,
         remaining_funds_returned?,
       }
     }
 
     Penalty(penalty_datum) -> {
+      expect [merchant_input, payment_input, ..] = tx.inputs
+
       // Verify that the merchant has the Service NFT
       let has_service_nft =
-        list.any(
-          tx.inputs,
-          fn(input) {
-            value.quantity_of(
-              input.output.value,
-              penalty_datum.service_nft_tn,
-              #"",
-            ) == 1
-          },
-        )
+        value.quantity_of(
+          merchant_input.output.value,
+          service_policy_id,
+          penalty_datum.service_nft_tn,
+        ) == 1
+
+      expect [merchant_output, ..] = tx.outputs
 
       // Verify withdrawal of penalty to merchant
       let penalty_withdrawal_valid =
-        list.any(
-          tx.outputs,
-          fn(output) {
-            value.quantity_of(
-              output.value,
-              penalty_datum.penalty_fee.policy_id,
-              penalty_datum.penalty_fee.asset_name,
-            ) == penalty_datum.penalty_fee_qty
-          },
-        )
+        value.quantity_of(
+          merchant_output.value,
+          penalty_datum.penalty_fee.policy_id,
+          penalty_datum.penalty_fee.asset_name,
+        ) == penalty_datum.penalty_fee_qty
 
       // Verify the Penalty NFT is burned
       let penalty_nft_burned =
         value.quantity_of(
           value.from_minted_value(tx.mint),
+          service_policy_id,
           penalty_datum.service_nft_tn,
-          #"",
         ) == -1
 
       and {
@@ -586,6 +627,13 @@ fn validate_withdraw(
       }
     }
   }
+}
+
+fn validate_payment_datum(
+  payment_datum: PaymentDatum,
+  service_datum: ServiceDatum,
+) -> Bool {
+  payment_datum.subscription_fee == service_datum.service_fee && payment_datum.subscription_period == service_datum.subscription_period && payment_datum.penalty_fee_qty == service_datum.penalty_fee_qty
 }
 
 fn validate_extension_datum(
@@ -703,9 +751,9 @@ fn is_payment_datum_valid(
 }
 
 test succeed_initiate_subscription() {
-  let own_cs = tests.test_224_01()
-  let account_cs = tests.test_224_02()
-  let service_cs = tests.test_224_03()
+  let own_cs = tests.test_payment_cs()
+  let account_cs = tests.test_account_cs()
+  let service_cs = tests.test_service_cs()
 
   trace @"service_cs"
   trace cbor.diagnostic(service_cs)
@@ -730,12 +778,12 @@ test succeed_initiate_subscription() {
     values.unique_token_name(account_tx_hash, 1, cip68.prefix_222)
 
   let service_full_tn = bytearray.concat(service_cs, service_tkn)
-  let user_full_tn = bytearray.concat(account_cs, user_account_tkn)
+  let account_full_tn = bytearray.concat(account_cs, user_account_tkn)
 
   trace @"service_full_tn"
   trace cbor.diagnostic(service_full_tn)
-  trace @"user_full_tn"
-  trace cbor.diagnostic(user_full_tn)
+  trace @"account_full_tn"
+  trace cbor.diagnostic(account_full_tn)
 
   let current_time = 1000000
   // 30 days in milliseconds
@@ -752,18 +800,19 @@ test succeed_initiate_subscription() {
   let payment_datum =
     tests.test_datum_03(
       service_full_tn,
-      user_full_tn,
+      account_full_tn,
       payment_fee_qty,
       current_time,
       current_time + subscription_period,
       subscription_period,
+      penalty_qty,
     )
   let redeemer =
     InitSubscripton { output_reference: init_output_ref, input_index }
 
   let payment_value = value.add(value.zero(), own_cs, payment_tkn, 1)
   let service_value = value.add(value.zero(), service_cs, service_full_tn, 1)
-  let account_value = value.add(value.zero(), account_cs, user_full_tn, 1)
+  let account_value = value.add(value.zero(), account_cs, account_full_tn, 1)
 
   //   let minted_value = value.merge(service_value, user_value)
   // trace @"user_output"
@@ -838,9 +887,9 @@ test succeed_initiate_subscription() {
 }
 
 test succeed_terminate_subscription() {
-  let own_cs = tests.test_224_01()
-  let account_cs = tests.test_224_02()
-  let service_cs = tests.test_224_03()
+  let own_cs = tests.test_payment_cs()
+  let account_cs = tests.test_account_cs()
+  let service_cs = tests.test_service_cs()
 
   let tx_hash = tests.test_224_01()
   let payment_tx_hash = tests.test_224_02()
@@ -854,6 +903,7 @@ test succeed_terminate_subscription() {
   // 30 days in milliseconds
   let subscription_period = 30 * 24 * 60 * 60 * 1000
   let payment_fee_qty = 10_000_000
+  let penalty_fee_qty = 1_000_000
 
   let payment_datum =
     tests.test_datum_03(
@@ -863,16 +913,17 @@ test succeed_terminate_subscription() {
       current_time,
       current_time + subscription_period,
       subscription_period,
+      penalty_fee_qty,
     )
 
   let user_account_tkn = values.unique_token_name(tx_hash, 1, cip68.prefix_222)
   let payment_tkn = values.unique_token_name(payment_tx_hash, 1, #"")
 
   let payment_full_tn = bytearray.concat(own_cs, payment_tkn)
-  let user_full_tn = bytearray.concat(account_cs, user_account_tkn)
+  let account_full_tn = bytearray.concat(account_cs, user_account_tkn)
 
   let payment_value = value.add(value.zero(), own_cs, payment_tkn, 1)
-  let account_value = value.add(value.zero(), account_cs, user_full_tn, 1)
+  let account_value = value.add(value.zero(), account_cs, account_full_tn, 1)
 
   // Create the payment input (the one being spent)
   let user_input =
@@ -898,6 +949,7 @@ test succeed_terminate_subscription() {
   let penalty_datum =
     PenaltyDatum {
       service_nft_tn: service_cs,
+      account_nft_tn: service_cs,
       penalty_fee: AssetClass {
         policy_id: value.ada_policy_id,
         asset_name: value.ada_asset_name,
@@ -959,9 +1011,9 @@ test succeed_terminate_subscription() {
 }
 
 test succeed_extend_subscription() {
-  let own_cs = tests.test_224_01()
-  let account_cs = tests.test_224_02()
-  let service_cs = tests.test_224_03()
+  let own_cs = tests.test_payment_cs()
+  let account_cs = tests.test_account_cs()
+  let service_cs = tests.test_service_cs()
 
   let tx_hash = tests.test_224_01()
   let payment_tx_hash = tests.test_224_02()
@@ -981,6 +1033,7 @@ test succeed_extend_subscription() {
   // 30 days in milliseconds
   let initial_subscription_period = 30 * 24 * 60 * 60 * 1000
   let initial_payment_fee_qty = 10_000_000
+  let penalty_fee_qty = 1_000_000
 
   // Create the initial payment datum
   let initial_payment_datum =
@@ -992,6 +1045,7 @@ test succeed_extend_subscription() {
       current_time,
       current_time + initial_subscription_period,
       initial_subscription_period,
+      penalty_fee_qty,
     )
   // Create the payment input (the one being spent)
   let initial_payment_value =
@@ -1022,6 +1076,7 @@ test succeed_extend_subscription() {
       current_time,
       initial_payment_datum.subscription_end + extension_period,
       initial_subscription_period + extension_period,
+      penalty_fee_qty,
     )
   // Create the new payment output
   let new_payment_value =
@@ -1116,7 +1171,108 @@ test succeed_extend_subscription() {
     context,
   )
 }
-// test spend_withdraw() {
-//   // TODO: Test withdraw
-//   True
-// }
+
+test succeed_unsubscribe() {
+  let own_cs = tests.test_payment_cs()
+  let account_cs = tests.test_account_cs()
+  let service_cs = tests.test_service_cs()
+
+  let tx_hash = tests.test_224_01()
+  let payment_tx_hash = tests.test_224_02()
+  let account_tx_hash = tests.test_224_03()
+  let service_tx_hash = tests.test_224_04()
+
+  let script_output_ref = tests.test_input_utxo_02(payment_tx_hash)
+
+  let payment_tkn = values.unique_token_name(payment_tx_hash, 1, #"")
+  let service_tkn =
+    values.unique_token_name(service_tx_hash, 1, cip68.prefix_222)
+  let user_account_tkn =
+    values.unique_token_name(account_tx_hash, 1, cip68.prefix_222)
+  let payment_full_tn = bytearray.concat(account_cs, payment_tkn)
+  let account_full_tn = bytearray.concat(account_cs, user_account_tkn)
+  let service_full_tn = bytearray.concat(account_cs, service_tkn)
+
+  let current_time = 1000000
+  // 30 days in milliseconds
+  let subscription_period = 30 * 24 * 60 * 60 * 1000
+  let payment_fee_qty = 10_000_000
+  let penalty_fee_qty = 1_000_000
+
+  let payment_datum =
+    tests.test_datum_03(
+      service_full_tn,
+      account_full_tn,
+      payment_fee_qty,
+      current_time,
+      current_time + subscription_period,
+      subscription_period,
+      penalty_fee_qty,
+    )
+
+  let payment_value =
+    value.add(value.from_lovelace(payment_fee_qty), own_cs, payment_full_tn, 1)
+  let account_value = value.add(value.zero(), account_cs, account_full_tn, 1)
+
+  // Create the payment input (the one being spent)
+  let payment_input =
+    tests.test_context_input_02(
+      script_output_ref,
+      own_cs,
+      payment_value,
+      payment_datum,
+    )
+
+  // Create the account input
+  let account_input =
+    tests.test_context_input_02(
+      tests.test_input_utxo_02(tx_hash),
+      account_cs,
+      account_value,
+      NoDatum,
+    )
+
+  // Calculate refund amount (assuming half of the subscription period has passed)
+  let time_elapsed = subscription_period / 2
+  let refund_amount = payment_fee_qty / 2
+
+  // Create refund output
+  let refund_output =
+    tests.test_utxo_02(account_cs, value.from_lovelace(refund_amount), NoDatum)
+
+  // Create penalty output
+  let penalty_datum =
+    tests.test_penalty_datum(service_full_tn, account_full_tn, penalty_fee_qty)
+  let penalty_output =
+    tests.test_utxo_02(
+      service_cs,
+      value.from_lovelace(penalty_fee_qty),
+      penalty_datum,
+    )
+  let redeemer = Unsubscribe
+
+  let lower_bound = current_time + time_elapsed
+  let upper_bound = lower_bound + 1
+
+  let insert_timerange = tests.test_time_range(lower_bound, upper_bound)
+
+  // Create the transaction
+  let context =
+    tests.test_spend_script_context(
+      script_output_ref,
+      [account_input, payment_input],
+      [],
+      [refund_output, penalty_output],
+      payment_value,
+      insert_timerange,
+      tx_hash,
+    )
+
+  spend_payment(
+    service_cs,
+    account_cs,
+    Payment(payment_datum),
+    redeemer,
+    context,
+  )
+}
