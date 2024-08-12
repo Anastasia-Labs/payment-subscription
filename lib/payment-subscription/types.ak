@@ -79,6 +79,7 @@ pub type SpendPayment {
 
 // Datum type 
 pub type PaymentDatum {
+  //Hash Policy ID
   service_nft_tn: AssetName,
   account_nft_tn: AssetName,
   subscription_fee: AssetClass,
@@ -86,6 +87,7 @@ pub type PaymentDatum {
   subscription_start: POSIXTime,
   subscription_end: POSIXTime,
   subscription_period: POSIXTime,
+  last_claimed: POSIXTime,
   penalty_fee: AssetClass,
   penalty_fee_qty: Int,
 }

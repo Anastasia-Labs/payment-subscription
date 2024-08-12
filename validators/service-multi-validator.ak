@@ -317,7 +317,7 @@ test success_create_service() {
   // trace cbor.diagnostic(tx_hash)
   // trace @"init_output_ref"
   // trace cbor.diagnostic(init_output_ref)
-  let datum = tests.test_datum_01(1, 1, 1)
+  let datum = tests.test_service_datum()
   let redeemer =
     CreateService { output_reference: init_output_ref, input_index }
 
@@ -375,7 +375,7 @@ test success_delete_service() {
   let ref_tkn = values.unique_token_name(tx_hash, 1, cip68.prefix_100)
   let user_tkn = values.unique_token_name(tx_hash, 1, cip68.prefix_222)
 
-  let datum = tests.test_datum_01(1, 1, 1)
+  let datum = tests.test_service_datum()
   let redeemer = DeleteService
 
   //   let ref_value = value.from_asset(own_cs, ref_tkn, 1)
@@ -425,8 +425,8 @@ test success_update_service() {
   let init_output_ref = tests.test_input_utxo_02(tx_hash)
   let script_output_ref = tests.test_input_utxo_02(tests.test_224_01())
 
-  let datum = tests.test_datum_01(1, 1, 1)
-  let new_datum = tests.test_datum_01(1, 1, 1)
+  let datum = tests.test_service_datum()
+  let new_datum = tests.test_service_datum()
 
   let redeemer = UpdateService
 
@@ -482,9 +482,9 @@ test success_remove_service() {
   let init_output_ref = tests.test_input_utxo_02(tx_hash)
   let script_output_ref = tests.test_input_utxo_02(tests.test_224_01())
 
-  let datum = tests.test_datum_01(1, 1, 1)
+  let datum = tests.test_service_datum()
 
-  // let new_datum = tests.test_datum_01(1, 1, 1, 1)
+  // let new_datum = tests.test_service_datum(1, 1, 1, 1)
   let redeemer = RemoveService
 
   let ref_tkn = values.unique_token_name(tx_hash, 1, cip68.prefix_100)
@@ -541,7 +541,7 @@ test success_remove_service() {
 //   // trace cbor.diagnostic(tx_hash)
 //   // trace @"init_output_ref"
 //   // trace cbor.diagnostic(init_output_ref)
-//   let datum = tests.test_datum_01(1, 1, 1, 1)
+//   let datum = tests.test_service_datum(1, 1, 1, 1)
 //   let redeemer = CreateService
 
 //   let ref_tkn = values.unique_token_name(tx_hash, 1, cip68.prefix_100)

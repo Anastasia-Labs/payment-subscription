@@ -1,6 +1,8 @@
 use aiken/cbor
+use aiken/interval.{Finite, Interval}
 use aiken/list
-use aiken/transaction.{Output}
+use aiken/time.{PosixTime}
+use aiken/transaction.{Output, ValidityRange}
 use aiken/transaction/credential.{Address, Credential}
 use aiken/transaction/value.{PolicyId, Value}
 use assist/values
@@ -86,5 +88,22 @@ pub fn validate_token_output(
     payment_credential == expected_credential
   } else {
     payment_credential != expected_credential
+  }
+}
+
+pub fn must_be_after_deadline(range: ValidityRange, deadline: PosixTime) {
+  // Pattern match for the type of the lower bound
+  when range.lower_bound.bound_type is {
+    // If the lower bound is finite, check if it's after the deadline
+    Finite(tx_earliest_time) -> deadline <= tx_earliest_time
+    // Else, the lower bound is infinite, so we fail
+    _ -> False
+  }
+}
+
+pub fn get_current_time(range: Interval<PosixTime>) -> PosixTime {
+  when range.lower_bound.bound_type is {
+    Finite(current_time) -> current_time
+    _ -> fail @"Invalid lower bound"
   }
 }

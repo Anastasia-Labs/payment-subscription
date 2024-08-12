@@ -76,6 +76,18 @@ pub fn test_utxo_02(own_cs, minted_value, datum) {
   }
 }
 
+pub fn test_utxo_exact(own_cs, minted_value, datum) {
+  Output {
+    address: Address {
+      payment_credential: ScriptCredential(own_cs),
+      stake_credential: None,
+    },
+    value: minted_value,
+    datum: InlineDatum(datum),
+    reference_script: None,
+  }
+}
+
 pub fn test_user_utxo(pubkey_hash: ByteArray, minted_value, datum) {
   Output {
     address: Address {
@@ -107,7 +119,11 @@ pub fn test_input_utxo_02(utxo_hash) {
   }
 }
 
-pub fn test_datum_01(fee_qty: Int, penalty_qty: Int, subsc_period: Int) {
+pub fn test_service_datum() {
+  let fee_qty = 10_000_000
+  let penalty_qty = 1_000_000
+  let subsc_period = 30 * 24 * 60 * 60 * 1000
+
   ServiceDatum {
     service_fee: AssetClass {
       policy_id: value.ada_policy_id,
@@ -169,6 +185,7 @@ pub fn test_datum_03(
   subsc_start: POSIXTime,
   subsc_end: POSIXTime,
   subsc_period: POSIXTime,
+  last_claimed: POSIXTime,
   penalty_fee: Int,
 ) {
   PaymentDatum {
@@ -182,6 +199,7 @@ pub fn test_datum_03(
     subscription_start: subsc_start,
     subscription_end: subsc_end,
     subscription_period: subsc_period,
+    last_claimed,
     penalty_fee: AssetClass {
       policy_id: value.ada_policy_id,
       asset_name: value.ada_asset_name,
