@@ -2,7 +2,7 @@ use aiken/cbor
 use aiken/interval.{Finite, Interval}
 use aiken/list
 use aiken/time.{PosixTime}
-use aiken/transaction.{Output, ValidityRange}
+use aiken/transaction.{Input, Output, ValidityRange}
 use aiken/transaction/credential.{Address, Credential}
 use aiken/transaction/value.{PolicyId, Value}
 use assist/values
@@ -66,6 +66,16 @@ pub fn output_by_value(outputs: List<Output>, value: Value) -> Output {
     // nothing was found
     [] -> fail @"No Output found"
   }
+}
+
+// Helper function to validate if an input has 1 NFT
+pub fn validate_single_nft_input(
+  input: Input,
+  policy: PolicyId,
+  token_name: ByteArray,
+) -> Bool {
+  let nft_value = input.output.value |> value.without_lovelace()
+  value.quantity_of(nft_value, policy, token_name) == 1
 }
 
 // Helper function to validate where the NFT goes

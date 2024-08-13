@@ -67,7 +67,7 @@ pub type AccountDatum {
 // Payment Mint Purpose Redeemer
 pub type MintPayment {
   InitSubscripton { output_reference: OutputReference, input_index: Int }
-  TerminateSubscription { output_reference: OutputReference }
+  TerminateSubscription
 }
 
 // Payment Spend Purpose Redeemer
