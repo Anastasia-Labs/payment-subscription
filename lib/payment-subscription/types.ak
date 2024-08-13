@@ -72,7 +72,7 @@ pub type MintPayment {
 
 // Payment Spend Purpose Redeemer
 pub type SpendPayment {
-  Extend { output_reference: OutputReference }
+  Extend
   Unsubscribe
   Withdraw
 }
@@ -86,7 +86,7 @@ pub type PaymentDatum {
   subscription_fee_qty: Int,
   subscription_start: POSIXTime,
   subscription_end: POSIXTime,
-  subscription_period: POSIXTime,
+  subscription_period: Int,
   last_claimed: POSIXTime,
   penalty_fee: AssetClass,
   penalty_fee_qty: Int,

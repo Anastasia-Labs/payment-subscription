@@ -27,12 +27,6 @@ use payment_subscription/types.{
 use payment_subscription/utils.{validate_token_output}
 
 // This validator script handles minting and spending of service NFTs
-// TODO: Multiplier for the discount and the Penalty (Last).
-// TODO: Ensure deadline  for withdrawing when Service NFT has been removed. (Later)
-// TODO: Allow staking rewards for the subscriber (Later)
-// TODO: Last Claimed in datum and Can't claim until one month has passed.(Add counter)
-// TODO: Reference the penalty datum from the Service validator as Datum in Payments
-
 validator {
   // Minting function: handles creation and deletion of service NFTs
   fn mint_service(r: MintService, ctx: ScriptContext) -> Bool {
