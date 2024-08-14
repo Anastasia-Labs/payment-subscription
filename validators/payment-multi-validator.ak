@@ -4,7 +4,6 @@ use aiken/dict
 use aiken/interval.{Finite, Interval, IntervalBound}
 use aiken/list
 use aiken/math
-// use aiken/time.{PosixTime}
 use aiken/transaction.{
   Input, Mint, NoDatum, Output, OutputReference, ScriptContext, Spend,
   Transaction, TransactionId,
@@ -1294,11 +1293,6 @@ test succeed_withdraw() {
     values.unique_token_name(service_tx_hash, 1, cip68.prefix_222)
   let user_account_tkn = values.unique_token_name(tx_hash, 1, cip68.prefix_222)
 
-  // let payment_tkn = bytearray.concat(own_cs, payment_tkn)
-  // let service_full_tn = bytearray.concat(service_cs, service_tkn)
-  // let service_value = value.add(value.zero(), service_cs, service_tkn, 1)
-  // let user_account_value =
-  //   value.add(value.zero(), account_cs, user_account_tkn, 1)
   let subscription_start = 1000000
   let subscription_period = 30 * 24 * 60 * 60 * 1000
   // 30 days in milliseconds

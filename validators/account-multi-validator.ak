@@ -1,12 +1,8 @@
 use aiken/bytearray
-// use aiken/bytearray
 use aiken/cbor
 use aiken/dict
-// use aiken/hash.{blake2b_256}
 use aiken/interval
 use aiken/list
-use aiken/math.{abs}
-// use aiken/string
 use aiken/transaction.{
   Input, Mint, NoDatum, Output, OutputReference, ScriptContext, Spend,
   Transaction, TransactionId,
@@ -133,7 +129,7 @@ validator {
   }
 
   fn spend_account(
-    datum: AccountDatum,
+    _datum: AccountDatum,
     rdmr: SpendAccount,
     ctx: ScriptContext,
   ) -> Bool {
@@ -157,13 +153,9 @@ validator {
     trace cbor.diagnostic(output_reference)
     when rdmr is {
       UpdateAccount -> {
-        // trace @"output_address"
-        // trace cbor.diagnostic(output.address)
         trace @"account_address"
         trace cbor.diagnostic(account_addr)
 
-        // trace @"Output"
-        // trace cbor.diagnostic(output)
         // Find the output containing the reference NFT being sent back to this script itself
         let validating_output =
           utils.output_by_addr_value(tx.outputs, account_addr, ref_nft)
@@ -229,10 +221,6 @@ test succeed_create_account() {
   let tx_hash = tests.test_224_02()
   let init_output_ref = tests.test_input_utxo_02(tx_hash)
   let input_index = 0
-  // trace @"tx_hash"
-  // trace cbor.diagnostic(tx_hash)
-  // trace @"init_output_ref"
-  // trace cbor.diagnostic(init_output_ref)
   let datum = tests.test_datum_02("you@mail.com", "(717) 550-1675", 1, 2)
   let redeemer =
     CreateAccount { output_reference: init_output_ref, input_index }
@@ -248,10 +236,6 @@ test succeed_create_account() {
   let user_output = tests.test_utxo_02(user_pubkey_hash, user_value, NoDatum)
   let script_output = tests.test_utxo_02(own_cs, ref_value, datum)
 
-  // trace @"user_output"
-  // trace cbor.diagnostic(user_output)
-  // trace @"script_output"
-  // trace cbor.diagnostic(script_output)
   let user_input = tests.test_context_input_01(init_output_ref, own_cs, NoDatum)
 
   let context =
