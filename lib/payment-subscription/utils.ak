@@ -7,8 +7,6 @@ use aiken/transaction/credential.{Address, Credential}
 use aiken/transaction/value.{PolicyId, Value}
 use assist/values
 
-// use payment_subscription/types.{MetaDatum}
-
 // Check the output utxo containing the reference nft
 pub fn check_output_utxo(output: Output) -> Bool {
   // Check inline datum exists and conforms to MetaDatum as per CIP68
@@ -74,8 +72,8 @@ pub fn validate_single_nft_input(
   policy: PolicyId,
   token_name: ByteArray,
 ) -> Bool {
-  let nft_value = input.output.value |> value.without_lovelace()
-  value.quantity_of(nft_value, policy, token_name) == 1
+  // let nft_value = input.output.value |> value.without_lovelace
+  value.quantity_of(input.output.value, policy, token_name) == 1
 }
 
 // Helper function to validate where the NFT goes

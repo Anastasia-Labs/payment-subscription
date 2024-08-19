@@ -1,4 +1,3 @@
-use aiken/bytearray.{length}
 use aiken/cbor
 use aiken/dict
 use aiken/interval.{Finite, Interval, IntervalBound}
@@ -61,30 +60,16 @@ validator(service_policy_id: ByteArray, account_policy_id: ByteArray) {
         // Construct one Payment token value 
         let payment_value = value.from_asset(own_policy, payment_tkn, 1)
 
-        trace @"payment_output"
-        trace cbor.diagnostic(payment_output)
-
         // Validate internal consistency of payment datum
         let internal_datum_valid =
           validate_payment_datum_internal(payment_datum)
         // Validate the datum from the Service Contract as a reference input.
         let datum_against_service_valid =
           validate_payment_against_service(payment_datum, service_datum)
-        let nfts_valid =
-          validate_nfts(payment_datum, service_policy_id, account_policy_id)
-
-        trace @"datum.service_nft_tn"
-        trace cbor.diagnostic(payment_datum.service_nft_tn)
-        trace @"datum.account_nft_tn"
-        trace cbor.diagnostic(payment_datum.account_nft_tn)
 
         // Check to ensure the subscription period matches the service's requirements
         let subscription_period_valid =
           payment_datum.subscription_period == service_datum.subscription_period
-
-        // Debug: Print the entire value of service_ref_input
-        trace @"service_ref_input.output.value"
-        trace cbor.diagnostic(service_ref_input.output.value)
 
         // Verify the inputs contain 1 Service NFT Asset
         let input_has_service_nft =
@@ -101,9 +86,6 @@ validator(service_policy_id: ByteArray, account_policy_id: ByteArray) {
             account_policy_id,
             payment_datum.account_nft_tn,
           )
-
-        trace @"input_has_account_nft"
-        trace cbor.diagnostic(input_has_account_nft)
 
         // Verify the correct amount is locked
         let locked_amount =
@@ -135,6 +117,16 @@ validator(service_policy_id: ByteArray, account_policy_id: ByteArray) {
             True,
           )
 
+        trace @"payment_output"
+        trace cbor.diagnostic(payment_output)
+        trace @"datum.service_nft_tn"
+        trace cbor.diagnostic(payment_datum.service_nft_tn)
+        trace @"datum.account_nft_tn"
+        trace cbor.diagnostic(payment_datum.account_nft_tn)
+        trace @"service_ref_input.output.value"
+        trace cbor.diagnostic(service_ref_input.output.value)
+        trace @"input_has_account_nft"
+        trace cbor.diagnostic(input_has_account_nft)
         trace @"locked_amount"
         trace cbor.diagnostic(locked_amount)
         trace @"expected_amount"
@@ -146,7 +138,6 @@ validator(service_policy_id: ByteArray, account_policy_id: ByteArray) {
           (account_input.output_reference == output_reference)?,
           input_has_service_nft?,
           input_has_account_nft?,
-          nfts_valid?,
           internal_datum_valid?,
           datum_against_service_valid?,
           (payment_value == minted_tokens)?,
@@ -175,23 +166,6 @@ validator(service_policy_id: ByteArray, account_policy_id: ByteArray) {
             payment_datum.account_nft_tn,
           ) == 1
 
-        trace @"account_nft"
-        trace cbor.diagnostic(account_nft)
-        trace @"account_policy_id"
-        trace cbor.diagnostic(account_policy_id)
-        trace @"payment_datum.account_nft_tn"
-        trace cbor.diagnostic(payment_datum.account_nft_tn)
-        trace @"quantity_of"
-        trace cbor.diagnostic(
-          value.quantity_of(
-            account_nft,
-            account_policy_id,
-            payment_datum.account_nft_tn,
-          ),
-        )
-
-        // trace @"token_policy"
-        // trace cbor.diagnostic(token_policy)
         // Extract the NFT from the input
         let payment_nft =
           payment_input.output.value
@@ -201,14 +175,7 @@ validator(service_policy_id: ByteArray, account_policy_id: ByteArray) {
         // Ensure there's exactly one token and extract its details
         expect [(token_policy, token_name, _)] = payment_nft
 
-        trace @"own_policy"
-        trace cbor.diagnostic(own_policy)
-        trace @"token_policy"
-        trace cbor.diagnostic(token_policy)
-
         // Get the tokens being minted (or burned) in this transaction
-        // let minted_tokens = tx.mint |> value.from_minted_value()
-        // Ensure exactly one token is affected and extract its details
         expect [(pid, tkn, amt)] = value.flatten(minted_tokens)
 
         // Calculate refund amount
@@ -225,6 +192,24 @@ validator(service_policy_id: ByteArray, account_policy_id: ByteArray) {
             total_subscription_time - time_elapsed
           ) / total_subscription_time
 
+        trace @"account_nft"
+        trace cbor.diagnostic(account_nft)
+        trace @"account_policy_id"
+        trace cbor.diagnostic(account_policy_id)
+        trace @"payment_datum.account_nft_tn"
+        trace cbor.diagnostic(payment_datum.account_nft_tn)
+        trace @"quantity_of"
+        trace cbor.diagnostic(
+          value.quantity_of(
+            account_nft,
+            account_policy_id,
+            payment_datum.account_nft_tn,
+          ),
+        )
+        trace @"own_policy"
+        trace cbor.diagnostic(own_policy)
+        trace @"token_policy"
+        trace cbor.diagnostic(token_policy)
         trace @"refund_amount"
         trace cbor.diagnostic(refund_amount)
 
@@ -235,7 +220,7 @@ validator(service_policy_id: ByteArray, account_policy_id: ByteArray) {
           (token_policy == own_policy)?,
           // The token being burned must be from our policy
           (pid == own_policy)?,
-          // The token being burned must match the one from the input
+          // The token name being burned must match the one from the input
           (tkn == token_name)?,
           // Exactly one token must be burned (negative amount)
           (amt == -1)?,
@@ -250,7 +235,6 @@ validator(service_policy_id: ByteArray, account_policy_id: ByteArray) {
     ctx: ScriptContext,
   ) -> Bool {
     let ScriptContext { transaction: tx, purpose } = ctx
-    // let Transaction { inputs, reference_inputs, outputs, .. } = tx
     expect Spend(_output_reference) = purpose
 
     when redeemer is {
@@ -322,14 +306,6 @@ fn validate_extend(
       let script_input_has_payment_nft =
         validate_single_nft_input(payment_input, policy_id, asset_name)
 
-      trace @"service_ref_input"
-      trace cbor.diagnostic(service_ref_input)
-
-      trace @"account_input"
-      trace cbor.diagnostic(account_input)
-      trace @"payment_input"
-      trace cbor.diagnostic(payment_input)
-
       // Validate that the extension follows the Service provider rules
       let valid_extension =
         validate_extension_datum(
@@ -351,21 +327,23 @@ fn validate_extend(
           True,
         )
 
+      trace @"service_ref_input"
+      trace cbor.diagnostic(service_ref_input)
+
+      trace @"account_input"
+      trace cbor.diagnostic(account_input)
+      trace @"payment_input"
+      trace cbor.diagnostic(payment_input)
       trace @"valid_extension"
       trace cbor.diagnostic(valid_extension)
       trace @"fee_increase_valid"
       trace cbor.diagnostic(fee_increase_valid)
-      // trace @"account_nft_preserved"
-      // trace cbor.diagnostic(account_nft_preserved)
       trace @"fee_increase_valid"
       trace cbor.diagnostic(fee_increase_valid)
-      // trace @"service_nft_present"
-      // trace cbor.diagnostic(service_nft_present)
       trace @"correct_output_address"
       trace cbor.diagnostic(correct_output_address)
 
       and {
-        // validate_account_policy?,
         input_has_account_nft?,
         script_input_has_payment_nft?,
         datum_against_service_valid?,
@@ -376,8 +354,6 @@ fn validate_extend(
         correct_output_address?,
       }
     }
-
-    // payout.at_least(payment_addr, payment_input.output.value, tx.outputs)?,
     Penalty(_) -> False
   }
 }
@@ -436,6 +412,10 @@ fn validate_unsubscribe(
       // Extract the datums
       expect service_datum: ServiceDatum =
         data.output_datum(service_ref_input.output)
+
+      let payment_datum_valid =
+        validate_payment_against_service(payment_datum, service_datum)
+
       // Verify Penalty UTxO
       expect penalty: PenaltyDatum = data.output_datum(penalty_output)
       let penalty_output_valid =
@@ -452,6 +432,7 @@ fn validate_unsubscribe(
         )
       and {
         input_has_account_nft?,
+        payment_datum_valid?,
         refund_output_valid?,
         penalty_output_valid?,
         payment_nft_in_penalty_output?,
@@ -468,16 +449,11 @@ fn validate_withdraw(
   datum: PaymentValidatorDatum,
   tx: Transaction,
 ) -> Bool {
-  // let ScriptContext { transaction: tx, purpose } = ctx
-  // expect Spend(output_reference) = purpose
-
   when datum is {
     Payment(payment_datum) -> {
       expect [merchant_input, payment_input, ..] = tx.inputs
       let payment_addr = payment_input.output.address
 
-      trace @"merchant_input"
-      trace cbor.diagnostic(merchant_input)
       let has_service_nft =
         value.quantity_of(
           merchant_input.output.value,
@@ -490,16 +466,9 @@ fn validate_withdraw(
       expect service_datum: ServiceDatum =
         data.output_datum(service_input.output)
 
-      trace @"service_datum.service_fee"
-      trace cbor.diagnostic(service_datum.service_fee_qty)
-      trace @"service_datum"
-      trace cbor.diagnostic(service_datum)
       // Validate payment datum against service datum
       let payment_datum_valid =
-        validate_payment_datum(payment_datum, service_datum)
-      trace @"payment_datum.subscription_fee"
-      trace cbor.diagnostic(payment_datum.subscription_fee)
-
+        validate_payment_against_service(payment_datum, service_datum)
       // Get the current time
       let current_time = get_current_time(tx.validity_range)
 
@@ -533,21 +502,6 @@ fn validate_withdraw(
       expect new_datum: PaymentDatum = data.output_datum(payment_output)
       let last_claimed_updated = new_datum.last_claimed == current_time
 
-      // Add debug traces
-      trace @"current_time"
-      trace cbor.diagnostic(current_time)
-      trace @"total_subscription_time"
-      trace cbor.diagnostic(total_subscription_time)
-      trace @"time_elapsed"
-      trace cbor.diagnostic(time_elapsed)
-      trace @"payment_datum.subscription_fee_qty"
-      trace cbor.diagnostic(payment_datum.subscription_fee_qty)
-      trace @"calculated_withdrawable_amount"
-      trace cbor.diagnostic(withdrawable_amount)
-      trace @"actual_withdrawal_amount"
-      trace cbor.diagnostic(actual_withdrawal_amount)
-      trace @"new_datum.last_claimed"
-      trace cbor.diagnostic(new_datum.last_claimed)
       // Verify that the Payment NFT is preserved
       let payment_nft_preserved =
         value.quantity_of(
@@ -567,6 +521,28 @@ fn validate_withdraw(
           payment_datum.subscription_fee.asset_name,
         ) >= remaining_amount
 
+      trace @"current_time"
+      trace cbor.diagnostic(current_time)
+      trace @"time_elapsed"
+      trace cbor.diagnostic(time_elapsed)
+      trace @"merchant_input"
+      trace cbor.diagnostic(merchant_input)
+      trace @"service_datum.service_fee"
+      trace cbor.diagnostic(service_datum.service_fee_qty)
+      trace @"service_datum"
+      trace cbor.diagnostic(service_datum)
+      trace @"payment_datum.subscription_fee"
+      trace cbor.diagnostic(payment_datum.subscription_fee)
+      trace @"total_subscription_time"
+      trace cbor.diagnostic(total_subscription_time)
+      trace @"payment_datum.subscription_fee_qty"
+      trace cbor.diagnostic(payment_datum.subscription_fee_qty)
+      trace @"calculated_withdrawable_amount"
+      trace cbor.diagnostic(withdrawable_amount)
+      trace @"actual_withdrawal_amount"
+      trace cbor.diagnostic(actual_withdrawal_amount)
+      trace @"new_datum.last_claimed"
+      trace cbor.diagnostic(new_datum.last_claimed)
       trace @"withdrawable_amount"
       trace cbor.diagnostic(withdrawable_amount)
       trace @"actual_withdrawal_amount"
@@ -641,14 +617,6 @@ fn validate_withdraw(
   }
 }
 
-// TODO: Validate All fields from Service Datum.
-fn validate_payment_datum(
-  payment_datum: PaymentDatum,
-  service_datum: ServiceDatum,
-) -> Bool {
-  payment_datum.subscription_fee == service_datum.service_fee && payment_datum.subscription_period == service_datum.subscription_period && payment_datum.penalty_fee_qty == service_datum.penalty_fee_qty
-}
-
 fn validate_extension_datum(
   old_datum: PaymentDatum,
   new_datum: PaymentDatum,
@@ -662,17 +630,11 @@ fn validate_extension_datum(
   let period_extension_valid =
     extension_period >= service_datum.subscription_period
 
-  //   let period_increased =
-  //     new_datum.subscription_period > old_datum.subscription_period
   // Updated calculation
   let expected_fee_increase =
     extension_period * service_datum.service_fee_qty / service_datum.subscription_period
 
   let fee_increase_valid = extension_amount >= expected_fee_increase
-  trace @"extension_amount"
-  trace cbor.diagnostic(extension_amount)
-  trace @"expected_fee_increase"
-  trace cbor.diagnostic(expected_fee_increase)
 
   let valid_end_date = new_datum.subscription_end > new_datum.subscription_start
 
@@ -680,6 +642,10 @@ fn validate_extension_datum(
   let follows_service_rules =
     new_datum.subscription_fee == service_datum.service_fee && new_datum.subscription_period % service_datum.subscription_period == 0
 
+  trace @"extension_amount"
+  trace cbor.diagnostic(extension_amount)
+  trace @"expected_fee_increase"
+  trace cbor.diagnostic(expected_fee_increase)
   trace @"unchanged_fields_valid"
   trace cbor.diagnostic(unchanged_fields_valid)
   trace @"period_extension_valid"
@@ -729,29 +695,11 @@ fn validate_payment_against_service(
   subscription_period_valid && service_fee_valid && penalty_fee_valid
 }
 
-fn validate_nfts(
-  payment: PaymentDatum,
-  service_policy_id: ByteArray,
-  account_policy_id: ByteArray,
-) -> Bool {
-  let service_nft_valid =
-    bytearray.take(payment.service_nft_tn, length(service_policy_id)) == service_policy_id
-  let account_nft_valid =
-    bytearray.take(payment.account_nft_tn, length(account_policy_id)) == account_policy_id
-
-  service_nft_valid && account_nft_valid
-}
-
 // Happy path tests
 test succeed_initiate_subscription() {
   let own_cs = tests.test_payment_cs()
   let account_cs = tests.test_account_cs()
   let service_cs = tests.test_service_cs()
-
-  trace @"service_cs"
-  trace cbor.diagnostic(service_cs)
-  trace @"account_cs"
-  trace cbor.diagnostic(account_cs)
 
   let tx_hash = tests.test_224_01()
   let account_tx_hash = tests.test_224_02()
@@ -760,24 +708,11 @@ test succeed_initiate_subscription() {
   let init_output_ref = tests.test_input_utxo_02(tx_hash)
   let input_index = 0
 
-  //   trace @"tx_hash"
-  //   trace cbor.diagnostic(tx_hash)
-  //   trace @"init_output_ref"
-  //   trace cbor.diagnostic(init_output_ref)
   let payment_tkn = values.unique_token_name(tx_hash, 1, #"")
   let service_tkn =
     values.unique_token_name(service_tx_hash, 1, cip68.prefix_100)
   let user_account_tkn =
     values.unique_token_name(account_tx_hash, 1, cip68.prefix_222)
-
-  // TODO: No need for this.
-  let service_full_tn = bytearray.concat(service_cs, service_tkn)
-  let account_full_tn = bytearray.concat(account_cs, user_account_tkn)
-
-  trace @"service_full_tn"
-  trace cbor.diagnostic(service_full_tn)
-  trace @"account_full_tn"
-  trace cbor.diagnostic(account_full_tn)
 
   let current_time = 1000000
   let last_claimed = 500000
@@ -793,8 +728,8 @@ test succeed_initiate_subscription() {
 
   let payment_datum =
     tests.test_datum_03(
-      service_full_tn,
-      account_full_tn,
+      service_tkn,
+      user_account_tkn,
       payment_fee_qty,
       current_time,
       current_time + subscription_period,
@@ -806,14 +741,9 @@ test succeed_initiate_subscription() {
     InitSubscripton { output_reference: init_output_ref, input_index }
 
   let payment_value = value.add(value.zero(), own_cs, payment_tkn, 1)
-  let service_value = value.add(value.zero(), service_cs, service_full_tn, 1)
-  let account_value = value.add(value.zero(), account_cs, account_full_tn, 1)
+  let service_value = value.add(value.zero(), service_cs, service_tkn, 1)
+  let account_value = value.add(value.zero(), account_cs, user_account_tkn, 1)
 
-  //   let minted_value = value.merge(service_value, user_value)
-  // trace @"user_output"
-  // trace cbor.diagnostic(user_output)
-  // trace @"script_output"
-  // trace cbor.diagnostic(script_output)
   let service_input =
     tests.test_context_input_02(
       init_output_ref,
@@ -865,6 +795,10 @@ test succeed_initiate_subscription() {
       },
     }
 
+  trace @"service_cs"
+  trace cbor.diagnostic(service_cs)
+  trace @"account_cs"
+  trace cbor.diagnostic(account_cs)
   trace @"payment_datum"
   trace cbor.diagnostic(payment_datum)
 
@@ -916,8 +850,6 @@ test succeed_terminate_subscription() {
       penalty_fee_qty,
     )
 
-  // let payment_tkn = bytearray.concat(own_cs, payment_tkn)
-  // let account_full_tn = bytearray.concat(account_cs, user_account_tkn)
   let payment_value = value.add(value.zero(), own_cs, payment_tkn, 1)
   let account_value = value.add(value.zero(), account_cs, user_account_tkn, 1)
 

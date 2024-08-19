@@ -13,17 +13,6 @@ pub type AssetClass {
   asset_name: AssetName,
 }
 
-// /// Redeemer type for minting validator
-pub type MintAction {
-  Mint
-  Burn
-}
-
-// pub type StoreAction {
-//   Update
-//   Remove
-// }
-
 pub type ServiceDatum {
   service_fee: AssetClass,
   service_fee_qty: Int,

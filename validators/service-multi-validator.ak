@@ -1,12 +1,9 @@
 use aiken/bytearray
-// use aiken/bytearray
 use aiken/cbor
 use aiken/dict
-// use aiken/hash.{blake2b_256}
 use aiken/interval
 use aiken/list
 use aiken/math.{abs}
-// use aiken/string
 use aiken/transaction.{
   Input, Mint, NoDatum, Output, OutputReference, ScriptContext, Spend,
   Transaction, TransactionId,
@@ -66,7 +63,6 @@ validator {
         trace @"service_payment_credential"
         trace cbor.diagnostic(service_payment_credential)
 
-        // expect Some(user_output) = list.at(outputs, 0)
         // Expect two ouptuts user_output @ index 0 && ref_output @ index 1
         expect [user_output, ref_output, ..] = outputs
 
@@ -125,8 +121,6 @@ validator {
               ) == Equal
             _ -> False
           },
-          // (merged_burn == minted_tokens)?,
-          True,
         }
       }
     }
@@ -143,7 +137,6 @@ validator {
     // Validate that Service UTxO with a Service NFT is being spent.
     expect Some(own_input) = transaction.find_input(tx.inputs, output_reference)
 
-    // let minted_tokens = mint |> from_minted_value()
     let service_addr = own_input.output.address
     let ref_nft =
       own_input.output.value
@@ -157,8 +150,6 @@ validator {
     trace cbor.diagnostic(output_reference)
     when rdmr is {
       UpdateService -> {
-        trace @"service_address"
-        trace cbor.diagnostic(service_addr)
         // Find the output containing the reference NFT being sent back to this script itself
         let validating_output =
           utils.output_by_addr_value(tx.outputs, service_addr, ref_nft)
@@ -166,14 +157,17 @@ validator {
         // Extract the new datum from the validating output
         expect new_datum: ServiceDatum = data.output_datum(validating_output)
 
-        trace @"new_datum"
-        trace cbor.diagnostic(new_datum)
         // Validate that the metadata of the Reference NFT is updated within acceptable bounds
         let metadata_valid = is_metadata_valid(new_datum)
 
         // Validate service fee changes are within acceptable range
         let service_fee_change_valid =
           is_fee_change_valid(datum.service_fee_qty, new_datum.service_fee_qty)
+
+        trace @"service_address"
+        trace cbor.diagnostic(service_addr)
+        trace @"new_datum"
+        trace cbor.diagnostic(new_datum)
         and {
           // Validate that the metadata of the Reference NFT is updated within acceptable bounds .
           metadata_valid?,
@@ -182,7 +176,6 @@ validator {
           service_fee_change_valid?,
           payout.at_least(service_addr, ref_nft, tx.outputs)?,
           utils.check_output_utxo(validating_output)?,
-          True,
         }
       }
 
@@ -204,7 +197,7 @@ validator {
         trace cbor.diagnostic(burn_quantity)
 
         and {
-          // Validate that there's a single script input and one Script output back to the script address.
+          // Validate that there are two script input and one Script output back to the script address.
           // two script input
           count.inputs_by_addr(tx.inputs, service_addr, 2)?,
           // one script output
@@ -234,13 +227,12 @@ fn is_metadata_valid(datum: ServiceDatum) -> Bool {
 fn is_fee_change_valid(old_fee: Int, new_fee: Int) -> Bool {
   // Implement logic to ensure fee changes are within acceptable range
   // For example, limit changes to ±10%
+  let max_change = old_fee / 10
+
   trace @"old_fee"
   trace cbor.diagnostic(old_fee)
   trace @"new_fee"
   trace cbor.diagnostic(new_fee)
-
-  let max_change = old_fee / 10
-
   trace @"max_change"
   trace cbor.diagnostic(max_change)
 

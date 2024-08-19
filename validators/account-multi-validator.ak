@@ -58,9 +58,6 @@ validator {
         let user_value = value.from_asset(own_policy, user_tkn, 1)
         let merged_mint = value.merge(ref_value, user_value)
 
-        trace @"merged_mint"
-        trace cbor.diagnostic(merged_mint)
-        // let account_address = credential.from_script(own_policy)
         let account_payment_credential = credential.ScriptCredential(own_policy)
 
         // Find the output UTxO containing the reference token
@@ -90,11 +87,13 @@ validator {
         // Validate the Datum has valid account inputs.
         let metadata_valid = is_account_metadata_valid(datum)
 
+        trace @"merged_mint"
+        trace cbor.diagnostic(merged_mint)
         and {
           is_outref_spent?,
           // Validate the Datum has valid account inputs.
           metadata_valid?,
-          //  Validate that the redeemer only mints a single CIP68 compliant
+          // Validate that the redeemer only mints a single CIP68 compliant
           (merged_mint == minted_tokens)?,
           // Ensure that the User NFT doesn't go to the Script 
           user_token_not_to_script?,
@@ -109,7 +108,6 @@ validator {
             |> value.flatten()
 
         and {
-          // TODO: Grab the two tokens from inputs and then check if the token names are the same
           // Check nfts with ref and user token prefixes are burnt
           minting.by_prefix(mint_flat, own_policy, cip68.prefix_100, -1)?,
           minting.by_prefix(mint_flat, own_policy, cip68.prefix_222, -1)?,
@@ -121,8 +119,6 @@ validator {
               ) == Equal
             _ -> False
           },
-          // (merged_burn == minted_tokens)?,
-          True,
         }
       }
     }
@@ -138,14 +134,13 @@ validator {
     expect Spend(output_reference) = purpose
     // Validate that Account UTxO with a Account NFT is being spent.
     expect Some(own_input) = transaction.find_input(tx.inputs, output_reference)
-    trace @"own_input"
-    trace cbor.diagnostic(own_input)
 
-    // let minted_tokens = mint |> from_minted_value()
     let account_addr = own_input.output.address
     let ref_nft =
       own_input.output.value
         |> value.without_lovelace()
+    trace @"own_input"
+    trace cbor.diagnostic(own_input)
     trace @"ref_value"
     trace cbor.diagnostic(ref_nft)
 
@@ -153,9 +148,6 @@ validator {
     trace cbor.diagnostic(output_reference)
     when rdmr is {
       UpdateAccount -> {
-        trace @"account_address"
-        trace cbor.diagnostic(account_addr)
-
         // Find the output containing the reference NFT being sent back to this script itself
         let validating_output =
           utils.output_by_addr_value(tx.outputs, account_addr, ref_nft)
@@ -163,6 +155,8 @@ validator {
         // Extract the new datum from the validating output
         expect new_datum: AccountDatum = data.output_datum(validating_output)
 
+        trace @"account_address"
+        trace cbor.diagnostic(account_addr)
         trace @"new_datum"
         trace cbor.diagnostic(new_datum)
         let metadata_valid = is_account_metadata_valid(new_datum)
@@ -172,12 +166,10 @@ validator {
           metadata_valid?,
           payout.at_least(account_addr, ref_nft, tx.outputs)?,
           utils.check_output_utxo(validating_output)?,
-          True,
         }
       }
       // Removes the utxo entirely from the script address.
       RemoveAccount -> {
-        // this doesn't check for burn or destination for more of an open ended approach
         expect [(policy_id, asset_name, _)] = value.flatten(ref_nft)
 
         // Check that the reference NFT is burned
@@ -187,7 +179,7 @@ validator {
         let is_ref_nft_burned = burn_quantity == -1
 
         and {
-          // Validate that there's a single script input and No Script output back to the script address.
+          // Validate that there are two script input and one Script output back to the script address.
           // two script input
           count.inputs_by_addr(tx.inputs, account_addr, 2)?,
           // one script output
@@ -258,8 +250,6 @@ test succeed_create_account() {
       },
     }
 
-  // trace @"context"
-  // trace cbor.diagnostic(context)
   mint_account(redeemer, context)
 }
 
@@ -287,12 +277,6 @@ test succeed_delete_account() {
 
   let user_output = tests.test_utxo_02(own_cs, user_value, datum)
 
-  // trace @"user_input"
-  // trace cbor.diagnostic(user_input)
-  // trace @"account_input"
-  // trace cbor.diagnostic(account_input)
-  // trace @"user_output"
-  // trace cbor.diagnostic(user_output)
   let context =
     ScriptContext {
       purpose: Mint(own_cs),
@@ -380,8 +364,6 @@ test succeed_remove_account() {
   let account_output_ref = tests.test_input_utxo_02(tests.test_224_01())
 
   let datum = tests.test_datum_02("you@mail.com", "(717) 550-1675", 1, 1)
-
-  // let new_datum = tests.test_datum_02("you@mail.com", "(717) 550-1675", 1, 1)
   let redeemer = RemoveAccount
 
   let ref_tkn = values.unique_token_name(tx_hash, 1, cip68.prefix_100)
@@ -398,7 +380,6 @@ test succeed_remove_account() {
 
   let user_output = tests.test_utxo_02(own_cs, user_value, NoDatum)
 
-  // let script_output = tests.test_utxo_02(own_cs, ref_value, new_datum)
   trace @"user_input"
   trace cbor.diagnostic(user_input)
   trace @"account_input"
@@ -406,8 +387,6 @@ test succeed_remove_account() {
   trace @"user_output"
   trace cbor.diagnostic(user_output)
 
-  // trace @"script_output"
-  // trace cbor.diagnostic(script_output)
   let context =
     ScriptContext {
       purpose: Spend(account_output_ref),
