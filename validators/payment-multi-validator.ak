@@ -19,16 +19,15 @@ use payment_subscription/types.{
   TerminateSubscription, Unsubscribe, Withdraw,
 }
 use payment_subscription/utils.{
-  get_current_time, must_be_after_deadline, validate_single_nft_input,
-  validate_token_output,
+  get_minimum_current_time_estimate, get_reference_input_by_token,
+  must_be_after_deadline, validate_single_nft_input, validate_token_output,
 }
 
-// TODO: List of all the Transactions that are required.
 // TODO: Multiplier for the Discount and the Penalty. The longer you pay, the less the penalty (Last).
-// TODO: Ensure deadline  for withdrawing when Service NFT has been removed. (Later)
+// TODO: Ensure deadline for withdrawing when Service NFT has been removed. (Later)
 // TODO: Allow staking rewards for the subscriber (Later)
 // TODO: Allow Deadline for dormant subscription fees (After 90 days, subscriber can collect the funds from the payment validator)
-// TODO: Last Claimed in datum and Can't claim until one month has passed.(Add counter)
+// TODO: Allow last Claimed in datum so that merchant Can't claim until one month has passed.(Add counter)
 // TODO: Update with stake validator, multi-utxo-indexer-example (withdraw-zero trick) 
 validator(service_policy_id: ByteArray, account_policy_id: ByteArray) {
   fn mint_payment(redeemer: MintPayment, ctx: ScriptContext) -> Bool {
@@ -42,7 +41,9 @@ validator(service_policy_id: ByteArray, account_policy_id: ByteArray) {
       InitSubscripton { output_reference, input_index } -> {
         // Ensure this outref is spent in this transaction
         expect Some(account_input) = list.at(inputs, input_index)
-        expect [service_ref_input, ..] = reference_inputs
+        // Find the service reference input by searching for the token policy
+        expect Some(service_ref_input) =
+          get_reference_input_by_token(reference_inputs, service_policy_id)
         expect [user_output, payment_output, ..] = outputs
 
         // Extract datums
@@ -179,7 +180,7 @@ validator(service_policy_id: ByteArray, account_policy_id: ByteArray) {
         expect [(pid, tkn, amt)] = value.flatten(minted_tokens)
 
         // Calculate refund amount
-        let current_time = get_current_time(tx.validity_range)
+        let current_time = get_minimum_current_time_estimate(tx.validity_range)
         let total_subscription_time =
           payment_datum.subscription_end - payment_datum.subscription_start
         let time_elapsed =
@@ -238,14 +239,16 @@ validator(service_policy_id: ByteArray, account_policy_id: ByteArray) {
     expect Spend(_output_reference) = purpose
 
     when redeemer is {
-      Extend -> validate_extend(account_policy_id, datum, tx)
-      Unsubscribe -> validate_unsubscribe(account_policy_id, datum, tx)
+      Extend -> validate_extend(service_policy_id, account_policy_id, datum, tx)
+      Unsubscribe ->
+        validate_unsubscribe(service_policy_id, account_policy_id, datum, tx)
       Withdraw -> validate_withdraw(service_policy_id, datum, tx)
     }
   }
 }
 
 fn validate_extend(
+  service_policy_id: ByteArray,
   account_policy_id: ByteArray,
   datum: PaymentValidatorDatum,
   tx: Transaction,
@@ -254,8 +257,9 @@ fn validate_extend(
     Payment(payment_datum) -> {
       // Find the input being spent (current Payment Validator UTxO)
       expect [account_input, payment_input, ..] = tx.inputs
-      expect [service_ref_input, ..] = tx.reference_inputs
-
+      // Find the service reference input by searching for the token policy
+      expect Some(service_ref_input) =
+        get_reference_input_by_token(tx.reference_inputs, service_policy_id)
       // Find the new payment output
       expect [_account_output, payment_output, ..] = tx.outputs
 
@@ -361,6 +365,7 @@ fn validate_extend(
 // Validate that the logic follows the Service provider rules / datum as a refernce input to ensure the
 // penalty goes to the merchant when paying the penalty fees.
 fn validate_unsubscribe(
+  service_policy_id: ByteArray,
   account_policy_id: ByteArray,
   datum: PaymentValidatorDatum,
   tx: Transaction,
@@ -369,7 +374,9 @@ fn validate_unsubscribe(
     Payment(payment_datum) -> {
       // Find the inputs being spent (current Payment Validator UTxO)
       expect [account_input, payment_input, ..] = tx.inputs
-      expect [service_ref_input, ..] = tx.reference_inputs
+      // Find the service reference input by searching for the token policy
+      expect Some(service_ref_input) =
+        get_reference_input_by_token(tx.reference_inputs, service_policy_id)
 
       let payment_script_credential =
         payment_input.output.address.payment_credential
@@ -387,7 +394,7 @@ fn validate_unsubscribe(
       // Verify Penalty UTxO is created
       expect [account_output, penalty_output, ..] = tx.outputs
 
-      let current_time = get_current_time(tx.validity_range)
+      let current_time = get_minimum_current_time_estimate(tx.validity_range)
       let total_subscription_time =
         payment_datum.subscription_end - payment_datum.subscription_start
       let time_elapsed =
@@ -470,7 +477,7 @@ fn validate_withdraw(
       let payment_datum_valid =
         validate_payment_against_service(payment_datum, service_datum)
       // Get the current time
-      let current_time = get_current_time(tx.validity_range)
+      let current_time = get_minimum_current_time_estimate(tx.validity_range)
 
       // Calculate vesting-related values
       let total_subscription_time =

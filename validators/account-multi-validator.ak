@@ -203,9 +203,8 @@ validator {
 pub fn is_account_metadata_valid(datum: AccountDatum) -> Bool {
   let email_valid = bytearray.length(datum.email) > 0
   let phone_valid = bytearray.length(datum.phone) > 0
-  let account_duration_valid = datum.account_start < datum.account_end
 
-  email_valid && phone_valid && account_duration_valid
+  email_valid && phone_valid
 }
 
 test succeed_create_account() {
@@ -213,7 +212,7 @@ test succeed_create_account() {
   let tx_hash = tests.test_224_02()
   let init_output_ref = tests.test_input_utxo_02(tx_hash)
   let input_index = 0
-  let datum = tests.test_datum_02("you@mail.com", "(717) 550-1675", 1, 2)
+  let datum = tests.test_datum_02("you@mail.com", "(717) 550-1675", 1)
   let redeemer =
     CreateAccount { output_reference: init_output_ref, input_index }
 
@@ -259,7 +258,7 @@ test succeed_delete_account() {
   let init_output_ref = tests.test_input_utxo_02(tx_hash)
   let account_output_ref = tests.test_input_utxo_02(tests.test_224_01())
 
-  let datum = tests.test_datum_02("you@mail.com", "(717) 550-1675", 1, 1)
+  let datum = tests.test_datum_02("you@mail.com", "(717) 550-1675", 1)
   let redeemer = DeleteAccount
 
   let ref_tkn = values.unique_token_name(tx_hash, 1, cip68.prefix_100)
@@ -306,8 +305,8 @@ test succeed_update_account() {
   let init_output_ref = tests.test_input_utxo_02(tx_hash)
   let account_output_ref = tests.test_input_utxo_02(tests.test_224_01())
 
-  let datum = tests.test_datum_02("you@mail.com", "(717) 550-1675", 1, 2)
-  let new_datum = tests.test_datum_02("you@mail.com", "(717) 550-1675", 1, 2)
+  let datum = tests.test_datum_02("you@mail.com", "(717) 550-1675", 1)
+  let new_datum = tests.test_datum_02("you@mail.com", "(717) 550-1675", 1)
 
   let redeemer = UpdateAccount
 
@@ -363,7 +362,7 @@ test succeed_remove_account() {
   let init_output_ref = tests.test_input_utxo_02(tx_hash)
   let account_output_ref = tests.test_input_utxo_02(tests.test_224_01())
 
-  let datum = tests.test_datum_02("you@mail.com", "(717) 550-1675", 1, 1)
+  let datum = tests.test_datum_02("you@mail.com", "(717) 550-1675", 1)
   let redeemer = RemoveAccount
 
   let ref_tkn = values.unique_token_name(tx_hash, 1, cip68.prefix_100)

@@ -49,8 +49,7 @@ pub type SpendAccount {
 pub type AccountDatum {
   email: ByteArray,
   phone: ByteArray,
-  account_start: POSIXTime,
-  account_end: POSIXTime,
+  account_created: POSIXTime,
 }
 
 // Payment Mint Purpose Redeemer

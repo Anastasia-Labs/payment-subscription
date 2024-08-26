@@ -12,8 +12,6 @@ pub fn check_output_utxo(output: Output) -> Bool {
   // Check inline datum exists and conforms to MetaDatum as per CIP68
   trace cbor.diagnostic(output.datum)
 
-  //   expect InlineDatum(data) = output.datum
-  //   expect _metadatum: MetaDatum = data
   let output_value =
     output.value
       |> value.without_lovelace()
@@ -72,7 +70,6 @@ pub fn validate_single_nft_input(
   policy: PolicyId,
   token_name: ByteArray,
 ) -> Bool {
-  // let nft_value = input.output.value |> value.without_lovelace
   value.quantity_of(input.output.value, policy, token_name) == 1
 }
 
@@ -99,6 +96,16 @@ pub fn validate_token_output(
   }
 }
 
+pub fn get_reference_input_by_token(
+  reference_inputs: List<Input>,
+  policy_id: PolicyId,
+) {
+  list.find(
+    reference_inputs,
+    fn(input) { list.has(value.policies(input.output.value), policy_id) },
+  )
+}
+
 pub fn must_be_after_deadline(range: ValidityRange, deadline: PosixTime) {
   // Pattern match for the type of the lower bound
   when range.lower_bound.bound_type is {
@@ -109,7 +116,9 @@ pub fn must_be_after_deadline(range: ValidityRange, deadline: PosixTime) {
   }
 }
 
-pub fn get_current_time(range: Interval<PosixTime>) -> PosixTime {
+pub fn get_minimum_current_time_estimate(
+  range: Interval<PosixTime>,
+) -> PosixTime {
   when range.lower_bound.bound_type is {
     Finite(current_time) -> current_time
     _ -> fail @"Invalid lower bound"

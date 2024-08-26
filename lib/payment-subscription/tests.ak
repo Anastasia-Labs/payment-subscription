@@ -172,10 +172,9 @@ pub fn test_context_input_02(output_ref, own_cs, minted_value, datum) {
 pub fn test_datum_02(
   email: ByteArray,
   phone: ByteArray,
-  account_start: POSIXTime,
-  account_end: POSIXTime,
+  account_created: POSIXTime,
 ) {
-  AccountDatum { email, phone, account_start, account_end }
+  AccountDatum { email, phone, account_created }
 }
 
 pub fn test_datum_03(
