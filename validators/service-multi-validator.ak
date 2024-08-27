@@ -58,11 +58,6 @@ validator {
         let user_value = value.from_asset(own_policy, user_tkn, 1)
         let merged_mint = value.merge(ref_value, user_value)
 
-        trace @"user_tkn"
-        trace cbor.diagnostic(user_tkn)
-        trace @"service_payment_credential"
-        trace cbor.diagnostic(service_payment_credential)
-
         // Expect two ouptuts user_output @ index 0 && ref_output @ index 1
         expect [user_output, ref_output, ..] = outputs
 
@@ -90,8 +85,6 @@ validator {
         expect datum: ServiceDatum = data.output_datum(ref_output)
         let metadata_valid = is_metadata_valid(datum)
 
-        trace @"user_output"
-        trace cbor.diagnostic(user_output)
         and {
           is_outref_spent?,
           // Validate the Datum meets Service Provider requirements.
@@ -142,12 +135,6 @@ validator {
       own_input.output.value
         |> value.without_lovelace()
 
-    trace @"own_input"
-    trace cbor.diagnostic(own_input)
-    trace @"ref_value"
-    trace cbor.diagnostic(ref_nft)
-    trace @"output_reference"
-    trace cbor.diagnostic(output_reference)
     when rdmr is {
       UpdateService -> {
         // Find the output containing the reference NFT being sent back to this script itself
@@ -164,10 +151,6 @@ validator {
         let service_fee_change_valid =
           is_fee_change_valid(datum.service_fee_qty, new_datum.service_fee_qty)
 
-        trace @"service_address"
-        trace cbor.diagnostic(service_addr)
-        trace @"new_datum"
-        trace cbor.diagnostic(new_datum)
         and {
           // Validate that the metadata of the Reference NFT is updated within acceptable bounds .
           metadata_valid?,
@@ -193,8 +176,6 @@ validator {
 
         let no_output_has_reference_nft =
           value.quantity_of(output.value, policy_id, asset_name) == 0
-        trace @"is_ref_nft_burned"
-        trace cbor.diagnostic(burn_quantity)
 
         and {
           // Validate that there are two script input and one Script output back to the script address.
@@ -282,6 +263,47 @@ test success_create_service() {
       },
     }
 
+  trace @"Test: Creating a New Service"
+  trace @"-------------------------------------"
+
+  trace @"Step 1: Service Details"
+  trace @"-------------------------------------"
+  trace @"Service Fee:"
+  trace cbor.diagnostic(datum.service_fee_qty)
+  trace @"Penalty Fee:"
+  trace cbor.diagnostic(datum.penalty_fee_qty)
+  trace @"Subscription Period: (days)"
+  trace cbor.diagnostic(datum.subscription_period / ( 24 * 60 * 60 * 1000 ))
+
+  trace @"Step 2: Minting Service Tokens"
+  trace @"-------------------------------------"
+  trace @"Reference Token:"
+  trace cbor.diagnostic(ref_tkn)
+  trace @"User Token:"
+  trace cbor.diagnostic(user_tkn)
+
+  trace @"Step 3: Preparing Outputs"
+  trace @"-------------------------------------"
+  trace @"User Output:"
+  trace cbor.diagnostic(user_output)
+  trace @"Service Output:"
+  trace cbor.diagnostic(service_output)
+
+  trace @"Step 4: Validating Transaction"
+  trace @"-------------------------------------"
+  trace @"Transaction Inputs:"
+  trace cbor.diagnostic(context.transaction.inputs)
+  trace @"Transaction Outputs:"
+  trace cbor.diagnostic(context.transaction.outputs)
+  trace @"Minted Tokens:"
+  trace cbor.diagnostic(context.transaction.mint)
+
+  trace @"Step 5: Execution Result"
+  trace @"-------------------------------------"
+  trace @"Service Successfully Created!"
+  trace @"-------------------------------------"
+  trace @"Test Completed!"
+
   mint_service(redeemer, context)
 }
 
@@ -331,6 +353,48 @@ test success_delete_service() {
         id: TransactionId { hash: tx_hash },
       },
     }
+
+  trace @"Test: Deleting an Existing Service"
+  trace @"-------------------------------------"
+
+  trace @"Step 1: Service Details"
+  trace @"-------------------------------------"
+  trace @"Service Fee:"
+  trace cbor.diagnostic(datum.service_fee_qty)
+  trace @"Penalty Fee:"
+  trace cbor.diagnostic(datum.penalty_fee_qty)
+  trace @"Subscription Period: (days)"
+  trace cbor.diagnostic(datum.subscription_period / ( 24 * 60 * 60 * 1000 ))
+
+  trace @"Step 2: Burning Service Tokens"
+  trace @"-------------------------------------"
+  trace @"Reference Token to Burn:"
+  trace cbor.diagnostic(ref_tkn)
+  trace @"User Token to Burn:"
+  trace cbor.diagnostic(user_tkn)
+
+  trace @"Step 3: Preparing Inputs"
+  trace @"-------------------------------------"
+  trace @"User Input:"
+  trace cbor.diagnostic(user_input)
+  trace @"Service Input:"
+  trace cbor.diagnostic(service_input)
+
+  trace @"Step 4: Validating Transaction"
+  trace @"-------------------------------------"
+  trace @"Transaction Inputs:"
+  trace cbor.diagnostic(context.transaction.inputs)
+  trace @"Transaction Outputs:"
+  trace cbor.diagnostic(context.transaction.outputs)
+  trace @"Burned Tokens:"
+  trace cbor.diagnostic(context.transaction.mint)
+
+  trace @"Step 5: Execution Result"
+  trace @"-------------------------------------"
+  trace @"Service Successfully Deleted!"
+  trace @"-------------------------------------"
+  trace @"Test Completed!"
+
   mint_service(redeemer, context)
 }
 
@@ -360,15 +424,6 @@ test success_update_service() {
   let user_output = tests.test_utxo_02(own_cs, user_value, NoDatum)
   let service_output = tests.test_utxo_02(own_cs, ref_value, new_datum)
 
-  trace @"user_input"
-  trace cbor.diagnostic(user_input)
-  trace @"service_input"
-  trace cbor.diagnostic(service_input)
-  trace @"user_output"
-  trace cbor.diagnostic(user_output)
-  trace @"service_output"
-  trace cbor.diagnostic(service_output)
-
   let context =
     ScriptContext {
       purpose: Spend(script_output_ref),
@@ -388,6 +443,51 @@ test success_update_service() {
         id: TransactionId { hash: tx_hash },
       },
     }
+
+  trace @"Test: Updating an Existing Service"
+  trace @"-------------------------------------"
+
+  trace @"Step 1: Current Service Details"
+  trace @"-------------------------------------"
+  trace @"Current Service Fee:"
+  trace cbor.diagnostic(datum.service_fee_qty)
+  trace @"Current Penalty Fee:"
+  trace cbor.diagnostic(datum.penalty_fee_qty)
+  trace @"Current Subscription Period: (days)"
+  trace cbor.diagnostic(datum.subscription_period / ( 24 * 60 * 60 * 1000 ))
+
+  trace @"Step 2: Updated Service Details"
+  trace @"-------------------------------------"
+  trace @"New Service Fee:"
+  trace cbor.diagnostic(new_datum.service_fee_qty)
+  trace @"New Penalty Fee:"
+  trace cbor.diagnostic(new_datum.penalty_fee_qty)
+  trace @"New Subscription Period: (days)"
+  trace cbor.diagnostic(new_datum.subscription_period / ( 24 * 60 * 60 * 1000 ))
+
+  trace @"Step 3: Preparing Inputs and Outputs"
+  trace @"-------------------------------------"
+  trace @"User Input:"
+  trace cbor.diagnostic(user_input)
+  trace @"Service Input:"
+  trace cbor.diagnostic(service_input)
+  trace @"User Output:"
+  trace cbor.diagnostic(user_output)
+  trace @"Service Output:"
+  trace cbor.diagnostic(service_output)
+
+  trace @"Step 4: Validating Transaction"
+  trace @"-------------------------------------"
+  trace @"Transaction Inputs:"
+  trace cbor.diagnostic(context.transaction.inputs)
+  trace @"Transaction Outputs:"
+  trace cbor.diagnostic(context.transaction.outputs)
+
+  trace @"Step 5: Execution Result"
+  trace @"-------------------------------------"
+  trace @"Service Successfully Updated!"
+  trace @"-------------------------------------"
+  trace @"Test Completed!"
   spend_service(datum, redeemer, context)
 }
 
@@ -416,16 +516,6 @@ test success_remove_service() {
 
   let user_output = tests.test_utxo_02(own_cs, user_value, NoDatum)
 
-  // let service_output = tests.test_utxo_02(own_cs, ref_value, new_datum)
-  trace @"user_input"
-  trace cbor.diagnostic(user_input)
-  trace @"service_input"
-  trace cbor.diagnostic(service_input)
-  trace @"user_output"
-  trace cbor.diagnostic(user_output)
-
-  // trace @"service_output"
-  // trace cbor.diagnostic(service_output)
   let context =
     ScriptContext {
       purpose: Spend(script_output_ref),
@@ -445,5 +535,48 @@ test success_remove_service() {
         id: TransactionId { hash: tx_hash },
       },
     }
+
+  trace @"Test: Removing an Existing Service"
+  trace @"-------------------------------------"
+
+  trace @"Step 1: Service Details"
+  trace @"-------------------------------------"
+  trace @"Service Fee:"
+  trace cbor.diagnostic(datum.service_fee_qty)
+  trace @"Penalty Fee:"
+  trace cbor.diagnostic(datum.penalty_fee_qty)
+  trace @"Subscription Period: (days)"
+  trace cbor.diagnostic(datum.subscription_period / ( 24 * 60 * 60 * 1000 ))
+
+  trace @"Step 2: Tokens to Remove"
+  trace @"-------------------------------------"
+  trace @"Reference Token:"
+  trace cbor.diagnostic(ref_tkn)
+  trace @"User Token:"
+  trace cbor.diagnostic(user_tkn)
+
+  trace @"Step 3: Preparing Inputs and Outputs"
+  trace @"-------------------------------------"
+  trace @"User Input:"
+  trace cbor.diagnostic(user_input)
+  trace @"Service Input:"
+  trace cbor.diagnostic(service_input)
+  trace @"User Output:"
+  trace cbor.diagnostic(user_output)
+
+  trace @"Step 4: Validating Transaction"
+  trace @"-------------------------------------"
+  trace @"Transaction Inputs:"
+  trace cbor.diagnostic(context.transaction.inputs)
+  trace @"Transaction Outputs:"
+  trace cbor.diagnostic(context.transaction.outputs)
+  trace @"Burned Tokens:"
+  trace cbor.diagnostic(context.transaction.mint)
+
+  trace @"Step 5: Execution Result"
+  trace @"-------------------------------------"
+  trace @"Service Successfully Removed!"
+  trace @"-------------------------------------"
+  trace @"Test Completed!"
   spend_service(datum, redeemer, context)
 }

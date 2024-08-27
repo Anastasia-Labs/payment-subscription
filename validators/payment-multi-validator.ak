@@ -27,7 +27,6 @@ use payment_subscription/utils.{
 // TODO: Ensure deadline for withdrawing when Service NFT has been removed. (Later)
 // TODO: Allow staking rewards for the subscriber (Later)
 // TODO: Allow Deadline for dormant subscription fees (After 90 days, subscriber can collect the funds from the payment validator)
-// TODO: Allow last Claimed in datum so that merchant Can't claim until one month has passed.(Add counter)
 // TODO: Update with stake validator, multi-utxo-indexer-example (withdraw-zero trick) 
 validator(service_policy_id: ByteArray, account_policy_id: ByteArray) {
   fn mint_payment(redeemer: MintPayment, ctx: ScriptContext) -> Bool {
@@ -118,22 +117,6 @@ validator(service_policy_id: ByteArray, account_policy_id: ByteArray) {
             True,
           )
 
-        trace @"payment_output"
-        trace cbor.diagnostic(payment_output)
-        trace @"datum.service_nft_tn"
-        trace cbor.diagnostic(payment_datum.service_nft_tn)
-        trace @"datum.account_nft_tn"
-        trace cbor.diagnostic(payment_datum.account_nft_tn)
-        trace @"service_ref_input.output.value"
-        trace cbor.diagnostic(service_ref_input.output.value)
-        trace @"input_has_account_nft"
-        trace cbor.diagnostic(input_has_account_nft)
-        trace @"locked_amount"
-        trace cbor.diagnostic(locked_amount)
-        trace @"expected_amount"
-        trace cbor.diagnostic(expected_amount)
-        trace @"locked_amount_valid"
-        trace cbor.diagnostic(locked_amount_valid)
         and {
           // Validate that out_ref must be present in the Transaction Inputs.
           (account_input.output_reference == output_reference)?,
@@ -178,41 +161,6 @@ validator(service_policy_id: ByteArray, account_policy_id: ByteArray) {
 
         // Get the tokens being minted (or burned) in this transaction
         expect [(pid, tkn, amt)] = value.flatten(minted_tokens)
-
-        // Calculate refund amount
-        let current_time = get_minimum_current_time_estimate(tx.validity_range)
-        let total_subscription_time =
-          payment_datum.subscription_end - payment_datum.subscription_start
-        let time_elapsed =
-          math.min(
-            current_time - payment_datum.subscription_start,
-            total_subscription_time,
-          )
-        let refund_amount =
-          payment_datum.subscription_fee_qty * (
-            total_subscription_time - time_elapsed
-          ) / total_subscription_time
-
-        trace @"account_nft"
-        trace cbor.diagnostic(account_nft)
-        trace @"account_policy_id"
-        trace cbor.diagnostic(account_policy_id)
-        trace @"payment_datum.account_nft_tn"
-        trace cbor.diagnostic(payment_datum.account_nft_tn)
-        trace @"quantity_of"
-        trace cbor.diagnostic(
-          value.quantity_of(
-            account_nft,
-            account_policy_id,
-            payment_datum.account_nft_tn,
-          ),
-        )
-        trace @"own_policy"
-        trace cbor.diagnostic(own_policy)
-        trace @"token_policy"
-        trace cbor.diagnostic(token_policy)
-        trace @"refund_amount"
-        trace cbor.diagnostic(refund_amount)
 
         // Verify all conditions are met
         and {
@@ -330,22 +278,6 @@ fn validate_extend(
           payment_script_credential,
           True,
         )
-
-      trace @"service_ref_input"
-      trace cbor.diagnostic(service_ref_input)
-
-      trace @"account_input"
-      trace cbor.diagnostic(account_input)
-      trace @"payment_input"
-      trace cbor.diagnostic(payment_input)
-      trace @"valid_extension"
-      trace cbor.diagnostic(valid_extension)
-      trace @"fee_increase_valid"
-      trace cbor.diagnostic(fee_increase_valid)
-      trace @"fee_increase_valid"
-      trace cbor.diagnostic(fee_increase_valid)
-      trace @"correct_output_address"
-      trace cbor.diagnostic(correct_output_address)
 
       and {
         input_has_account_nft?,
@@ -528,34 +460,6 @@ fn validate_withdraw(
           payment_datum.subscription_fee.asset_name,
         ) >= remaining_amount
 
-      trace @"current_time"
-      trace cbor.diagnostic(current_time)
-      trace @"time_elapsed"
-      trace cbor.diagnostic(time_elapsed)
-      trace @"merchant_input"
-      trace cbor.diagnostic(merchant_input)
-      trace @"service_datum.service_fee"
-      trace cbor.diagnostic(service_datum.service_fee_qty)
-      trace @"service_datum"
-      trace cbor.diagnostic(service_datum)
-      trace @"payment_datum.subscription_fee"
-      trace cbor.diagnostic(payment_datum.subscription_fee)
-      trace @"total_subscription_time"
-      trace cbor.diagnostic(total_subscription_time)
-      trace @"payment_datum.subscription_fee_qty"
-      trace cbor.diagnostic(payment_datum.subscription_fee_qty)
-      trace @"calculated_withdrawable_amount"
-      trace cbor.diagnostic(withdrawable_amount)
-      trace @"actual_withdrawal_amount"
-      trace cbor.diagnostic(actual_withdrawal_amount)
-      trace @"new_datum.last_claimed"
-      trace cbor.diagnostic(new_datum.last_claimed)
-      trace @"withdrawable_amount"
-      trace cbor.diagnostic(withdrawable_amount)
-      trace @"actual_withdrawal_amount"
-      trace cbor.diagnostic(actual_withdrawal_amount)
-      trace @"remaining_amount"
-      trace cbor.diagnostic(remaining_amount)
       and {
         has_service_nft?,
         payment_datum_valid?,
@@ -648,21 +552,6 @@ fn validate_extension_datum(
   // Validate that the extension follows the Service provider rules
   let follows_service_rules =
     new_datum.subscription_fee == service_datum.service_fee && new_datum.subscription_period % service_datum.subscription_period == 0
-
-  trace @"extension_amount"
-  trace cbor.diagnostic(extension_amount)
-  trace @"expected_fee_increase"
-  trace cbor.diagnostic(expected_fee_increase)
-  trace @"unchanged_fields_valid"
-  trace cbor.diagnostic(unchanged_fields_valid)
-  trace @"period_extension_valid"
-  trace cbor.diagnostic(period_extension_valid)
-  trace @"fee_increase_valid"
-  trace cbor.diagnostic(fee_increase_valid)
-  trace @"valid_end_date"
-  trace cbor.diagnostic(valid_end_date)
-  trace @"follows_service_rules"
-  trace cbor.diagnostic(follows_service_rules)
 
   and {
     unchanged_fields_valid?,
@@ -802,24 +691,53 @@ test succeed_initiate_subscription() {
       },
     }
 
-  trace @"service_cs"
+  trace @"Test: Initiating a New Subscription"
+  trace @"-------------------------------------"
+
+  trace @"Step 1: Setting up the subscription"
+  trace @"-------------------------------------"
+  trace @"Service Currency Symbol:"
   trace cbor.diagnostic(service_cs)
-  trace @"account_cs"
+  trace @"Account Currency Symbol:"
   trace cbor.diagnostic(account_cs)
-  trace @"payment_datum"
-  trace cbor.diagnostic(payment_datum)
+  trace @"Subscription Fee: (lovelace)"
+  trace cbor.diagnostic(payment_fee_qty)
+  trace @"Subscription Period: (days)"
+  trace cbor.diagnostic(subscription_period / ( 24 * 60 * 60 * 1000 ))
+  trace @"Penalty Fee: (lovelace)"
+  trace cbor.diagnostic(penalty_qty)
 
-  trace @"service_datum"
-  trace cbor.diagnostic(service_datum)
+  trace @"Step 2: Creating Payment Datum"
+  trace @"-------------------------------------"
+  trace @"Service NFT:"
+  trace cbor.diagnostic(service_tkn)
+  trace @"Account NFT:"
+  trace cbor.diagnostic(user_account_tkn)
+  trace @"Subscription Start:"
+  trace cbor.diagnostic(current_time)
+  trace @"Subscription End:"
+  trace cbor.diagnostic(current_time + subscription_period)
 
-  trace @"account_input"
+  trace @"Step 3: Preparing Inputs"
+  trace @"-------------------------------------"
+  trace @"Account Input:"
   trace cbor.diagnostic(account_input)
-
-  trace @"service_input"
+  trace @"Service Input:"
   trace cbor.diagnostic(service_input)
 
-  trace @"payment_output"
+  trace @"Step 4: Preparing Outputs"
+  trace @"-------------------------------------"
+  trace @"User Output:"
+  trace cbor.diagnostic(user_output)
+  trace @"Payment Output:"
   trace cbor.diagnostic(payment_output)
+
+  trace @"Step 5: Execution Result"
+  trace @"-------------------------------------"
+  trace @"Subscription Successfully Initiated!"
+  trace @"-------------------------------------"
+  trace @"Test Completed!"
+
   mint_payment(service_cs, account_cs, redeemer, context)
 }
 
@@ -933,14 +851,61 @@ test succeed_terminate_subscription() {
       },
     }
 
-  trace @"own_cs"
+  trace @"Test: Terminating a Subscription"
+  trace @"-------------------------------------"
+
+  trace @"Step 1: Subscription Details"
+  trace @"-------------------------------------"
+  trace @"Service Currency Symbol:"
+  trace cbor.diagnostic(service_cs)
+  trace @"Account Currency Symbol:"
+  trace cbor.diagnostic(account_cs)
+  trace @"Payment Currency Symbol:"
   trace cbor.diagnostic(own_cs)
-  trace @"payment_tkn"
+  trace @"Original Subscription Start:"
+  trace cbor.diagnostic(current_time)
+  trace @"Original Subscription End:"
+  trace cbor.diagnostic(current_time + subscription_period)
+  trace @"Termination Time (mid-subscription):"
+  trace cbor.diagnostic(current_time + time_elapsed)
+
+  trace @"Step 2: Calculating Refund and Penalty"
+  trace @"-------------------------------------"
+  trace @"Total Subscription Time:"
+  trace cbor.diagnostic(subscription_period)
+  trace @"Time Elapsed:"
+  trace cbor.diagnostic(time_elapsed)
+  trace @"Original Payment Amount:"
+  trace cbor.diagnostic(payment_fee_qty)
+  trace @"Refund Amount:"
+  trace cbor.diagnostic(refund_amount)
+  trace @"Penalty Applied:"
+  trace cbor.diagnostic(penalty_fee_qty)
+
+  trace @"Step 3: Processing Termination"
+  trace @"-------------------------------------"
+  trace @"Payment NFT to be burned:"
   trace cbor.diagnostic(payment_tkn)
-  trace @"payment_input"
-  trace cbor.diagnostic(payment_input)
-  trace @"minted_tokens"
+  trace @"Refund Output:"
+  trace cbor.diagnostic(refund_output)
+  trace @"Penalty Output:"
+  trace cbor.diagnostic(penalty_output)
+
+  trace @"Step 4: Verifying Transaction"
+  trace @"-------------------------------------"
+  trace @"Transaction Inputs:"
+  trace cbor.diagnostic(context.transaction.inputs)
+  trace @"Transaction Outputs:"
+  trace cbor.diagnostic(context.transaction.outputs)
+  trace @"Burned Tokens:"
   trace cbor.diagnostic(context.transaction.mint)
+
+  trace @"Step 5: Execution Result"
+  trace @"-------------------------------------"
+  trace @"Subscription Successfully Terminated"
+
+  trace @"-------------------------------------"
+  trace @"Test Completed!"
 
   mint_payment(service_cs, account_cs, redeemer, context)
 }
@@ -1087,14 +1052,56 @@ test succeed_extend_subscription() {
         id: TransactionId { hash: tx_hash },
       },
     }
-  trace @"Initial Payment Datum"
+
+  trace @"Test: Extending an Existing Subscription"
+  trace @"-------------------------------------"
+
+  trace @"Step 1: Current Subscription Details"
+  trace @"-------------------------------------"
+  trace @"Service Currency Symbol:"
+  trace cbor.diagnostic(service_cs)
+  trace @"Account Currency Symbol:"
+  trace cbor.diagnostic(account_cs)
+  trace @"Current Subscription Start:"
+  trace cbor.diagnostic(current_time)
+  trace @"Current Subscription End:"
+  trace cbor.diagnostic(current_time + initial_subscription_period)
+  trace @"Current Subscription Fee: (lovelace)"
+  trace cbor.diagnostic(initial_payment_fee_qty)
+
+  trace @"Step 2: Extension Details"
+  trace @"-------------------------------------"
+  trace @"Extension Period: (days)"
+  trace cbor.diagnostic(extension_period / ( 24 * 60 * 60 * 1000 ))
+  trace @"New Subscription End:"
+  trace cbor.diagnostic(
+    initial_payment_datum.subscription_end + extension_period,
+  )
+  trace @"Additional Fee for Extension: (lovelace)"
+  trace cbor.diagnostic(extension_fee)
+
+  trace @"Step 3: Updating Payment Datum"
+  trace @"-------------------------------------"
+  trace @"Original Payment Datum:"
   trace cbor.diagnostic(initial_payment_datum)
-  trace @"New Payment Datum"
+  trace @"Updated Payment Datum:"
   trace cbor.diagnostic(new_payment_datum)
-  trace @"Payment Input"
-  trace cbor.diagnostic(payment_input)
-  trace @"New Payment Output"
-  trace cbor.diagnostic(payment_output)
+
+  trace @"Step 4: Verifying Transaction"
+  trace @"-------------------------------------"
+  trace @"Transaction Inputs:"
+  trace cbor.diagnostic(context.transaction.inputs)
+  trace @"Transaction Outputs:"
+  trace cbor.diagnostic(context.transaction.outputs)
+  trace @"Reference Inputs:"
+  trace cbor.diagnostic(context.transaction.reference_inputs)
+
+  trace @"Step 5: Execution Result"
+  trace @"-------------------------------------"
+  trace @"Subscription Successfully Extended!"
+  trace @"-------------------------------------"
+  trace @"Test Completed!"
+
   spend_payment(
     service_cs,
     account_cs,
@@ -1206,6 +1213,59 @@ test succeed_unsubscribe() {
       insert_timerange,
       tx_hash,
     )
+
+  trace @"Test: Unsubscribing from a Service"
+  trace @"-------------------------------------"
+
+  trace @"Step 1: Current Subscription Details"
+  trace @"-------------------------------------"
+  trace @"Original Subscription Fee: (lovelace)"
+  trace cbor.diagnostic(payment_fee_qty)
+  trace @"Subscription period: (days)"
+  trace cbor.diagnostic(subscription_period / ( 24 * 60 * 60 * 1000 ))
+
+  trace @"Unsubscribe Details:"
+  trace @"Time elapsed: (days)"
+  trace cbor.diagnostic(time_elapsed / ( 24 * 60 * 60 * 1000 ))
+  trace @"Refund Amount: (lovelace)"
+  trace cbor.diagnostic(refund_amount)
+  trace @"Penalty Fee: (lovelace)"
+  trace cbor.diagnostic(penalty_fee_qty)
+
+  trace @"Refunded to user:"
+  trace cbor.diagnostic(refund_amount)
+  trace @"Penalty retained:"
+  trace cbor.diagnostic(penalty_fee_qty)
+
+  trace @"Step 2: Unsubscribe Process"
+  trace @"-------------------------------------"
+  trace @"Time of Unsubscription:"
+  trace cbor.diagnostic(current_time)
+  trace @"Refund Amount:"
+  trace cbor.diagnostic(refund_amount)
+  trace @"Penalty Amount:"
+  trace cbor.diagnostic(penalty_fee_qty)
+
+  trace @"Step 3: Verifying Outputs"
+  trace @"-------------------------------------"
+  trace @"Refund Output:"
+  trace cbor.diagnostic(refund_output)
+  trace @"Penalty Output:"
+  trace cbor.diagnostic(penalty_output)
+
+  trace @"Step 4: Validating Transaction"
+  trace @"-------------------------------------"
+  trace @"Transaction Inputs:"
+  trace cbor.diagnostic(context.transaction.inputs)
+  trace @"Transaction Outputs:"
+  trace cbor.diagnostic(context.transaction.outputs)
+  trace @"Minted Tokens:"
+  trace cbor.diagnostic(context.transaction.mint)
+  trace @"Step 5: Execution Result"
+  trace @"-------------------------------------"
+  trace @"Unsubscription Successfully Processed!"
+  trace @"-------------------------------------"
+  trace @"Test Completed!"
 
   spend_payment(
     service_cs,
@@ -1343,6 +1403,55 @@ test succeed_withdraw() {
       insert_timerange,
       tx_hash,
     )
+
+  trace @"Test: Withdrawing Subscription Fees"
+  trace @"-------------------------------------"
+
+  trace @"Step 1: Current Contract State"
+  trace @"-------------------------------------"
+  trace @"Service Currency Symbol:"
+  trace cbor.diagnostic(service_cs)
+  trace @"Payment Currency Symbol:"
+  trace cbor.diagnostic(own_cs)
+  trace @"Subscription Start:"
+  trace cbor.diagnostic(subscription_start)
+  trace @"Subscription End:"
+  trace cbor.diagnostic(subscription_end)
+  trace @"Total Subscription Fee: (lovelace)"
+  trace cbor.diagnostic(payment_fee_qty)
+  trace @"Last Claimed:"
+  trace cbor.diagnostic(last_claimed)
+  trace @"Current Time:"
+  trace cbor.diagnostic(current_time)
+
+  trace @"Step 2: Withdrawal Calculation"
+  trace @"-------------------------------------"
+  trace @"Time Elapsed: (days)"
+  trace cbor.diagnostic(time_elapsed / ( 24 * 60 * 60 * 1000 ))
+  trace @"Withdrawable Amount: (lovelace)"
+  trace cbor.diagnostic(withdrawable_amount)
+  trace @"Actual Withdrawal: (lovelace)"
+  trace cbor.diagnostic(actual_withdrawal)
+
+  trace @"Step 3: Verifying Outputs"
+  trace @"-------------------------------------"
+  trace @"Merchant Output:"
+  trace cbor.diagnostic(merchant_output)
+  trace @"Remaining Payment Output:"
+  trace cbor.diagnostic(payment_output)
+
+  trace @"Step 4: Updating Payment Datum"
+  trace @"-------------------------------------"
+  trace @"Original Last Claimed:"
+  trace cbor.diagnostic(last_claimed)
+  trace @"Updated Last Claimed:"
+  trace cbor.diagnostic(current_time)
+
+  trace @"Step 5: Execution Result"
+  trace @"-------------------------------------"
+  trace @"Withdrawal Successfully Processed!"
+  trace @"-------------------------------------"
+  trace @"Test Completed!"
 
   spend_payment(
     service_cs,

@@ -75,6 +75,8 @@ pub type PaymentDatum {
   subscription_start: POSIXTime,
   subscription_end: POSIXTime,
   subscription_period: Int,
+  // last Claimed in datum so that merchant can't claim until 
+  // one month has passed.(Add counter)
   last_claimed: POSIXTime,
   penalty_fee: AssetClass,
   penalty_fee_qty: Int,
