@@ -15,7 +15,7 @@ use assist/minting
 use assist/payout
 use assist/types/cip68
 use assist/values
-use payment_subscription/tests
+use payment_subscription/tests/tests
 use payment_subscription/types.{
   AccountDatum, CreateAccount, DeleteAccount, MintAccount, RemoveAccount,
   SpendAccount, UpdateAccount,

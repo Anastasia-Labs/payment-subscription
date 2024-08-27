@@ -12,7 +12,7 @@ use aiken/transaction/value.{from_minted_value}
 use assist/data
 use assist/types/cip68
 use assist/values
-use payment_subscription/tests
+use payment_subscription/tests/tests
 use payment_subscription/types.{
   AssetClass, Extend, InitSubscripton, MintPayment, Payment, PaymentDatum,
   PaymentValidatorDatum, Penalty, PenaltyDatum, ServiceDatum, SpendPayment,
