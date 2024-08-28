@@ -1244,31 +1244,21 @@ This transaction allows anyone with a Service NFT to unlock penalty funds associ
 
 
 
-// = Additional Features
-
-// \
-// == Sketch of the payment plan
-
-// \
-// - Recurring Payments:
-//   - Supports recurring payments with defined start, end, interval, and amount.
-// - Structured Payments:
-//   - Can handle structured payments with a series of payouts.
-// - Conditional Payments:
-//   - Allows additional conditions (e.g., an NFT requirement, third-party certification) to be attached to payments.
-// - Integration with Multisig:
-//   - Supports ownership by a single user, multisig address, or script.
-// - Incentivized Payment Processing:
-//   - Allows setting a fee greater than 0 to incentivize the processing of payouts.
-// - Composable Function:
-//   - The payment plan script is provided as a function rather than a validator, allowing it to be a component of larger protocols.
+// Additional Features
 
 // - A subscriber funds, should be associated with his own staking credentials so that he can get staking rewards even if funds are locked in the contract.
 
-
-
 // Check That there's no payment for the delete account should be done off-chain.
 
-// Don't burn the Payment NFT when unsubscribing. Burn it when the merchant Collects the penalty Datum.
-
 // Update the Datums for the Service in diagrams.
+
+// TODO:(V2) Multiplier for the Discount and the Penalty. The longer you pay, the less the penalty (Last).
+
+// TODO:(V2) The service /service NFT should be deletable after a specified time period (after inactivation).
+
+// TODO (V2) Allow Deadline for dormant subscription fees (After 90 days, subscriber can collect the funds from the payment validator)
+
+// TODO: Allow uUsers to be able to withdraw funds when subscription service is inactive.
+
+// TODO: Users should be able to withdraw funds from payment subscriptions associated with inactive services.
+

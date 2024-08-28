@@ -10,7 +10,7 @@ use assist/values
 // Check the output utxo containing the reference nft
 pub fn check_output_utxo(output: Output) -> Bool {
   // Check inline datum exists and conforms to MetaDatum as per CIP68
-  trace cbor.diagnostic(output.datum)
+  // trace cbor.diagnostic(output.datum)
 
   let output_value =
     output.value
@@ -78,8 +78,8 @@ pub fn validate_token_output(
   output: Output,
   policy: PolicyId,
   token_name: ByteArray,
-  expected_credential: Credential,
-  expect_script: Bool,
+  credential: Credential,
+  is_credential: Bool,
 ) -> Bool {
   let token_quantity = value.quantity_of(output.value, policy, token_name)
   let payment_credential = output.address.payment_credential
@@ -89,19 +89,16 @@ pub fn validate_token_output(
   trace @"token_quantity"
   trace cbor.diagnostic(token_quantity)
 
-  token_quantity == 1 && if expect_script {
-    payment_credential == expected_credential
+  token_quantity == 1 && if is_credential {
+    payment_credential == credential
   } else {
-    payment_credential != expected_credential
+    payment_credential != credential
   }
 }
 
-pub fn get_reference_input_by_token(
-  reference_inputs: List<Input>,
-  policy_id: PolicyId,
-) {
+pub fn get_input_by_token(inpuits: List<Input>, policy_id: PolicyId) {
   list.find(
-    reference_inputs,
+    inpuits,
     fn(input) { list.has(value.policies(input.output.value), policy_id) },
   )
 }

@@ -1,10 +1,5 @@
 use aiken/transaction.{OutputReference}
-// use aiken/transaction.{OutputReference}
 use aiken/transaction/value.{AssetName, PolicyId}
-
-/// Consider: wrapping this further for safety.
-pub type POSIXTime =
-  Int
 
 /// There's got to be some functional way to do efficient checks on this.
 /// Consider experimenting after testnet.
@@ -21,13 +16,18 @@ pub type ServiceDatum {
   penalty_fee_qty: Int,
   // Subscription period Min 1
   subscription_period: Int,
+  is_active: Bool,
 }
 
 // Service Mint Purpose Redeemer
-pub type MintService {
-  CreateService { output_reference: OutputReference, input_index: Int }
-  DeleteService
+pub type CreateService {
+  output_reference: OutputReference,
+  input_index: Int,
 }
+
+// pub type MintService {
+//   CreateService { output_reference: OutputReference, input_index: Int }
+// }
 
 // Service Spend Purpose Redeemer
 pub type SpendService {
@@ -49,7 +49,7 @@ pub type SpendAccount {
 pub type AccountDatum {
   email: ByteArray,
   phone: ByteArray,
-  account_created: POSIXTime,
+  account_created: Int,
 }
 
 // Payment Mint Purpose Redeemer
@@ -62,7 +62,8 @@ pub type MintPayment {
 pub type SpendPayment {
   Extend
   Unsubscribe
-  Withdraw
+  MerchantWithdraw
+  SubscriberWithdraw
 }
 
 // Datum type 
@@ -72,12 +73,12 @@ pub type PaymentDatum {
   account_nft_tn: AssetName,
   subscription_fee: AssetClass,
   subscription_fee_qty: Int,
-  subscription_start: POSIXTime,
-  subscription_end: POSIXTime,
+  subscription_start: Int,
+  subscription_end: Int,
   subscription_period: Int,
   // last Claimed in datum so that merchant can't claim until 
   // one month has passed.(Add counter)
-  last_claimed: POSIXTime,
+  last_claimed: Int,
   penalty_fee: AssetClass,
   penalty_fee_qty: Int,
 }

@@ -14,20 +14,16 @@ use assist/types/cip68
 use assist/values
 use payment_subscription/tests/tests
 use payment_subscription/types.{
-  AssetClass, Extend, InitSubscripton, MintPayment, Payment, PaymentDatum,
-  PaymentValidatorDatum, Penalty, PenaltyDatum, ServiceDatum, SpendPayment,
-  TerminateSubscription, Unsubscribe, Withdraw,
+  AssetClass, Extend, InitSubscripton, MerchantWithdraw, MintPayment, Payment,
+  PaymentDatum, PaymentValidatorDatum, Penalty, PenaltyDatum, ServiceDatum,
+  SpendPayment, SubscriberWithdraw, TerminateSubscription, Unsubscribe,
 }
 use payment_subscription/utils.{
-  get_minimum_current_time_estimate, get_reference_input_by_token,
-  must_be_after_deadline, validate_single_nft_input, validate_token_output,
+  get_input_by_token, get_minimum_current_time_estimate, must_be_after_deadline,
+  validate_single_nft_input, validate_token_output,
 }
 
-// TODO: Multiplier for the Discount and the Penalty. The longer you pay, the less the penalty (Last).
-// TODO: Ensure deadline for withdrawing when Service NFT has been removed. (Later)
-// TODO: Allow staking rewards for the subscriber (Later)
-// TODO: Allow Deadline for dormant subscription fees (After 90 days, subscriber can collect the funds from the payment validator)
-// TODO: Update with stake validator, multi-utxo-indexer-example (withdraw-zero trick) 
+// TODO: multi-utxo-indexer-example (withdraw-zero trick) 
 validator(service_policy_id: ByteArray, account_policy_id: ByteArray) {
   fn mint_payment(redeemer: MintPayment, ctx: ScriptContext) -> Bool {
     let ScriptContext { transaction: tx, purpose } = ctx
@@ -42,7 +38,7 @@ validator(service_policy_id: ByteArray, account_policy_id: ByteArray) {
         expect Some(account_input) = list.at(inputs, input_index)
         // Find the service reference input by searching for the token policy
         expect Some(service_ref_input) =
-          get_reference_input_by_token(reference_inputs, service_policy_id)
+          get_input_by_token(reference_inputs, service_policy_id)
         expect [user_output, payment_output, ..] = outputs
 
         // Extract datums
@@ -190,7 +186,15 @@ validator(service_policy_id: ByteArray, account_policy_id: ByteArray) {
       Extend -> validate_extend(service_policy_id, account_policy_id, datum, tx)
       Unsubscribe ->
         validate_unsubscribe(service_policy_id, account_policy_id, datum, tx)
-      Withdraw -> validate_withdraw(service_policy_id, datum, tx)
+      MerchantWithdraw ->
+        validate_merchant_withdraw(service_policy_id, datum, tx)
+      SubscriberWithdraw ->
+        validate_subscriber_withdraw(
+          service_policy_id,
+          account_policy_id,
+          datum,
+          tx,
+        )
     }
   }
 }
@@ -207,7 +211,7 @@ fn validate_extend(
       expect [account_input, payment_input, ..] = tx.inputs
       // Find the service reference input by searching for the token policy
       expect Some(service_ref_input) =
-        get_reference_input_by_token(tx.reference_inputs, service_policy_id)
+        get_input_by_token(tx.reference_inputs, service_policy_id)
       // Find the new payment output
       expect [_account_output, payment_output, ..] = tx.outputs
 
@@ -308,7 +312,7 @@ fn validate_unsubscribe(
       expect [account_input, payment_input, ..] = tx.inputs
       // Find the service reference input by searching for the token policy
       expect Some(service_ref_input) =
-        get_reference_input_by_token(tx.reference_inputs, service_policy_id)
+        get_input_by_token(tx.reference_inputs, service_policy_id)
 
       let payment_script_credential =
         payment_input.output.address.payment_credential
@@ -382,8 +386,8 @@ fn validate_unsubscribe(
   }
 }
 
-// Updated validate_withdraw function with linear vesting
-fn validate_withdraw(
+// Updated validate_merchant_withdraw function with linear vesting
+fn validate_merchant_withdraw(
   service_policy_id: ByteArray,
   datum: PaymentValidatorDatum,
   tx: Transaction,
@@ -401,9 +405,10 @@ fn validate_withdraw(
         ) == 1
 
       // Verify the Service datum from reference input
-      expect [service_input, ..] = tx.reference_inputs
+      expect Some(service_ref_input) =
+        get_input_by_token(tx.reference_inputs, service_policy_id)
       expect service_datum: ServiceDatum =
-        data.output_datum(service_input.output)
+        data.output_datum(service_ref_input.output)
 
       // Validate payment datum against service datum
       let payment_datum_valid =
@@ -441,8 +446,8 @@ fn validate_withdraw(
       expect new_datum: PaymentDatum = data.output_datum(payment_output)
       let last_claimed_updated = new_datum.last_claimed == current_time
 
-      // Verify that the Payment NFT is preserved
-      let payment_nft_preserved =
+      // Verify that the Service NFT is preserved
+      let service_nft_preserved =
         value.quantity_of(
           merchant_output.value,
           service_policy_id,
@@ -468,7 +473,7 @@ fn validate_withdraw(
           payment_datum.subscription_start,
         )?,
         withdrawal_amount_valid?,
-        payment_nft_preserved?,
+        service_nft_preserved?,
         remaining_funds_returned?,
         last_claimed_updated?,
         (payment_output.address == payment_addr)?,
@@ -525,6 +530,67 @@ fn validate_withdraw(
         penalty_nft_burned?,
       }
     }
+  }
+}
+
+fn validate_subscriber_withdraw(
+  service_policy_id: ByteArray,
+  account_policy_id: ByteArray,
+  datum: PaymentValidatorDatum,
+  tx: Transaction,
+) -> Bool {
+  when datum is {
+    Payment(payment_datum) -> {
+      // Find the payment input being spent
+      expect [_user_input, payment_input, ..] = tx.inputs
+
+      // Find the service reference input
+      expect Some(service_ref_input) =
+        get_input_by_token(tx.reference_inputs, service_policy_id)
+      expect [user_output, _payment_output, ..] = tx.outputs
+
+      // Extract the service datum
+      expect service_datum: ServiceDatum =
+        data.output_datum(service_ref_input.output)
+      // Ensure the service is inactive
+      let service_is_inactive = !service_datum.is_active
+
+      // Ensure the payment is associated with this service
+      let payment_datum_valid =
+        validate_payment_against_service(payment_datum, service_datum)
+
+      // Calculate the refund amount (full remaining balance)
+      let refund_amount =
+        value.quantity_of(
+          payment_input.output.value,
+          payment_datum.subscription_fee.policy_id,
+          payment_datum.subscription_fee.asset_name,
+        )
+
+      // Ensure the user receives the full refund
+      let full_refund_given =
+        value.quantity_of(
+          user_output.value,
+          payment_datum.subscription_fee.policy_id,
+          payment_datum.subscription_fee.asset_name,
+        ) >= refund_amount
+
+      // Verify that the Account NFT is preserved in the user output
+      let account_nft_preserved =
+        value.quantity_of(
+          user_output.value,
+          account_policy_id,
+          payment_datum.account_nft_tn,
+        ) == 1
+
+      and {
+        service_is_inactive?,
+        payment_datum_valid?,
+        full_refund_given?,
+        account_nft_preserved?,
+      }
+    }
+    Penalty(_) -> False
   }
 }
 
@@ -618,7 +684,8 @@ test succeed_initiate_subscription() {
   // let service_fee_qty = 10_000_000
   let penalty_qty = 1_000_000
   // 30 days in milliseconds
-  let service_datum = tests.test_service_datum()
+  let is_active = True
+  let service_datum = tests.test_service_datum(is_active)
 
   let payment_fee_qty = 10_000_000
 
@@ -1002,7 +1069,8 @@ test succeed_extend_subscription() {
       NoDatum,
     )
   // Create the service datum and input
-  let service_datum = tests.test_service_datum()
+  let is_active = True
+  let service_datum = tests.test_service_datum(is_active)
   let service_input =
     tests.test_context_input_02(
       tests.test_input_utxo_02(service_cs),
@@ -1153,7 +1221,8 @@ test succeed_unsubscribe() {
   let account_value = value.add(value.zero(), account_cs, user_account_tkn, 1)
   let service_value = value.add(value.zero(), service_cs, service_tkn, 1)
 
-  let service_datum = tests.test_service_datum()
+  let is_active = True
+  let service_datum = tests.test_service_datum(is_active)
 
   // Create the payment input (the one being spent)
   let payment_input =
@@ -1276,7 +1345,7 @@ test succeed_unsubscribe() {
   )
 }
 
-test succeed_withdraw() {
+test succeed_merchant_withdraw() {
   let own_cs = tests.test_payment_cs()
   let account_cs = tests.test_account_cs()
   let service_cs = tests.test_service_cs()
@@ -1314,7 +1383,8 @@ test succeed_withdraw() {
       penalty_fee_qty,
     )
 
-  let service_datum = tests.test_service_datum()
+  let is_active = True
+  let service_datum = tests.test_service_datum(is_active)
 
   let payment_value =
     value.add(value.from_lovelace(payment_fee_qty), own_cs, payment_tkn, 1)
@@ -1385,7 +1455,7 @@ test succeed_withdraw() {
   let payment_output =
     tests.test_utxo_02(own_cs, payment_output_value, new_payment_datum)
 
-  let redeemer = Withdraw
+  let redeemer = MerchantWithdraw
 
   let lower_bound = current_time
   let upper_bound = lower_bound + 1
@@ -1453,6 +1523,159 @@ test succeed_withdraw() {
   trace @"-------------------------------------"
   trace @"Test Completed!"
 
+  spend_payment(
+    service_cs,
+    account_cs,
+    Payment(payment_datum),
+    redeemer,
+    context,
+  )
+}
+
+test succeed_withdraw_from_inactive_service() {
+  let own_cs = tests.test_payment_cs()
+  let account_cs = tests.test_account_cs()
+  let service_cs = tests.test_service_cs()
+
+  let tx_hash = tests.test_224_01()
+  let payment_tx_hash = tests.test_224_02()
+  let service_tx_hash = tests.test_224_03()
+
+  let script_output_ref = tests.test_input_utxo_02(payment_tx_hash)
+
+  let payment_tkn = values.unique_token_name(payment_tx_hash, 1, #"")
+  let service_tkn =
+    values.unique_token_name(service_tx_hash, 1, cip68.prefix_222)
+  let user_account_tkn = values.unique_token_name(tx_hash, 1, cip68.prefix_222)
+
+  let subscription_start = 1000000
+  let subscription_period = 30 * 24 * 60 * 60 * 1000
+  let subscription_end = subscription_start + subscription_period
+  let payment_fee_qty = 10_000_000
+  let penalty_fee_qty = 1_000_000
+  let last_claimed = subscription_start
+  let current_time = subscription_end + 1
+
+  // After subscription end
+  let payment_datum =
+    tests.test_datum_03(
+      service_tkn,
+      user_account_tkn,
+      payment_fee_qty,
+      subscription_start,
+      subscription_end,
+      subscription_period,
+      last_claimed,
+      penalty_fee_qty,
+    )
+
+  let is_active = False
+  // Service is inactive
+  let service_datum = tests.test_service_datum(is_active)
+
+  let account_value = value.add(value.zero(), account_cs, user_account_tkn, 1)
+  let payment_value =
+    value.add(value.from_lovelace(payment_fee_qty), own_cs, payment_tkn, 1)
+  let service_value =
+    value.add(value.from_lovelace(payment_fee_qty), service_cs, service_tkn, 1)
+
+  // Create the account input
+  let account_input =
+    tests.test_context_input_02(
+      tests.test_input_utxo_02(tx_hash),
+      account_cs,
+      account_value,
+      NoDatum,
+    )
+
+  let payment_input =
+    tests.test_context_input_02(
+      script_output_ref,
+      own_cs,
+      payment_value,
+      payment_datum,
+    )
+
+  let service_input =
+    tests.test_context_input_02(
+      tests.test_input_utxo_02(service_tx_hash),
+      service_cs,
+      service_value,
+      service_datum,
+    )
+  let account_output_value =
+    value.add(
+      value.from_lovelace(payment_fee_qty),
+      account_cs,
+      user_account_tkn,
+      1,
+    )
+
+  let user_output =
+    tests.test_utxo_02(account_cs, account_output_value, NoDatum)
+
+  // Create remaining funds output (if any)
+  let remaining_amount = payment_fee_qty - payment_fee_qty
+
+  let payment_output_value =
+    value.add(value.from_lovelace(remaining_amount), own_cs, payment_tkn, 1)
+
+  let payment_output =
+    tests.test_utxo_02(own_cs, payment_output_value, payment_datum)
+
+  let redeemer = SubscriberWithdraw
+
+  let insert_timerange = tests.test_time_range(current_time, current_time + 1)
+
+  let context =
+    tests.test_spend_script_context(
+      script_output_ref,
+      [account_input, payment_input],
+      [service_input],
+      [user_output, payment_output],
+      value.add(value.zero(), own_cs, payment_tkn, -1),
+      // Burning payment NFT
+      insert_timerange,
+      tx_hash,
+    )
+
+  trace @"Test: Withdrawing from Inactive Service"
+  trace @"-------------------------------------"
+
+  trace @"Step 1: Current Contract State"
+  trace @"-------------------------------------"
+  trace @"Service Active Status:"
+  trace cbor.diagnostic(service_datum.is_active)
+  trace @"Payment Amount:"
+  trace cbor.diagnostic(payment_fee_qty)
+
+  trace @"Step 2: Withdrawal Process"
+  trace @"-------------------------------------"
+  trace @"Refund Amount:"
+  trace cbor.diagnostic(payment_fee_qty)
+
+  trace @"Step 3: Verifying Outputs"
+  trace @"-------------------------------------"
+  trace @"User Output:"
+  trace cbor.diagnostic(user_output)
+  trace @"Payment Output:"
+  trace cbor.diagnostic(payment_output)
+
+  trace @"Step 4: Validating Transaction"
+  trace @"-------------------------------------"
+  trace @"Transaction Inputs:"
+  trace cbor.diagnostic(context.transaction.inputs)
+  trace @"Transaction Outputs:"
+  trace cbor.diagnostic(context.transaction.outputs)
+  trace @"Tokens:"
+  trace cbor.diagnostic(context.transaction.mint)
+
+  trace @"Step 5: Execution Result"
+  trace @"-------------------------------------"
+  trace @"Withdrawal from Inactive Service Successfully Processed!"
+
+  trace @"-------------------------------------"
+  trace @"Test Completed!"
   spend_payment(
     service_cs,
     account_cs,

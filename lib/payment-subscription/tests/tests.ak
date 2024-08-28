@@ -2,7 +2,6 @@ use aiken/bytearray
 use aiken/dict
 use aiken/hash.{blake2b_256}
 use aiken/interval.{Finite, Interval, IntervalBound}
-// use aiken/list
 use aiken/transaction.{
   InlineDatum, Input, Output, OutputReference, ScriptContext, Spend, Transaction,
   TransactionId,
@@ -10,7 +9,7 @@ use aiken/transaction.{
 use aiken/transaction/credential.{Address, ScriptCredential}
 use aiken/transaction/value
 use payment_subscription/types.{
-  AccountDatum, AssetClass, POSIXTime, PaymentDatum, PenaltyDatum, ServiceDatum,
+  AccountDatum, AssetClass, PaymentDatum, PenaltyDatum, ServiceDatum,
 }
 
 // Generate a bytearray with blake2b_256
@@ -119,7 +118,7 @@ pub fn test_input_utxo_02(utxo_hash) {
   }
 }
 
-pub fn test_service_datum() {
+pub fn test_service_datum(status: Bool) {
   let fee_qty = 10_000_000
   let penalty_qty = 1_000_000
   let subsc_period = 30 * 24 * 60 * 60 * 1000
@@ -137,6 +136,7 @@ pub fn test_service_datum() {
     },
     penalty_fee_qty: penalty_qty,
     subscription_period: subsc_period,
+    is_active: status,
   }
 }
 
@@ -169,11 +169,7 @@ pub fn test_context_input_02(output_ref, own_cs, minted_value, datum) {
   }
 }
 
-pub fn test_datum_02(
-  email: ByteArray,
-  phone: ByteArray,
-  account_created: POSIXTime,
-) {
+pub fn test_datum_02(email: ByteArray, phone: ByteArray, account_created: Int) {
   AccountDatum { email, phone, account_created }
 }
 
@@ -181,10 +177,10 @@ pub fn test_datum_03(
   service_tn: ByteArray,
   account_tn: ByteArray,
   fee_qty: Int,
-  subsc_start: POSIXTime,
-  subsc_end: POSIXTime,
-  subsc_period: POSIXTime,
-  last_claimed: POSIXTime,
+  subsc_start: Int,
+  subsc_end: Int,
+  subsc_period: Int,
+  last_claimed: Int,
   penalty_fee: Int,
 ) {
   PaymentDatum {
@@ -207,7 +203,7 @@ pub fn test_datum_03(
   }
 }
 
-pub fn test_time_range(lower_bound: POSIXTime, upper_bound: POSIXTime) {
+pub fn test_time_range(lower_bound: Int, upper_bound: Int) {
   Interval {
     lower_bound: IntervalBound {
       bound_type: Finite(lower_bound),
