@@ -23,7 +23,6 @@ use payment_subscription/utils.{
   validate_single_nft_input, validate_token_output,
 }
 
-// TODO: multi-utxo-indexer-example (withdraw-zero trick) 
 validator(service_policy_id: ByteArray, account_policy_id: ByteArray) {
   fn mint_payment(redeemer: MintPayment, ctx: ScriptContext) -> Bool {
     let ScriptContext { transaction: tx, purpose } = ctx
@@ -424,10 +423,18 @@ fn validate_merchant_withdraw(
           current_time - payment_datum.last_claimed,
           total_subscription_time,
         )
+
+      // let vesting_increment = 30 * 24 * 60 * 60 * 1000
+      // // Calculate number of full vesting periods elapsed
+      // let vesting_periods = time_elapsed / vesting_increment
+      // // Calculate withdrawable amount using periodic increments
+      // let total_increments = total_subscription_time / vesting_increment
+      // let withdrawable_amount =
+      //   payment_datum.subscription_fee_qty * vesting_periods / total_increments
+      // 30 days in milliseconds
       // Calculate withdrawable amount using linear vesting
       let withdrawable_amount =
         payment_datum.subscription_fee_qty * time_elapsed / total_subscription_time
-
       expect [merchant_output, payment_output, ..] = tx.outputs
 
       // Verify withdrawal amount

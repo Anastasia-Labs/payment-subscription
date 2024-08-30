@@ -11,7 +11,6 @@ use aiken/transaction/credential
 use aiken/transaction/value.{from_minted_value}
 use assist/count
 use assist/data
-use assist/minting
 use assist/payout
 use assist/types/cip68
 use assist/values
@@ -105,18 +104,16 @@ validator {
           minted_tokens
             |> value.flatten()
 
-        and {
-          // Check nfts with ref and user token prefixes are burnt
-          minting.by_prefix(mint_flat, own_policy, cip68.prefix_100, -1)?,
-          minting.by_prefix(mint_flat, own_policy, cip68.prefix_222, -1)?,
-          when mint_flat is {
-            [(_pid1, tkn1, _amt1), (_pid2, tkn2, _amt2)] ->
+        when mint_flat is {
+          [(_pid1, tkn1, amt1), (_pid2, tkn2, amt2)] -> and {
+              amt1 == -1,
+              amt2 == -1,
               bytearray.compare(
                 bytearray.drop(tkn1, 4),
                 bytearray.drop(tkn2, 4),
-              ) == Equal
-            _ -> False
-          },
+              ) == Equal,
+            }
+          _ -> False
         }
       }
     }
@@ -152,7 +149,7 @@ validator {
           // Validate that the metadata of the Reference NFT is updated within acceptable bounds .
           metadata_valid?,
           payout.at_least(account_addr, ref_nft, tx.outputs)?,
-          utils.check_output_utxo(validating_output)?,
+          utils.check_nft_output_utxo(validating_output)?,
         }
       }
       // Removes the utxo entirely from the script address.
@@ -191,7 +188,7 @@ pub fn is_account_metadata_valid(datum: AccountDatum) -> Bool {
   let email_valid = bytearray.length(datum.email) > 0
   let phone_valid = bytearray.length(datum.phone) > 0
 
-  email_valid && phone_valid
+  email_valid || phone_valid
 }
 
 test succeed_create_account() {

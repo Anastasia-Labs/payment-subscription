@@ -1248,17 +1248,8 @@ This transaction allows anyone with a Service NFT to unlock penalty funds associ
 
 // - A subscriber funds, should be associated with his own staking credentials so that he can get staking rewards even if funds are locked in the contract.
 
-// Check That there's no payment for the delete account should be done off-chain.
-
 // Update the Datums for the Service in diagrams.
 
 // TODO:(V2) Multiplier for the Discount and the Penalty. The longer you pay, the less the penalty (Last).
 
 // TODO:(V2) The service /service NFT should be deletable after a specified time period (after inactivation).
-
-// TODO (V2) Allow Deadline for dormant subscription fees (After 90 days, subscriber can collect the funds from the payment validator)
-
-// TODO: Allow uUsers to be able to withdraw funds when subscription service is inactive.
-
-// TODO: Users should be able to withdraw funds from payment subscriptions associated with inactive services.
-

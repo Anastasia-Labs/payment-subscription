@@ -7,16 +7,12 @@ use aiken/transaction/credential.{Address, Credential}
 use aiken/transaction/value.{PolicyId, Value}
 use assist/values
 
-// Check the output utxo containing the reference nft
-pub fn check_output_utxo(output: Output) -> Bool {
-  // Check inline datum exists and conforms to MetaDatum as per CIP68
-  // trace cbor.diagnostic(output.datum)
-
+// Check only one NFT is present in the utxo
+pub fn check_nft_output_utxo(output: Output) -> Bool {
   let output_value =
     output.value
       |> value.without_lovelace()
       |> value.flatten()
-  // Check no other token is present in the utxo containing reference nft
   list.length(output_value) == 1
 }
 
@@ -96,9 +92,9 @@ pub fn validate_token_output(
   }
 }
 
-pub fn get_input_by_token(inpuits: List<Input>, policy_id: PolicyId) {
+pub fn get_input_by_token(inputs: List<Input>, policy_id: PolicyId) {
   list.find(
-    inpuits,
+    inputs,
     fn(input) { list.has(value.policies(input.output.value), policy_id) },
   )
 }

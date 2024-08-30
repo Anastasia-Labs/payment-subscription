@@ -25,10 +25,6 @@ pub type CreateService {
   input_index: Int,
 }
 
-// pub type MintService {
-//   CreateService { output_reference: OutputReference, input_index: Int }
-// }
-
 // Service Spend Purpose Redeemer
 pub type SpendService {
   UpdateService

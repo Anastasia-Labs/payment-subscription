@@ -132,7 +132,7 @@ fn spend_service(
         // fee by the service provider e.g +/-10%
         service_fee_change_valid?,
         payout.at_least(service_addr, ref_nft, tx.outputs)?,
-        utils.check_output_utxo(validating_output)?,
+        utils.check_nft_output_utxo(validating_output)?,
       }
     }
 
@@ -160,7 +160,7 @@ fn spend_service(
         other_fields_unchanged?,
         // Ensure the NFT is still present in the output
         payout.at_least(service_addr, ref_nft, tx.outputs)?,
-        utils.check_output_utxo(validating_output)?,
+        utils.check_nft_output_utxo(validating_output)?,
       }
     }
   }
@@ -174,7 +174,7 @@ fn is_metadata_valid(datum: ServiceDatum) -> Bool {
     datum.penalty_fee_qty >= 0 && datum.penalty_fee_qty < 1_000_000_000_000
   let subscription_period_valid =
     datum.subscription_period >= 1 && datum.subscription_period < 1_000_000_000_000
-  service_fee_valid && penalty_fee_valid && subscription_period_valid
+  service_fee_valid && penalty_fee_valid && subscription_period_valid && datum.is_active
 }
 
 // Helper function to validate service fee changes
