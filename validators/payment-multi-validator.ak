@@ -424,17 +424,18 @@ fn validate_merchant_withdraw(
           total_subscription_time,
         )
 
-      // let vesting_increment = 30 * 24 * 60 * 60 * 1000
-      // // Calculate number of full vesting periods elapsed
-      // let vesting_periods = time_elapsed / vesting_increment
-      // // Calculate withdrawable amount using periodic increments
-      // let total_increments = total_subscription_time / vesting_increment
-      // let withdrawable_amount =
-      //   payment_datum.subscription_fee_qty * vesting_periods / total_increments
-      // 30 days in milliseconds
-      // Calculate withdrawable amount using linear vesting
+      let vesting_increment = 30 * 24 * 60 * 60 * 1000
+      // Calculate number of full vesting periods elapsed
+      let vesting_periods = time_elapsed / vesting_increment
+      // Calculate withdrawable amount using periodic increments
+      let total_increments = total_subscription_time / vesting_increment
+      // Calculate the withdrawable amount based on the number of completed vesting periods:
       let withdrawable_amount =
-        payment_datum.subscription_fee_qty * time_elapsed / total_subscription_time
+        payment_datum.subscription_fee_qty * vesting_periods / total_increments
+      // 30 days in milliseconds
+      // // Calculate withdrawable amount using linear vesting
+      // let withdrawable_amount =
+      //   payment_datum.subscription_fee_qty * time_elapsed / total_subscription_time
       expect [merchant_output, payment_output, ..] = tx.outputs
 
       // Verify withdrawal amount
@@ -692,7 +693,7 @@ test succeed_initiate_subscription() {
   let penalty_qty = 1_000_000
   // 30 days in milliseconds
   let is_active = True
-  let service_datum = tests.test_service_datum(is_active)
+  let service_datum = tests.test_service_datum(is_active, subscription_period)
 
   let payment_fee_qty = 10_000_000
 
@@ -1077,7 +1078,8 @@ test succeed_extend_subscription() {
     )
   // Create the service datum and input
   let is_active = True
-  let service_datum = tests.test_service_datum(is_active)
+  let service_datum =
+    tests.test_service_datum(is_active, initial_subscription_period)
   let service_input =
     tests.test_context_input_02(
       tests.test_input_utxo_02(service_cs),
@@ -1229,7 +1231,7 @@ test succeed_unsubscribe() {
   let service_value = value.add(value.zero(), service_cs, service_tkn, 1)
 
   let is_active = True
-  let service_datum = tests.test_service_datum(is_active)
+  let service_datum = tests.test_service_datum(is_active, subscription_period)
 
   // Create the payment input (the one being spent)
   let payment_input =
@@ -1369,13 +1371,16 @@ test succeed_merchant_withdraw() {
   let user_account_tkn = values.unique_token_name(tx_hash, 1, cip68.prefix_222)
 
   let subscription_start = 1000000
-  let subscription_period = 30 * 24 * 60 * 60 * 1000
   // 30 days in milliseconds
+  let vesting_increment = 30 * 24 * 60 * 60 * 1000
+  // 120 days total
+  let subscription_period = 4 * vesting_increment
   let subscription_end = subscription_start + subscription_period
   let payment_fee_qty = 10_000_000
   let penalty_fee_qty = 1_000_000
   let last_claimed = subscription_start
-  let current_time = subscription_start + subscription_period / 2
+  // Set current time to exactly 2 vesting periods (60 days) after start
+  let current_time = subscription_start + 2 * vesting_increment
 
   // Half-way through
   let payment_datum =
@@ -1391,7 +1396,7 @@ test succeed_merchant_withdraw() {
     )
 
   let is_active = True
-  let service_datum = tests.test_service_datum(is_active)
+  let service_datum = tests.test_service_datum(is_active, subscription_period)
 
   let payment_value =
     value.add(value.from_lovelace(payment_fee_qty), own_cs, payment_tkn, 1)
@@ -1424,12 +1429,17 @@ test succeed_merchant_withdraw() {
       service_datum,
     )
 
-  // Calculate withdrawable amount (assuming half of the subscription period has passed)
-  let time_elapsed = math.min(current_time - last_claimed, subscription_period)
-  let withdrawable_amount = payment_fee_qty * time_elapsed / subscription_period
+  // Calculate withdrawable amount using stepped vesting
+  let time_elapsed = current_time - last_claimed
+  let vesting_periods = time_elapsed / vesting_increment
+  let total_increments = subscription_period / vesting_increment
+  let withdrawable_amount = payment_fee_qty * vesting_periods / total_increments
 
+  // Calculate withdrawable amount (assuming half of the subscription period has passed)
+  // let time_elapsed = math.min(current_time - last_claimed, subscription_period)
+  // let withdrawable_amount = payment_fee_qty * time_elapsed / subscription_period
   // Let's withdraw half of the withdrawable amount for this test
-  let actual_withdrawal = withdrawable_amount / 2
+  let actual_withdrawal = withdrawable_amount
   let merchant_output_value =
     value.add(
       value.from_lovelace(actual_withdrawal),
@@ -1578,7 +1588,7 @@ test succeed_withdraw_from_inactive_service() {
 
   let is_active = False
   // Service is inactive
-  let service_datum = tests.test_service_datum(is_active)
+  let service_datum = tests.test_service_datum(is_active, subscription_period)
 
   let account_value = value.add(value.zero(), account_cs, user_account_tkn, 1)
   let payment_value =

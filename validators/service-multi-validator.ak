@@ -197,10 +197,12 @@ test success_create_service() {
   let own_cs = tests.test_224_01()
   let tx_hash = tests.test_224_02()
   let init_output_ref = tests.test_input_utxo_02(tx_hash)
+  // 30 days in milliseconds
+  let subscription_period = 30 * 24 * 60 * 60 * 1000
 
   let input_index = 0
   let is_active = True
-  let datum = tests.test_service_datum(is_active)
+  let datum = tests.test_service_datum(is_active, subscription_period)
   let redeemer =
     CreateService { output_reference: init_output_ref, input_index }
 
@@ -286,10 +288,12 @@ test success_update_service() {
   let tx_hash = tests.test_224_02()
   let init_output_ref = tests.test_input_utxo_02(tx_hash)
   let script_output_ref = tests.test_input_utxo_02(tests.test_224_01())
+  // 30 days in milliseconds
+  let subscription_period = 30 * 24 * 60 * 60 * 1000
 
   let is_active = True
-  let datum = tests.test_service_datum(is_active)
-  let new_datum = tests.test_service_datum(is_active)
+  let datum = tests.test_service_datum(is_active, subscription_period)
+  let new_datum = tests.test_service_datum(is_active, subscription_period)
 
   let redeemer = UpdateService
 
@@ -380,9 +384,11 @@ test success_remove_service() {
   let tx_hash = tests.test_224_02()
   let init_output_ref = tests.test_input_utxo_02(tx_hash)
   let script_output_ref = tests.test_input_utxo_02(tests.test_224_01())
+  // 30 days in milliseconds
+  let subscription_period = 30 * 24 * 60 * 60 * 1000
 
   let is_active = True
-  let datum = tests.test_service_datum(is_active)
+  let datum = tests.test_service_datum(is_active, subscription_period)
 
   // let new_datum = tests.test_service_datum(1, 1, 1, 1)
   let redeemer = RemoveService
@@ -399,7 +405,7 @@ test success_remove_service() {
   let service_input =
     tests.test_context_input_02(script_output_ref, own_cs, ref_value, datum)
 
-  let new_datum = tests.test_service_datum(False)
+  let new_datum = tests.test_service_datum(False, subscription_period)
 
   let user_output = tests.test_utxo_02(own_cs, user_value, NoDatum)
   let service_output = tests.test_utxo_02(own_cs, ref_value, new_datum)

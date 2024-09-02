@@ -118,11 +118,12 @@ pub fn test_input_utxo_02(utxo_hash) {
   }
 }
 
-pub fn test_service_datum(status: Bool) {
+pub fn test_service_datum(status: Bool, subsc_period: Int) {
   let fee_qty = 10_000_000
   let penalty_qty = 1_000_000
-  let subsc_period = 30 * 24 * 60 * 60 * 1000
 
+  // 120 days in milliseconds
+  // let subsc_period = 30 * 24 * 60 * 60 * 1000 * 4
   ServiceDatum {
     service_fee: AssetClass {
       policy_id: value.ada_policy_id,
