@@ -362,13 +362,13 @@ demonstrates:
   UTxO)
 - Correct burning of the Payment NFT
 
-#### 1.2.5 Test Case: Withdrawing Subscription Fees (succeed_withdraw)
+#### 1.2.5 Test Case: Withdrawing Subscription Fees by Merchant (succeed_merchant_withdraw)
 
 ```
-   Testing ...
+    Testing ...
 
-    ┍━ payment_multi_validator ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    │ PASS [mem: 4814144, cpu: 2482923091] succeed_withdraw
+    ┍━ payment_multi_validator ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    │ PASS [mem: 4860677, cpu: 2504579953] succeed_merchant_withdraw
     │ · with traces
     │ | Test: Withdrawing Subscription Fees
     │ | -------------------------------------
@@ -381,50 +381,101 @@ demonstrates:
     │ | Subscription Start:
     │ | 1000000
     │ | Subscription End:
-    │ | 2593000000
+    │ | 10369000000
     │ | Total Subscription Fee: (lovelace)
     │ | 10000000
     │ | Last Claimed:
     │ | 1000000
     │ | Current Time:
-    │ | 1297000000
+    │ | 5185000000
     │ | Step 2: Withdrawal Calculation
     │ | -------------------------------------
     │ | Time Elapsed: (days)
-    │ | 15
+    │ | 60
     │ | Withdrawable Amount: (lovelace)
     │ | 5000000
     │ | Actual Withdrawal: (lovelace)
-    │ | 2500000
+    │ | 5000000
     │ | Step 3: Verifying Outputs
     │ | -------------------------------------
     │ | Merchant Output:
-    │ | 121([_ 121([_ 122([_ h'BFA726C3C149165B108E6FF550CB1A1C4F0FDC2E9F26A9A16F48BABE']), 122([])]), {_ h'': {_ h'': 2500000 }, h'BFA726C3C149165B108E6FF550CB1A1C4F0FDC2E9F26A9A16F48BABE': {_ h'000DE1400136752529784C15E638DA2A27FB1C00C9C8B92277913A8DC40A86D4': 1 } }, 123([_ 121([])]), 122([])])
+    │ | 121([_ 121([_ 122([_ h'BFA726C3C149165B108E6FF550CB1A1C4F0FDC2E9F26A9A16F48BABE']), 122([])]), {_ h'': {_ h'': 5000000 }, h'BFA726C3C149165B108E6FF550CB1A1C4F0FDC2E9F26A9A16F48BABE': {_ h'000DE1400136752529784C15E638DA2A27FB1C00C9C8B92277913A8DC40A86D4': 1 } }, 123([_ 121([])]), 122([])])
     │ | Remaining Payment Output:
-    │ | 121([_ 121([_ 122([_ h'873E4FE9E41E924911BBA3EC53FF4782EFC8C0F244FB75C879F8A432']), 122([])]), {_ h'': {_ h'': 47500000 }, h'873E4FE9E41E924911BBA3EC53FF4782EFC8C0F244FB75C879F8A432': {_ h'01A4028049AFDC47FB302ED59459582CB6D0545B7C6AC22504E984922830968A': 1 } }, 123([_ 121([_ h'000DE1400136752529784C15E638DA2A27FB1C00C9C8B92277913A8DC40A86D4', h'000DE140015F47F8F1A3D0FB2B1B3E9858E3AB77725785678981507D8920A19D', 121([_ h'', h'']), 7500000, 1000000, 2593000000, 2592000000, 1297000000, 121([_ h'', h'']), 1000000])]), 122([])])
+    │ | 121([_ 121([_ 122([_ h'873E4FE9E41E924911BBA3EC53FF4782EFC8C0F244FB75C879F8A432']), 122([])]), {_ h'': {_ h'': 45000000 }, h'873E4FE9E41E924911BBA3EC53FF4782EFC8C0F244FB75C879F8A432': {_ h'01A4028049AFDC47FB302ED59459582CB6D0545B7C6AC22504E984922830968A': 1 } }, 123([_ 121([_ h'000DE1400136752529784C15E638DA2A27FB1C00C9C8B92277913A8DC40A86D4', h'000DE140015F47F8F1A3D0FB2B1B3E9858E3AB77725785678981507D8920A19D', 121([_ h'', h'']), 5000000, 1000000, 10369000000, 10368000000, 5185000000, 121([_ h'', h'']), 1000000])]), 122([])])
     │ | Step 4: Updating Payment Datum
     │ | -------------------------------------
     │ | Original Last Claimed:
     │ | 1000000
     │ | Updated Last Claimed:
-    │ | 1297000000
+    │ | 5185000000
     │ | Step 5: Execution Result
     │ | -------------------------------------
     │ | Withdrawal Successfully Processed!
     │ | -------------------------------------
     │ | Test Completed!
-    ┕━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1 tests | 1 passed | 0 failed
+    ┕━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1 tests | 1 passed | 0 failed
 
       Summary 1 check, 0 errors, 0 warnings
 ```
 
 This test confirms the contract's ability to process withdrawals of subscription
-fees. It shows:
+fees by a merchant. It shows:
 
-    - Correct calculation of withdrawable amounts based on elapsed time
-
+- Correct calculation of withdrawable amounts based on elapsed time
 - Proper distribution of funds to the merchant
 - Accurate updating of the Payment Datum with new 'last claimed' time
+
+#### 1.2.6 Test Case: Withdrawing Subscription Fees by Subscriber (succeed_subscriber_withdraw)
+
+```
+ Testing ...
+
+    ┍━ payment_multi_validator ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    │ PASS [mem: 11870419, cpu: 6158777563] succeed_subscriber_withdraw
+    │ · with traces
+    │ | Test: Withdrawing from Inactive Service
+    │ | -------------------------------------
+    │ | Step 1: Current Contract State
+    │ | -------------------------------------
+    │ | Service Active Status:
+    │ | 121([])
+    │ | Payment Amount:
+    │ | 10000000
+    │ | Step 2: Withdrawal Process
+    │ | -------------------------------------
+    │ | Refund Amount:
+    │ | 10000000
+    │ | Step 3: Verifying Outputs
+    │ | -------------------------------------
+    │ | User Output:
+    │ | 121([_ 121([_ 122([_ h'FB3D635C7CB573D1B9E9BFF4A64AB4F25190D29B6FD8DB94C605A218']), 122([])]), {_ h'': {_ h'': 50000000 }, h'FB3D635C7CB573D1B9E9BFF4A64AB4F25190D29B6FD8DB94C605A218': {_ h'000DE140015F47F8F1A3D0FB2B1B3E9858E3AB77725785678981507D8920A19D': 1 } }, 123([_ 121([])]), 122([])])
+    │ | Payment Output:
+    │ | 121([_ 121([_ 122([_ h'873E4FE9E41E924911BBA3EC53FF4782EFC8C0F244FB75C879F8A432']), 122([])]), {_ h'': {_ h'': 40000000 }, h'873E4FE9E41E924911BBA3EC53FF4782EFC8C0F244FB75C879F8A432': {_ h'01A4028049AFDC47FB302ED59459582CB6D0545B7C6AC22504E984922830968A': 1 } }, 123([_ 121([_ h'000DE1400136752529784C15E638DA2A27FB1C00C9C8B92277913A8DC40A86D4', h'000DE140015F47F8F1A3D0FB2B1B3E9858E3AB77725785678981507D8920A19D', 121([_ h'', h'']), 10000000, 1000000, 2593000000, 2592000000, 1000000, 121([_ h'', h'']), 1000000])]), 122([])])
+    │ | Step 4: Validating Transaction
+    │ | -------------------------------------
+    │ | Transaction Inputs:
+    │ | [_ 121([_ 121([_ 121([_ h'EE155ACE9C40292074CB6AFF8C9CCDD273C81648FF1149EF36BCEA6E']), 1]), 121([_ 121([_ 122([_ h'FB3D635C7CB573D1B9E9BFF4A64AB4F25190D29B6FD8DB94C605A218']), 122([])]), {_ h'': {_ h'': 4000000 }, h'FB3D635C7CB573D1B9E9BFF4A64AB4F25190D29B6FD8DB94C605A218': {_ h'000DE140015F47F8F1A3D0FB2B1B3E9858E3AB77725785678981507D8920A19D': 1 } }, 123([_ 121([])]), 122([])])]), 121([_ 121([_ 121([_ h'BB30A42C1E62F0AFDA5F0A4E8A562F7A13A24CEA00EE81917B86B89E']), 1]), 121([_ 121([_ 122([_ h'873E4FE9E41E924911BBA3EC53FF4782EFC8C0F244FB75C879F8A432']), 122([])]), {_ h'': {_ h'': 14000000 }, h'873E4FE9E41E924911BBA3EC53FF4782EFC8C0F244FB75C879F8A432': {_ h'01A4028049AFDC47FB302ED59459582CB6D0545B7C6AC22504E984922830968A': 1 } }, 123([_ 121([_ h'000DE1400136752529784C15E638DA2A27FB1C00C9C8B92277913A8DC40A86D4', h'000DE140015F47F8F1A3D0FB2B1B3E9858E3AB77725785678981507D8920A19D', 121([_ h'', h'']), 10000000, 1000000, 2593000000, 2592000000, 1000000, 121([_ h'', h'']), 1000000])]), 122([])])])]
+    │ | Transaction Outputs:
+    │ | [_ 121([_ 121([_ 122([_ h'FB3D635C7CB573D1B9E9BFF4A64AB4F25190D29B6FD8DB94C605A218']), 122([])]), {_ h'': {_ h'': 50000000 }, h'FB3D635C7CB573D1B9E9BFF4A64AB4F25190D29B6FD8DB94C605A218': {_ h'000DE140015F47F8F1A3D0FB2B1B3E9858E3AB77725785678981507D8920A19D': 1 } }, 123([_ 121([])]), 122([])]), 121([_ 121([_ 122([_ h'873E4FE9E41E924911BBA3EC53FF4782EFC8C0F244FB75C879F8A432']), 122([])]), {_ h'': {_ h'': 40000000 }, h'873E4FE9E41E924911BBA3EC53FF4782EFC8C0F244FB75C879F8A432': {_ h'01A4028049AFDC47FB302ED59459582CB6D0545B7C6AC22504E984922830968A': 1 } }, 123([_ 121([_ h'000DE1400136752529784C15E638DA2A27FB1C00C9C8B92277913A8DC40A86D4', h'000DE140015F47F8F1A3D0FB2B1B3E9858E3AB77725785678981507D8920A19D', 121([_ h'', h'']), 10000000, 1000000, 2593000000, 2592000000, 1000000, 121([_ h'', h'']), 1000000])]), 122([])])]
+    │ | Tokens:
+    │ | {_ h'': {_ h'': 0 }, h'873E4FE9E41E924911BBA3EC53FF4782EFC8C0F244FB75C879F8A432': {_ h'01A4028049AFDC47FB302ED59459582CB6D0545B7C6AC22504E984922830968A': -1 } }
+    │ | Step 5: Execution Result
+    │ | -------------------------------------
+    │ | Withdrawal from Inactive Service Successfully Processed!
+    │ | -------------------------------------
+    │ | Test Completed!
+    ┕━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1 tests | 1 passed | 0 failed
+
+      Summary 1 check, 0 errors, 0 warnings
+```
+
+This test verifies the contract's ability to process withdrawals of subscription
+fees by a subscriber when the service becomes inactive. It demonstrates:
+
+- Correct identification of an inactive service
+- Full refund of the subscription amount to the subscriber
+- Proper burning of the Payment NFT
+- Accurate updating of the Payment UTxO
 
 ### 1.3 User Workflow for Managing Recurring Payments
 
@@ -444,11 +495,17 @@ The following outlines the user workflow for managing recurring payments:
    - Contract calculates refund and penalty amounts
    - User receives refund, minus any applicable penalties
    - Payment NFT is burned, ending the subscription
-4. **Payment Withdrawal:**
+4. **Merchant Withdrawal:**
    - Merchant can withdraw accrued fees at any time
    - Contract calculates withdrawable amount based on elapsed time
    - Remaining funds stay locked until the next withdrawal or end of
      subscription
+5. **Subscriber Withdrawal:**
+
+- Subscriber can withdraw remaining funds if the service becomes inactive
+- Contract verifies the inactive status of the service
+- Full remaining subscription amount is refunded to the subscriber
+- Payment NFT is burned, finalizing the withdrawal
 
 This workflow demonstrates the ease with which users can manage their recurring
 payments, from initiation to termination, directly from their wallets.

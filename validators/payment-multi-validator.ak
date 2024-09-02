@@ -1549,7 +1549,7 @@ test succeed_merchant_withdraw() {
   )
 }
 
-test succeed_withdraw_from_inactive_service() {
+test succeed_subscriber_withdraw() {
   let own_cs = tests.test_payment_cs()
   let account_cs = tests.test_account_cs()
   let service_cs = tests.test_service_cs()
