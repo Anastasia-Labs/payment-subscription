@@ -191,17 +191,19 @@ The Payment Contract is responsible for managing the prepaid subscription fees, 
 ===== Validation
 \
 + *InitiateSubscription* 
-
+  
   The redeemer allows creating of a new subscription  by minting only one unique Payment Token.
 
   - Validate that out_ref must be present in the Transaction Inputs.
 
-  - Validate that the redeemer only mints a single Payment Token.
-
+  - Validate that the redeemer only mints a single CIP68 compliant Payment Token.
   - Validate the datum from the Service Contract as a reference input.
+  - Ensure that the User NFT doesn't go to the Script
+  - Ensure Payment token goes back to the script
+  \
 
 + *TerminateSubscription*
-
+  
   - Validate the datum from the Service Contract as a reference input
 
   - Validate that the redeemer only burns a single Payment Token.
@@ -211,10 +213,10 @@ The Payment Contract is responsible for managing the prepaid subscription fees, 
 \
 ==== Datum
 \
-This is a Sum type datum where one represents the main datum and the other one represents a penalty datum.
+This is a Sum type datum where one represents the payment datum and the other one represents a penalty datum.
 
 \
-===== Main datum <payment-datum>
+===== Payment datum <payment-datum>
 \
 - *`service_nft_tn`:* Service token name encoding UTxO to be consumed when minting the NFT.
 
@@ -223,7 +225,9 @@ This is a Sum type datum where one represents the main datum and the other one r
 - *`subscription_fee_qty`:* Amount of the subscription fee.
 - *`subscription_start`:* Start of the subscription.
 - *`subscription_end`:* Expiry time of the subscription.
-- *`total_installments`:* The number of periodic intervals over which to release subscription fees.
+- *`last_claimed`:* The last time the merchant withdrew from the contract.
+- *`penalty_fee`:* AssetClass type of the penalty.
+- *`penalty_fee_qty`:* Amount the merchant wishes to penalies for early withdrawal. This is optional and can be `0`.
 \
 ===== Penalty datum <penalty-datum>
 \
@@ -231,16 +235,19 @@ This is a Sum type datum where one represents the main datum and the other one r
 
 - *`penalty_fee`:* AssetClass type for the amount of fees to be deducted when subscriber cancels the subscription (optional).
 - *`penalty_fee_qty`:* Amount of the penalty fees (optional).
-
 \
 ==== Redeemer
+
 \
 - Extend
 
 - Unsubscribe
-- Withdraw
+- MerchantWithdraw
+- SubscriberWithdraw
+
 \
 ==== Validation
+
 \
 + *Extend* 
   
@@ -249,7 +256,7 @@ This is a Sum type datum where one represents the main datum and the other one r
   - Validate that the value of the UTxO is increased as long as the Datum is updated with the Service NFT Token Name.
 
   - Validate that the extension of the service follows the Service provider rules / datum.
-
+  \
 + *Unsubscribe* 
 
   The redeemer will allow anyone with an Account NFT to spend an Account UTxO to unlock funds back to their address.
@@ -259,22 +266,43 @@ This is a Sum type datum where one represents the main datum and the other one r
   - Validate that the penalty UTxO is being produced with the merchants Token Name.
 
   - Validate that the logic follows the Service provider rules / datum as a refernce input to ensure the penalty goes to the merchant when paying the penalty fees.
-
-+ *Withdraw* 
+  \
++ *MerchantWithdraw* 
 
   The redeemer will allow anyone with a Service NFT to withdraw funds from the Payment UTxO or Penalty UTxO. 
 
   - Validate whether the transaction contains a penalty datum or a normal datum.
 
-  - Payment UTxO
+  - *Payment UTxO*
 
     - Validate that user with Service NFT spends a Payment UTxO
 
-    - Validate that the payment UTxO has a deadline for collecting funds. User should collect funds after the deadline. This should happen after the Service / Service NFT has been removed from the system.
+    - Validate the payment datum against the service datum
+    - Implement linear vesting for fund release:
 
-  - Penalty UTxO
+      - Calculate vesting periods based on time elapsed
+      
+      - Determine withdrawable amount based on vesting periods
+  - Verify any remaining funds are returned to the payment validator
+  - Update the last_claimed field in the new datum
+
+  - *Penalty UTxO*
 
     - Validate that user with Service NFT spends a Penalty UTxO
+
+    - Ensure the full penalty amount is withdrawn
+    - Verify that the PenaltyNFT which is the same as the Payment NFT is burned
+  \
++ *SubscriberWithdraw* 
+  
+  The redeemer will allow anyone with an Account NFT to withdraw funds from the Payment validator. 
+
+    - Verify that the service is inactive
+
+    - Validate that user with Account NFT spends a Payment UTxO
+    - Verify the subscriber receives all the refund amount
+    - Verify that the Account NFT is preserved in the subscriber's output
+
 #pagebreak()
 
 
@@ -292,8 +320,6 @@ Nothing
 ===== Redeemer
 \
 - CreateService
-
-- DeleteService
 \
 ===== Validation
 \
@@ -306,10 +332,6 @@ Nothing
   - Validate that the redeemer only mints a single CIP68 compliant Service Token
 
   - Validate that the datum meets the service provider requirements.
-
-+ *DeleteService*
-
-  - Validate that the redeemer only burns a single CIP68 compliant ServiceNFT.
 \
 
 ==== Spend Purpose
@@ -317,14 +339,14 @@ Nothing
 ===== Datum <service-datum>
 \
 
-- `service_fee`: AssetClass type for the amount to pay for a subscription service
+  - `service_fee`: AssetClass type for the amount to pay for a subscription service
 
-- `service_fee_qty`: Amount of the funds to pay for a service.
-- `penalty_fee`: AssetClass type for the amount of fees to be deducted when subscriber cancels the subscription (Optional).
-- `penalty_fee_qty`: Amount of the penalty fees (Optional).
-- `min_sub_period` : least amount of subscription period.
-- cip-68 requirements : Any other requirements
-
+  - `service_fee_qty`: Amount of the funds to pay for a service.
+  - `penalty_fee`: AssetClass type for the amount of fees to be deducted when subscriber cancels the subscription (Optional).
+  - `penalty_fee_qty`: Amount of the penalty fees (Optional).
+  - `min_sub_period`: least amount of subscription period.
+  - `is_active`: Boolean indicating if the service is active
+  
 *Note:* Subscription fees can be based on length of period the subscriber pays for e.g. If they pay for one month, the fees are more than if they pay for 12 months. This introduces the need for a `min_sub_period`.
 
 // minimum_subscription_period: Subscription fees can be based on length of period the subscriber pays for e.g. If the y pay for one month, the fees are more than if they pay for 12 months.
@@ -345,18 +367,19 @@ Nothing
   - Validate that Service UTxO with a Service NFT is being spent.
 
   - Validate that the metadata of the Reference NFT token is updated within acceptable bounds.
-
   - Validate that the service fee should be limited to a range to prevent extreme flucutation in service fee by the service provider e.g +/-10%
-
   - Validate that the reference token is spent back to it's own address.
-
+  - Ensure the NFT is still present in the output
+  \
 + *RemoveService*
 
   The redeemer allows the removal of a service by a merchant from the subscription system. 
 
-  - Validate that there's a single script input and No Script output back to the script address.
+  - Validate that there are two script input and two Script output back to the script address.
 
   - Validate UTxO with Reference NFT is being spent.
+  - Ensure the service is being inactivated.
+  - Ensure the NFT is still present in the output.
 
 #pagebreak()
 
@@ -384,7 +407,10 @@ Nothing
   - Validate that out_ref must be present in the Transaction Inputs
 
   - Validate that the redeemer only mints a single CIP68 compliant Account Token
-
+  - Validate the Datum has valid account inputs
+  - Ensure that the User NFT doesn't go to the Script
+  - Ensure ref_nft goes back to the script
+  \
 + *DeleteAccount*
 
   This redeemer allows burning of an Account NFT to remove the subscriber from the system. A Check That there's no payment for the delete account should be done off-chain.
@@ -415,13 +441,18 @@ Nothing
 
   - Validate that the Account UTxO with the Account NFT is being spent.
 
-  - Validate that the Reference NFT of the metadata is updated and the token is sent to the spending endpoint. 
+  - Validate that the metadata of the Reference NFT is updated within acceptable bounds
+  - Validate that the UTxO with the Reference NFT of is sent to the spending endpoint. 
 
 + *RemoveAccount*
   
   The redeemer allows the removal of an account by a subscriber from the subscription system. Must Check That there's no ADA in the payment UTxO in the off-chain code.
  
   - Validate that Account NFT and Account Reference NFT is spent.
+  - Validate that there are two script input and one Script output back to the script address
+  - Check that the reference NFT is burned
+  - Ensure no output contains the reference NFT
+
 #pagebreak()
 
 = Transactions
@@ -489,67 +520,6 @@ This transaction creates a new service by minting a Merchant NFT. This transacti
 
       - 1 Service Reference NFT Asset
 #pagebreak()
-
-
-  === Mint :: DeleteService
-\
-  This transaction deletes an existing service by burning the associated Merchant NFT by the merchant.
-
-\
-  #figure(
-  image("./images/delete-service-image.png", width: 100%),
-  caption: [Delete Service UTxO diagram]
-)
-\
-
-==== Inputs
-\
-  + *Merchant Wallet UTxO* 
-
-    - Address: Merchant’s wallet address
-
-    - Value:
-
-      - Minimum ADA
-
-      - 1 Service NFT Asset
-
-  + *Service Validator UTxO*
-
-    - Address: Service validator script address
-
-    - Datum:
-
-      - service_datum as listed in: @service-datum
-
-    - Value:
-
-      - Minimum ADA
-
-      - 1 Reference NFT Asset
-\
-==== Mints
-\
-  + *Service Multi-validator*
-    - Redeemer: DeleteService
-
-    - Value: 
-
-      - -1 Service NFT Asset
-
-      - -1 Reference NFT Asset
-\
-==== Outputs
-\
-  + *Merchant Wallet UTxO*
-
-    - Address: Merchant wallet address
-
-    - Value: 
-
-      - Minimum ADA (remaining after burning the NFT)
-#pagebreak()
-
 
   === Spend :: UpdateMetaData
 \
@@ -622,7 +592,7 @@ This transaction updates the metadata attached to the UTxO at the script address
 
   \
   #figure(
-  image("./images/remove-service-image.png", width: 100%),
+  image("./images/remove-service-image-01.png", width: 100%),
   caption: [Remove Service UTxO diagram]
   )
   \
@@ -646,24 +616,13 @@ This transaction updates the metadata attached to the UTxO at the script address
     - Datum:
 
       - service_metadata: Current metadata listed in @service-datum.
+      - is_active: True
 
     - Value:
 
       - Minimum ADA
 
       - 1 Reference NFT Asset
-\      
-==== Mints
-\
-  + *Merchant Multi-validator*
-
-    - Redeemer: DeleteService
-    
-    - Value:
-
-      - -1 Service NFT Asset
-
-      - -1 Reference NFT Asset
 \
 ==== Outputs
 \
@@ -673,7 +632,25 @@ This transaction updates the metadata attached to the UTxO at the script address
 
     - Value: 
 
-      - Minimum ADA (remaining after burning the NFT)
+      - Minimum ADA
+
+      - 1 Service NFT Asset
+
++ *Service Validator UTxO*
+
+    - Address: Service validator script address
+
+    - Datum:
+
+      - service_metadata: Current metadata listed in @service-datum.
+
+      - is_active: False
+
+    - Value:
+
+      - Minimum ADA
+
+      - 1 Reference NFT Asset
 #pagebreak()
 
 
@@ -1241,6 +1218,70 @@ This transaction allows anyone with a Service NFT to unlock penalty funds associ
   - Value:
 
     - Remaining ADA after withdrawal
+
+
+=== Spend :: Subscriber Withdraw
+\
+This transaction allows anyone with an Accoun NFT to unlock subscription funds from the Payment UTxO only if the status in the ServiceDatum is inactive.
+
+\
+#figure(
+  image("./images/subscriber-withdraw.png", width: 100%),
+  caption: [Subscriber Withdraw UTxO diagram],
+)
+\
+
+==== Inputs:
+\
++ *Subscriber Wallet UTxO*
+
+  - Address: Subscriber’s wallet address
+
+  - Value:
+
+    - ADA
+
+    - Account NFT Asset
+
++ *Payment Validator UTxO*
+
+  - Address: Payment validator script address
+
+  - Payment Datum:
+
+    - existing_datum
+    
+  - Value:
+
+    - Subscription ADA
+
+    - Payment NFT Asset
+\
+
+==== Outputs:
+\
++ *Subscriber Wallet UTxO*
+
+  - Address: Subscriber’s wallet address
+
+  - Value:
+
+    - Withdrawn Subscription ADA
+    
+    - Account NFT Asset
+
++ *Payment Validator UTxO*
+
+  - Address: Payment validator script address
+
+  - Payment Datum:
+
+    - existing_datum
+
+  - Value:
+
+    - Remaining ADA after subscriber withdrawal
+
 
 
 
