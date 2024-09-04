@@ -8,14 +8,28 @@ pub type AssetClass {
   asset_name: AssetName,
 }
 
+// pub type ServiceDatum {
+//   service_fee: AssetClass,
+//   service_fee_qty: Int,
+//   // non-negative
+//   penalty_fee: AssetClass,
+//   penalty_fee_qty: Int,
+//   //TODO: Add interval_length
+
+//   // Subscription period Min 1
+//   // Should  be num_intervals
+//   subscription_period: Int,
+//   is_active: Bool,
+// }
+
 pub type ServiceDatum {
   service_fee: AssetClass,
   service_fee_qty: Int,
   // non-negative
   penalty_fee: AssetClass,
   penalty_fee_qty: Int,
-  // Subscription period Min 1
-  subscription_period: Int,
+  interval_length: Int,
+  num_intervals: Int,
   is_active: Bool,
 }
 
@@ -67,12 +81,13 @@ pub type PaymentDatum {
   service_nft_tn: AssetName,
   account_nft_tn: AssetName,
   subscription_fee: AssetClass,
-  subscription_fee_qty: Int,
+  total_subscription_fee: Int,
   subscription_start: Int,
   subscription_end: Int,
-  subscription_period: Int,
-  // last Claimed in datum so that merchant can't claim until 
-  // one month has passed.(Add counter)
+  //TODO: Allow to be customisable
+  interval_length: Int,
+  interval_amount: Int,
+  num_intervals: Int,
   last_claimed: Int,
   penalty_fee: AssetClass,
   penalty_fee_qty: Int,

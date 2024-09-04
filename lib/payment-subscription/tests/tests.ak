@@ -8,7 +8,7 @@ use aiken/transaction.{
 }
 use aiken/transaction/credential.{Address, ScriptCredential}
 use aiken/transaction/value
-use payment_subscription/types.{
+use payment_subscription/common/types.{
   AccountDatum, AssetClass, PaymentDatum, PenaltyDatum, ServiceDatum,
 }
 
@@ -58,7 +58,7 @@ pub fn test_utxo_01() {
 }
 
 // Create a UTxO
-pub fn test_utxo_02(own_cs, minted_value, datum) {
+pub fn test_utxo_02(own_cs, minted_value, lovelace, datum) {
   Output {
     address: Address {
       payment_credential: ScriptCredential(own_cs),
@@ -68,7 +68,7 @@ pub fn test_utxo_02(own_cs, minted_value, datum) {
       minted_value,
       value.ada_policy_id,
       value.ada_asset_name,
-      40_000_000,
+      lovelace,
     ),
     datum: InlineDatum(datum),
     reference_script: None,
@@ -118,8 +118,8 @@ pub fn test_input_utxo_02(utxo_hash) {
   }
 }
 
-pub fn test_service_datum(status: Bool, subsc_period: Int) {
-  let fee_qty = 10_000_000
+pub fn test_service_datum(status: Bool, subsc_period: Int, intervals: Int) {
+  let fee_qty = 100_000_000
   let penalty_qty = 1_000_000
 
   // 120 days in milliseconds
@@ -136,7 +136,8 @@ pub fn test_service_datum(status: Bool, subsc_period: Int) {
       asset_name: value.ada_asset_name,
     },
     penalty_fee_qty: penalty_qty,
-    subscription_period: subsc_period,
+    interval_length: subsc_period,
+    num_intervals: intervals,
     is_active: status,
   }
 }
@@ -181,6 +182,8 @@ pub fn test_datum_03(
   subsc_start: Int,
   subsc_end: Int,
   subsc_period: Int,
+  interval_amount: Int,
+  num_intervals: Int,
   last_claimed: Int,
   penalty_fee: Int,
 ) {
@@ -191,10 +194,12 @@ pub fn test_datum_03(
       policy_id: value.ada_policy_id,
       asset_name: value.ada_asset_name,
     },
-    subscription_fee_qty: fee_qty,
+    total_subscription_fee: fee_qty,
     subscription_start: subsc_start,
     subscription_end: subsc_end,
-    subscription_period: subsc_period,
+    interval_length: subsc_period,
+    interval_amount,
+    num_intervals,
     last_claimed,
     penalty_fee: AssetClass {
       policy_id: value.ada_policy_id,
