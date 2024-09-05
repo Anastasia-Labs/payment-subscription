@@ -174,7 +174,6 @@ test succeed_initiate_subscription() {
   trace @"-------------------------------------"
   trace @"Test Completed!"
 
-  //   mint_payment(service_cs, account_cs, redeemer, context)
   validate_initial_subscription(
     own_cs,
     account_cs,
@@ -349,7 +348,6 @@ test succeed_terminate_subscription() {
   trace @"-------------------------------------"
   trace @"Test Completed!"
 
-  //   mint_payment(service_cs, account_cs, redeemer, context)
   validate_terminate_subscription(own_cs, account_cs, context.transaction)
 }
 
@@ -497,7 +495,6 @@ test succeed_extend_subscription() {
         inputs: [account_input, payment_input],
         reference_inputs: [service_input],
         outputs: [user_change_output, payment_output],
-        // fee: value.from_lovelace(2_000_000),
         fee: value.zero(),
         mint: value.to_minted_value(value.zero()),
         certificates: [],
@@ -559,13 +556,6 @@ test succeed_extend_subscription() {
   trace @"-------------------------------------"
   trace @"Test Completed!"
 
-  //   spend_payment(
-  //     service_cs,
-  //     account_cs,
-  //     Payment(initial_payment_datum),
-  //     redeemer,
-  //     context,
-  //   )
   validate_extend_subscription(
     service_cs,
     account_cs,

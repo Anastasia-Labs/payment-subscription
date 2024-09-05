@@ -19,10 +19,6 @@ pub fn check_nft_output_utxo(output: Output) -> Bool {
 /// Return the first occurrence of an output that contains at least some specific
 /// value at some address. If nothing is found then error. This function
 /// does not search for an exact UTxO match.
-///
-/// ```aiken
-/// find.output_by_addr_value(tx.outputs, wallet_addr, just_token_value)
-/// ```
 pub fn output_by_addr_value(
   outputs: List<Output>,
   addr: Address,
@@ -43,10 +39,6 @@ pub fn output_by_addr_value(
 /// Return the first occurrence of an output that contains at least some specific
 /// value. If nothing is found then error. This function
 /// does not search for an exact UTxO match.
-///
-/// ```aiken
-/// find.output_by_value(tx.outputs, just_token_value)
-/// ```
 pub fn output_by_value(outputs: List<Output>, value: Value) -> Output {
   when outputs is {
     [output, ..rest] ->

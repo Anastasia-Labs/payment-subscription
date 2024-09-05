@@ -20,13 +20,10 @@ test success_create_service() {
   let interval_length = 30 * 24 * 60 * 60 * 1000
   let num_intervals = 1
 
-  // let input_index = 0
   let is_active = True
   let datum =
     tests.test_service_datum(is_active, interval_length, num_intervals)
 
-  // let redeemer =
-  //   CreateService { output_reference: init_output_ref, input_index }
   let ref_tkn = values.unique_token_name(tx_hash, 1, cip68.prefix_100)
   let user_tkn = values.unique_token_name(tx_hash, 1, cip68.prefix_222)
 
@@ -101,7 +98,6 @@ test success_create_service() {
   trace @"-------------------------------------"
   trace @"Test Completed!"
 
-  // mint_service(redeemer, context)
   let minted_tokens = context.transaction.mint |> from_minted_value()
 
   validate_create_service(
@@ -209,7 +205,6 @@ test success_update_service() {
   trace @"-------------------------------------"
   trace @"Test Completed!"
 
-  // spend_service(datum, redeemer, context)
   let service_addr = service_input.output.address
   let ref_nft =
     service_input.output.value
@@ -318,6 +313,5 @@ test success_remove_service() {
     service_input.output.value
       |> value.without_lovelace()
 
-  // spend_service(datum, redeemer, context)
   validate_remove_service(datum, service_addr, ref_nft, context.transaction)
 }
