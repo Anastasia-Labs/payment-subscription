@@ -1,4 +1,3 @@
-use aiken/cbor
 use aiken/math
 use payment_subscription/common/types.{AssetClass, PaymentDatum, ServiceDatum}
 
@@ -40,15 +39,6 @@ pub fn validate_payment_against_service(
   let minimum_ada_valid =
     is_ada(payment.subscription_fee) && payment.minimum_ada >= 0
 
-  trace @"payment.subscription_fee:"
-  trace cbor.diagnostic(payment.subscription_fee)
-  trace @"service.service_fee:"
-  trace cbor.diagnostic(service.service_fee)
-  trace @"payment.interval_amount:"
-  trace cbor.diagnostic(payment.interval_amount)
-  trace @"service.service_fee_qty:"
-  trace cbor.diagnostic(service.service_fee_qty)
-
   interval_length_valid? && service_fee_valid? && penalty_fee_valid? && minimum_ada_valid?
 }
 
@@ -86,21 +76,6 @@ pub fn validate_extension_datum(
   // Ensure that the subscription start is at least negative interval_length
   let valid_start_time =
     new_datum.subscription_start >= -new_datum.interval_length
-
-  trace @"extension_period:"
-  trace cbor.diagnostic(extension_period)
-  trace @"extension_intervals:"
-  trace cbor.diagnostic(extension_intervals)
-  trace @"expected_fee_increase:"
-  trace cbor.diagnostic(expected_fee_increase)
-  trace @"actual_fee_increase:"
-  trace cbor.diagnostic(extension_amount)
-  trace @"period_extension_valid:"
-  trace cbor.diagnostic(period_extension_valid)
-  trace @"fee_increase_valid:"
-  trace cbor.diagnostic(fee_increase_valid)
-  trace @"updated_fields_valid:"
-  trace cbor.diagnostic(updated_fields_valid)
 
   and {
     unchanged_fields_valid?,

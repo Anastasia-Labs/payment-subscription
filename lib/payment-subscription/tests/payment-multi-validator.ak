@@ -838,9 +838,6 @@ test succeed_merchant_withdraw() {
   let minimum_ada = 2_000_000
 
   // Calculate withdrawable amount (assuming half of the subscription period has passed)
-  // let time_elapsed = math.min(current_time - last_claimed, interval_length)
-  // let withdrawable_amount = total_subscription_fee * time_elapsed / interval_length
-  // Let's withdraw half of the withdrawable amount for this test
   let actual_withdrawal = withdrawable_amount
   let merchant_output_value =
     value.add(
@@ -925,8 +922,6 @@ test succeed_merchant_withdraw() {
   trace @"-------------------------------------"
   trace @"Time Elapsed: (days)"
   trace cbor.diagnostic(time_elapsed / ( 24 * 60 * 60 * 1000 ))
-  trace @"Withdrawable Amount: (lovelace)"
-  trace cbor.diagnostic(withdrawable_amount)
   trace @"Actual Withdrawal: (lovelace)"
   trace cbor.diagnostic(actual_withdrawal)
 

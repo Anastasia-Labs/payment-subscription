@@ -1,4 +1,3 @@
-use aiken/cbor
 use aiken/list
 use aiken/math
 use aiken/transaction.{Input, Output, OutputReference, Transaction}
@@ -29,8 +28,6 @@ pub fn validate_initial_subscription(
 ) -> Bool {
   let minted_tokens = tx.mint |> from_minted_value()
   expect Some(account_input) = list.at(tx.inputs, input_index)
-  trace @"input_index:"
-  trace cbor.diagnostic(input_index)
 
   // Find the service reference input by searching for the token policy
   expect Some(service_ref_input) =
@@ -90,11 +87,6 @@ pub fn validate_initial_subscription(
   let expected_amount = payment_datum.interval_amount
 
   let locked_amount_valid = locked_amount >= expected_amount
-
-  trace @"expected_amount:"
-  trace cbor.diagnostic(expected_amount)
-  trace @"locked_amount:"
-  trace cbor.diagnostic(locked_amount)
 
   // Ensure user output DOES NOT go back to the script
   let user_token_not_to_script =
@@ -398,14 +390,6 @@ pub fn validate_merchant_withdraw(
       let payment_datum_valid =
         validate_payment_against_service(payment_datum, service_datum)
 
-      // Verify withdrawal amount
-      let actual_withdrawal_amount =
-        value.quantity_of(
-          merchant_output.value,
-          payment_datum.subscription_fee.policy_id,
-          payment_datum.subscription_fee.asset_name,
-        )
-
       // Get the current time
       let current_time = get_minimum_current_time_estimate(tx.validity_range)
 
@@ -439,10 +423,6 @@ pub fn validate_merchant_withdraw(
         )
       let remaining_funds_valid = actual_remaining_amount >= locked_amount
 
-      trace @"payment_datum.interval_length:"
-      trace cbor.diagnostic(payment_datum.interval_length)
-      trace @"actual_withdrawal_amount:"
-      trace cbor.diagnostic(actual_withdrawal_amount)
       and {
         has_service_nft?,
         payment_datum_valid?,

@@ -1,4 +1,3 @@
-use aiken/cbor
 use aiken/math.{abs}
 use payment_subscription/common/types.{ServiceDatum}
 
@@ -20,13 +19,5 @@ pub fn is_fee_change_valid(old_fee: Int, new_fee: Int) -> Bool {
   // Implement logic to ensure fee changes are within acceptable range
   // For example, limit changes to ±10%
   let max_change = old_fee / 10
-
-  trace @"old_fee"
-  trace cbor.diagnostic(old_fee)
-  trace @"new_fee"
-  trace cbor.diagnostic(new_fee)
-  trace @"max_change"
-  trace cbor.diagnostic(max_change)
-
   abs(new_fee - old_fee) <= max_change
 }

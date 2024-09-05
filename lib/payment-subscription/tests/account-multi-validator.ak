@@ -312,13 +312,6 @@ test succeed_remove_account() {
 
   let user_output = tests.test_utxo_02(own_cs, user_value, 100_000_000, NoDatum)
 
-  trace @"user_input"
-  trace cbor.diagnostic(user_input)
-  trace @"account_input"
-  trace cbor.diagnostic(account_input)
-  trace @"user_output"
-  trace cbor.diagnostic(user_output)
-
   let context =
     ScriptContext {
       purpose: Spend(account_output_ref),
