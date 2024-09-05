@@ -11,7 +11,7 @@
 )
 
 // Set default text style
-#set text(15pt, font: "Barlow")
+#set text(15pt, font: "Montserrat")
 
 #v(3cm) // Add vertical space
 
@@ -29,15 +29,24 @@
 #set text(22pt, fill: white)
 
 // Center-align the report title
-#align(center)[#strong[Payment Subscription Smart Contract]]
+#align(center)[#strong[Proof of Achievement - Milestone 1]]
 #set text(20pt, fill: white)
-#align(center)[#strong[Design Specification]]
+#align(center)[Payment Subscription Smart Contract]
 
 #v(5cm)
 
 // Set text style for project details
 #set text(13pt, fill: white)
 
+// Display project details
+#table(
+  columns: 2,
+  stroke: none,
+  [*Project Number*],
+  [1100025],
+  [*Project Manager*],
+  [Jonathan Rodriguez],
+)
 
 // Reset text style to default
 #set text(fill: luma(0%))
@@ -80,7 +89,7 @@
       #set text(size: 11pt, fill: gray)
       *Payment Subscription Smart Contract*
       #v(-3mm)
-      Project Design Specification
+      Proof of Achievement - Milestone 1
       #v(-3mm)
     ]
     #v(-6mm)
@@ -120,11 +129,12 @@ recurring payments effectively and with ease.
 #pagebreak()
 
 = Test Suite Details
-
+\
 The test suite for the Payment Subscription Smart Contract consists of thirteen
 critical test cases, each designed to verify specific aspects of the contract's
 functionality.
 
+\
 == Test Execution Results
 
 \
@@ -144,15 +154,20 @@ demonstrates:
 
 #pagebreak()
 = Managing Recurring Payments Tests
-
+\
 This process comprises of six checks:
 
 - succeed_initiate_subscription
--  succeed_terminate_subscription
--  succeed_extend_subscription
--  succeed_unsubscribe
--  succeed_merchant_withdraw
--  succeed_subscriber_withdraw
+
+- succeed_terminate_subscription
+- succeed_extend_subscription
+- succeed_unsubscribe
+- succeed_merchant_withdraw
+- succeed_subscriber_withdraw
+
+
+#pagebreak()
+
 == Test Case: Initiating a Subscription (succeed_initiate_subscription)
 
 \
@@ -166,6 +181,7 @@ This test validates the contract's ability to initiate a new subscription. It
 demonstrates:
 
 - Correct setup of subscription parameters
+
 - Proper creation of the Payment Datum
 - Accurate handling of inputs and outputs
 - Successful minting of the Payment NFT
@@ -255,8 +271,9 @@ fees by a subscriber when the service becomes inactive. It demonstrates:
 - Proper burning of the Payment NFT
 - Accurate updating of the Payment UTxO
 
+#pagebreak()
 = User Workflow for Managing Recurring Payments
-
+\
 The following outlines the user workflow for managing recurring payments:
 
 + *Initiate Subscription:*
@@ -298,6 +315,8 @@ The following outlines the user workflow for managing recurring payments:
 
 This workflow demonstrates the ease with which users can manage their recurring
 payments, from initiation to termination, directly from their wallets.
+
+#pagebreak()
 
 = Conclusion
 \
