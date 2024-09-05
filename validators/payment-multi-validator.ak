@@ -15,7 +15,6 @@ validator(service_policy_id: ByteArray, account_policy_id: ByteArray) {
     expect Mint(own_policy) = purpose
     let Transaction { .. } = tx
 
-    // let minted_tokens = mint |> from_minted_value()
     when redeemer is {
       InitSubscripton { output_reference, input_index } ->
         // Ensure this outref is spent in this transaction

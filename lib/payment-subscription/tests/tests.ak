@@ -121,6 +121,7 @@ pub fn test_input_utxo_02(utxo_hash) {
 pub fn test_service_datum(status: Bool, subsc_period: Int, intervals: Int) {
   let fee_qty = 100_000_000
   let penalty_qty = 1_000_000
+  let min_ada = 2_000_000
 
   // 120 days in milliseconds
   // let subsc_period = 30 * 24 * 60 * 60 * 1000 * 4
@@ -138,6 +139,7 @@ pub fn test_service_datum(status: Bool, subsc_period: Int, intervals: Int) {
     penalty_fee_qty: penalty_qty,
     interval_length: subsc_period,
     num_intervals: intervals,
+    minimum_ada: min_ada,
     is_active: status,
   }
 }
@@ -206,6 +208,7 @@ pub fn test_datum_03(
       asset_name: value.ada_asset_name,
     },
     penalty_fee_qty: penalty_fee,
+    minimum_ada: 2_000_000,
   }
 }
 

@@ -10,7 +10,9 @@ pub fn is_service_metadata_valid(datum: ServiceDatum) -> Bool {
     datum.penalty_fee_qty >= 0 && datum.penalty_fee_qty < 1_000_000_000_000
   let subscription_period_valid =
     datum.num_intervals >= 1 && datum.num_intervals < 1_000_000_000_000
-  service_fee_valid && penalty_fee_valid && subscription_period_valid && datum.is_active
+  let minimum_ada_valid = datum.minimum_ada > 0
+
+  service_fee_valid && penalty_fee_valid && subscription_period_valid && datum.is_active && minimum_ada_valid
 }
 
 // Helper function to validate service fee changes

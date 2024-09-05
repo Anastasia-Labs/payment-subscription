@@ -15,8 +15,8 @@ use payment_subscription/common/utils.{
   validate_single_nft_input, validate_token_output,
 } as common_utils
 use payment_subscription/payment_multi_validator/utils.{
-  validate_extension_datum, validate_payment_against_service,
-  validate_payment_datum_internal,
+  calculate_locked_amount, validate_extension_datum,
+  validate_payment_against_service, validate_payment_datum_internal,
 }
 
 pub fn validate_initial_subscription(
@@ -179,8 +179,6 @@ pub fn validate_terminate_subscription(
   }
 }
 
-// TODO: s Should be at least -i  
-// TODO: Validate amount and no of intervals.  
 pub fn validate_extend_subscription(
   service_policy_id: ByteArray,
   account_policy_id: ByteArray,
@@ -391,29 +389,15 @@ pub fn validate_merchant_withdraw(
       expect service_datum: ServiceDatum =
         data.output_datum(service_ref_input.output)
 
-      // TODO: Add minimum ADA to the merchant UTxO
-      // TODO: Add a minimum ADA datum field.
       expect [merchant_output, payment_output, ..] = tx.outputs
 
       let ada_amount = value.lovelace_of(merchant_output.value)
-      let has_minimum_ada = ada_amount >= 2_000_000
+      let has_minimum_ada = ada_amount >= payment_datum.minimum_ada
 
       // Validate payment datum against service datum
       let payment_datum_valid =
         validate_payment_against_service(payment_datum, service_datum)
 
-      // Calculate vesting-related values
-      // Get the current time
-      let current_time = get_minimum_current_time_estimate(tx.validity_range)
-      let time_elapsed =
-        math.max(current_time - payment_datum.subscription_start, 0)
-      let intervals_elapsed = time_elapsed / payment_datum.interval_length
-
-      // let withdrawable_amount =
-      //   math.min(
-      //     intervals_elapsed * payment_datum.interval_amount,
-      //     payment_datum.total_subscription_fee,
-      //   )
       // Verify withdrawal amount
       let actual_withdrawal_amount =
         value.quantity_of(
@@ -422,8 +406,9 @@ pub fn validate_merchant_withdraw(
           payment_datum.subscription_fee.asset_name,
         )
 
-      // let withdrawal_amount_valid =
-      //  Actual_withdrawal_amount <= withdrawable_amount
+      // Get the current time
+      let current_time = get_minimum_current_time_estimate(tx.validity_range)
+
       // Update the last_claimed field in the new datum
       expect new_datum: PaymentDatum = data.output_datum(payment_output)
       let last_claimed_updated = new_datum.last_claimed == current_time
@@ -436,26 +421,28 @@ pub fn validate_merchant_withdraw(
           payment_datum.service_nft_tn,
         ) == 1
 
+      let locked_amount =
+        calculate_locked_amount(
+          payment_datum.num_intervals,
+          current_time,
+          payment_datum.subscription_start,
+          payment_datum.interval_length,
+          payment_datum.interval_amount,
+        )
       // Verify that any remaining funds are returned to the payment validator
       // This is the amount of funds that should be left in the payment script after the withdrawal.
-      // TODO: Remaining amount should be from the Payment output!
-      let remaining_amount =
-        payment_datum.total_subscription_fee - actual_withdrawal_amount
-      let remaining_funds_valid =
-        remaining_amount >= ( payment_datum.num_intervals - intervals_elapsed ) * payment_datum.interval_amount
+      let actual_remaining_amount =
+        value.quantity_of(
+          payment_output.value,
+          payment_datum.subscription_fee.policy_id,
+          payment_datum.subscription_fee.asset_name,
+        )
+      let remaining_funds_valid = actual_remaining_amount >= locked_amount
 
-      trace @"time_elapsed:"
-      trace cbor.diagnostic(time_elapsed)
-      trace @"intervals_elapsed:"
-      trace cbor.diagnostic(intervals_elapsed)
       trace @"payment_datum.interval_length:"
       trace cbor.diagnostic(payment_datum.interval_length)
-      // trace @"withdrawable_amount:"
-      // trace cbor.diagnostic(withdrawable_amount)
       trace @"actual_withdrawal_amount:"
       trace cbor.diagnostic(actual_withdrawal_amount)
-      // trace @"withdrawal_amount_valid:"
-      // trace cbor.diagnostic(withdrawal_amount_valid)
       and {
         has_service_nft?,
         payment_datum_valid?,

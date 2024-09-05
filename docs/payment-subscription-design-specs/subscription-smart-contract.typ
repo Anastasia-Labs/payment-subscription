@@ -233,6 +233,8 @@ This is a Sum type datum where one represents the payment datum and the other on
 - *`last_claimed`:* The last time the merchant withdrew from the contract.
 - *`penalty_fee`:* AssetClass type of the penalty.
 - *`penalty_fee_qty`:* Amount the merchant wishes to penalies for early withdrawal. This is optional and can be `0`.
+- *`minimum_ada`:* Least amount of Ada required to complete the transaction,
+
 \
 ===== Penalty datum <penalty-datum>
 \
@@ -344,13 +346,15 @@ Nothing
 ===== Datum <service-datum>
 \
 
-  - `service_fee`: AssetClass type for the amount to pay for a subscription service
+  - *`service_fee`:* AssetClass type for the amount to pay for a subscription service
 
-  - `service_fee_qty`: Amount of the funds to pay for a service.
-  - `penalty_fee`: AssetClass type for the amount of fees to be deducted when subscriber cancels the subscription (Optional).
-  - `penalty_fee_qty`: Amount of the penalty fees (Optional).
-  - `min_sub_period`: least amount of subscription period.
-  - `is_active`: Boolean indicating if the service is active
+  - *`service_fee_qty`:* Amount of the funds to pay for a service.
+  - *`penalty_fee`:* AssetClass type for the amount of fees to be deducted when subscriber cancels the subscription (Optional).
+  - *`penalty_fee_qty`:* Amount of the penalty fees (Optional).
+  - *`interval_length`:* Length of an interval for the subscription,
+  - *`num_intervals`:*  Number of intervals in the subscription period (e.g. 12 for monthly withdraws for a year),
+  - *`minimum_ada`:* Least amount of Ada required to complete the transaction,
+  - *`is_active`:* Boolean indicating if the service is active
   
 *Note:* Subscription fees can be based on length of period the subscriber pays for e.g. If they pay for one month, the fees are more than if they pay for 12 months. This introduces the need for a `min_sub_period`.
 
