@@ -115,24 +115,74 @@
 = Introduction
 \
 
-This document presents comprehensive evidence of the successful implementation
-and testing of the Payment Subscription Smart Contract addressing the effortless
-management of recurring payments
+The Payment Subscription Smart Contract project aims to develop a robust and user-friendly system for managing recurring payments on the Cardano blockchain. This contract enables users to effortlessly set up, manage, and cancel recurring payments directly from their wallets, providing a seamless experience for both subscribers and merchants.
 
-Each section provides detailed insights into the functionality, security, and
-usability of the smart contract, demonstrating its readiness for real-world
-application.
+Key features include:
 
-Our rigorous testing suite demonstrates the contract's ability to manage
-recurring payments effectively and with ease.
+- Initiating subscriptions with customizable terms
+
+- Extending or terminating subscriptions
+- Automated recurring payments
+- Secure withdrawal of funds for both merchants and subscribers
+- Seamless integration with popular wallet applications
+
+This report demonstrates our progress in implementing the contract and meeting the acceptance criteria, focusing on effortless management of recurring payments and integration with wallets.
+
+#pagebreak()
+= Contract Functionality
+\
+The Payment Subscription Smart Contract consists of three main validators:
+
+\
+== Service Contract
+\
+A multi-validator responsible for:
+
+- Creating an initial service by minting a single CIP-68 compliant Service NFT asset
+
+- Sending the Service NFT to the user and the reference NFT to the spending endpoint
+- Updating the metadata for the user
+- Deleting the service by setting it to inactive.
+
+\
+== Account Contract
+\
+A multi-validator responsible for:
+
+- Creating an account for the user by minting a CIP-68 compliant Account NFT asset
+
+- Sending the Account NFT to the user and the reference NFT to the spending endpoint
+- Updating the metadata for the account
+- Deleting the user account by burning the Account NFT
+
+\
+== Payment Contract
+\
+This is the core validator and is responsible for:
+
+- Holding prepaid subscription fees for a service
+
+- Renewing a subscription
+- Unsubscribing from a service
+- Withdrawing subscription fees
+
+\
+The contract incorporates a linear vesting mechanism to gradually release subscription fees to the merchant over the subscription period.
+
 
 #pagebreak()
 
-= Test Suite Details
+= Effortlessly Manage Recurring Payments
 \
-The test suite for the Payment Subscription Smart Contract consists of thirteen
-critical test cases, each designed to verify specific aspects of the contract's
-functionality.
+Our smart contract enables users to easily manage their recurring payments through a series of intuitive operations. We've implemented and tested various scenarios to ensure a smooth user experience.
+
+\
+== Test Suite Details
+\
+
+We've developed a comprehensive test suite consisting of thirteen critical test cases, to validate the contract's functionality. These tests cover all aspects of subscription management, from initiation to termination and fund withdrawal.
+
+Here's an overview of the test execution results:
 
 \
 == Test Execution Results
@@ -140,7 +190,7 @@ functionality.
 \
 #figure(
   image("./test-images/all-tests.png", width: 100%),
-  caption: [All Payment Subscription Tests],
+  caption: [ Payment Subscription Tests Overview],
 )
 \
 
@@ -148,15 +198,17 @@ This test validates the contract's ability to initiate a new subscription. It
 demonstrates:
 
 - Correct setup of subscription parameters
+
 - Proper creation of the Payment Datum
 - Accurate handling of inputs and outputs
 - Successful minting of the Payment NFT
 
 #pagebreak()
-= Managing Recurring Payments Tests
+= Detailed Test Case Scenarios
 \
-This process comprises of six checks:
+This process comprises of six checks all from the Payments Contract which are:
 
+\
 - succeed_initiate_subscription
 
 - succeed_terminate_subscription
@@ -168,7 +220,7 @@ This process comprises of six checks:
 
 #pagebreak()
 
-== Test Case: Initiating a Subscription (succeed_initiate_subscription)
+== Initiating a Subscription (succeed_initiate_subscription)
 
 \
 #figure(
@@ -188,7 +240,7 @@ demonstrates:
 
 #pagebreak()
 
-== Test Case: Terminate Subscription (succeed_terminate_subscription)
+== Terminate Subscription (succeed_terminate_subscription)
 
 \
 #figure(
@@ -202,7 +254,7 @@ appropriate refunds and penalties.
 
 #pagebreak()
 
-== Test Case: Extend Subscription (succeed_extend_subscription)
+== Extend Subscription (succeed_extend_subscription)
 
 \
 #figure(
@@ -215,13 +267,14 @@ This test demonstrates the contract's ability to extend an existing
 subscription, showcasing the flexibility offered to subscribers. It shows:
 
 - Accurate calculation of the new subscription end date
+
 - Correct fee adjustment for the extension
 - Proper updating of the Payment Datum
 - Successful execution of the extension transaction
 
 #pagebreak()
 
-== Test Case: Unsubscribe (succeed_unsubscribe)
+== Unsubscribe (succeed_unsubscribe)
 
 \
 #figure(
@@ -234,16 +287,17 @@ This test verifies the contract's ability to process an unsubscription. It
 demonstrates:
 
 - Accurate calculation of refund and penalty amounts
+
 - Proper distribution of funds (refund to subscriber, penalty to designated
   UTxO)
 - Correct burning of the Payment NFT
 
 #pagebreak()
-== Test Case: Withdrawing Subscription Fees by Merchant (succeed_merchant_withdraw)
+== Merchant Withdrawing Fees (succeed_merchant_withdraw)
 \
 #figure(
   image("./test-images/succeed_merchant_withdraw.png", width: 100%),
-  caption: [Succeed Unsubscribe Test],
+  caption: [Succeed Merchant Withdraw Test],
 )
 \
 
@@ -251,15 +305,16 @@ This test confirms the contract's ability to process withdrawals of subscription
 fees by a merchant. It shows:
 
 - Correct calculation of withdrawable amounts based on elapsed time
+
 - Proper distribution of funds to the merchant
 - Accurate updating of the Payment Datum with new 'last claimed' time
 
 #pagebreak()
-== Test Case: Withdrawing Subscription Fees by Subscriber (succeed_subscriber_withdraw)
+== Subscriber Withdrawing Fees (succeed_subscriber_withdraw)
 \
 #figure(
   image("./test-images/succeed_subscriber_withdraw.png", width: 100%),
-  caption: [Succeed Unsubscribe Test],
+  caption: [Succeed Subscriber Withdraw Test],
 )
 \
 
@@ -267,6 +322,7 @@ This test verifies the contract's ability to process withdrawals of subscription
 fees by a subscriber when the service becomes inactive. It demonstrates:
 
 - Correct identification of an inactive service
+
 - Full refund of the subscription amount to the subscriber
 - Proper burning of the Payment NFT
 - Accurate updating of the Payment UTxO
@@ -276,6 +332,7 @@ fees by a subscriber when the service becomes inactive. It demonstrates:
 \
 The following outlines the user workflow for managing recurring payments:
 
+\
 + *Initiate Subscription:*
 
    - User selects a service and subscription period
@@ -323,8 +380,18 @@ payments, from initiation to termination, directly from their wallets.
 The Payment Subscription Smart Contract demonstrates robust functionality and
 ease of use. Through comprehensive testing and thoughtful implementation, it
 effectively manages recurring payments, allowing users to initiate, extend, and
-terminate subscriptions directly from their preferred wallet applications.
+terminate subscriptions efficiently.
+
+Key achievements include:
+
+- Successful implementation of subscription initiation, extension, and termination processes
+
+- Accurate handling of fee calculations, including prorated refunds and penalties
+- Secure management of funds through the payment contract
+- Flexible service and account management through dedicated contracts
 
 These features collectively ensure that the contract meets the needs of both
 service providers and subscribers, offering a secure and user-friendly solution
 for managing subscription-based services on the Cardano blockchain.
+
+All documentation, including detailed test cases and explanations, is available in our GitHub repository: https://github.com/Anastasia-Labs/plug-n-play-contracts
