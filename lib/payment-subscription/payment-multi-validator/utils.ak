@@ -83,9 +83,6 @@ pub fn validate_extension_datum(
   let sane_values =
     new_datum.subscription_start >= 0 && new_datum.subscription_end > new_datum.subscription_start && new_datum.interval_length > 0 && new_datum.interval_amount > 0 && new_datum.num_intervals > 0 && new_datum.minimum_ada >= 0
 
-  // Ensure that the subscription start is at least negative interval_length
-  let valid_start_time =
-    new_datum.subscription_start >= -new_datum.interval_length
 
   trace @"extension_period:"
   trace cbor.diagnostic(extension_period)
