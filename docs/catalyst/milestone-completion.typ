@@ -2,7 +2,7 @@
 #let image-foreground = image("../images/Logo-Anastasia-Labs-V-Color02.png", width: 100%, fit: "contain")
 #let image-header = image("../images/Logo-Anastasia-Labs-V-Color01.png", height: 75%, fit: "contain")
 #let fund-link = link("https://projectcatalyst.io/funds/11/cardano-use-cases-product/anastasia-labs-x-maestro-plug-n-play-20")[Catalyst Proposal]
-#let git-link = link(" https://github.com/Anastasia-Labs/plug-n-play-contracts")[Main Github Repo]
+#let git-link = link(" https://github.com/Anastasia-Labs/payment-subscription")[Payment Subscription Github Repo]
 #let initiate_subscription-link = link("https://github.com/Anastasia-Labs/payment-subscription/blob/6d461a7e3b2883f5cc3f4de2ff4eeb2a69955260/lib/payment-subscription/tests/payment-multi-validator.ak#L19")[Test Case Code: succeed_initiate_subscription]
 #let terminate_subscription-link = link("https://github.com/Anastasia-Labs/payment-subscription/blob/6d461a7e3b2883f5cc3f4de2ff4eeb2a69955260/lib/payment-subscription/tests/payment-multi-validator.ak#L187")[Test Case Code: succeed_terminate_subscription]
 #let extend-subscriptions-link = link("https://github.com/Anastasia-Labs/payment-subscription/blob/6d461a7e3b2883f5cc3f4de2ff4eeb2a69955260/lib/payment-subscription/tests/payment-multi-validator.ak#L354")[Test Case Code: succeed_extend_subscription]
@@ -416,4 +416,4 @@ These features collectively ensure that the contract meets the needs of both
 service providers and subscribers, offering a secure and user-friendly solution
 for managing subscription-based services on the Cardano blockchain.
 
-All documentation, including detailed test cases and explanations, is available in our GitHub repository: https://github.com/Anastasia-Labs/plug-n-play-contracts
+All documentation, including detailed test cases and explanations, is available in our #git-link

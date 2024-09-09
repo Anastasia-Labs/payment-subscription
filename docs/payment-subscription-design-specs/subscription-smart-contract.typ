@@ -1,6 +1,6 @@
 #let image-background = image("../images/background-1.jpg", height: 100%, fit: "cover")
-#let image-foreground = image("./images/Logo-Anastasia-Labs-V-Color02.png", width: 100%, fit: "contain")
-#let image-header = image("./images/Logo-Anastasia-Labs-V-Color01.png", height: 75%, fit: "contain")
+#let image-foreground = image("../images/Logo-Anastasia-Labs-V-Color02.png", width: 100%, fit: "contain")
+#let image-header = image("../images/Logo-Anastasia-Labs-V-Color01.png", height: 75%, fit: "contain")
 #let fund-link = link("https://projectcatalyst.io/funds/10/f10-osde-open-source-dev-ecosystem/anastasia-labs-the-trifecta-of-data-structures-merkle-trees-tries-and-linked-lists-for-cutting-edge-contracts")[Catalyst Proposal]
 #let git-link = link("https://github.com/Anastasia-Labs/data-structures")[Main Github Repo]
 
@@ -53,7 +53,7 @@
   background: none,
   header: [
     #align(right)[
-      #image("./images/Logo-Anastasia-Labs-V-Color01.png", width: 25%, fit: "contain")
+      #image("../images/Logo-Anastasia-Labs-V-Color01.png", width: 25%, fit: "contain")
     ]
     #v(-0.5cm)
     #line(length: 100%, stroke: 0.5pt)
