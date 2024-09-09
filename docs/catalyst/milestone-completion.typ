@@ -1,8 +1,14 @@
 #let image-background = image("../images/background-1.jpg", height: 100%, fit: "cover")
 #let image-foreground = image("../images/Logo-Anastasia-Labs-V-Color02.png", width: 100%, fit: "contain")
 #let image-header = image("../images/Logo-Anastasia-Labs-V-Color01.png", height: 75%, fit: "contain")
-#let fund-link = link("https://projectcatalyst.io/funds/10/f10-osde-open-source-dev-ecosystem/anastasia-labs-the-trifecta-of-data-structures-merkle-trees-tries-and-linked-lists-for-cutting-edge-contracts")[Catalyst Proposal]
-#let git-link = link("https://github.com/Anastasia-Labs/data-structures")[Main Github Repo]
+#let fund-link = link("https://projectcatalyst.io/funds/11/cardano-use-cases-product/anastasia-labs-x-maestro-plug-n-play-20")[Catalyst Proposal]
+#let git-link = link(" https://github.com/Anastasia-Labs/plug-n-play-contracts")[Main Github Repo]
+#let initiate_subscription-link = link("https://github.com/Anastasia-Labs/payment-subscription/blob/6d461a7e3b2883f5cc3f4de2ff4eeb2a69955260/lib/payment-subscription/tests/payment-multi-validator.ak#L19")[Test Case Code: succeed_initiate_subscription]
+#let terminate_subscription-link = link("https://github.com/Anastasia-Labs/payment-subscription/blob/6d461a7e3b2883f5cc3f4de2ff4eeb2a69955260/lib/payment-subscription/tests/payment-multi-validator.ak#L187")[Test Case Code: succeed_terminate_subscription]
+#let extend-subscriptions-link = link("https://github.com/Anastasia-Labs/payment-subscription/blob/6d461a7e3b2883f5cc3f4de2ff4eeb2a69955260/lib/payment-subscription/tests/payment-multi-validator.ak#L354")[Test Case Code: succeed_extend_subscription]
+#let unsubscribe-link = link("https://github.com/Anastasia-Labs/payment-subscription/blob/6d461a7e3b2883f5cc3f4de2ff4eeb2a69955260/lib/payment-subscription/tests/payment-multi-validator.ak#L567")[Test Case Code: succeed_unsubscribe]
+#let merchant_withdraw-link = link("https://github.com/Anastasia-Labs/payment-subscription/blob/6d461a7e3b2883f5cc3f4de2ff4eeb2a69955260/lib/payment-subscription/tests/payment-multi-validator.ak#L747")[Test Case Code: succeed_merchant_withdraw]
+#let subscriber_withdraw-link = link("https://github.com/Anastasia-Labs/payment-subscription/blob/6d461a7e3b2883f5cc3f4de2ff4eeb2a69955260/lib/payment-subscription/tests/payment-multi-validator.ak#L960")[Test Case Code: succeed_subscriber_withdraw]
 
 #set page(
   background: image-background,
@@ -46,6 +52,11 @@
   [1100025],
   [*Project Manager*],
   [Jonathan Rodriguez],
+  [*Project Name:*], 
+  [Anastasia Labs X Maestro - Plug ‘n Play 2.0],
+  [*URL:*], 
+  [#fund-link]
+
 )
 
 // Reset text style to default
@@ -192,16 +203,6 @@ Here's an overview of the test execution results:
   image("./test-images/all-tests.png", width: 100%),
   caption: [ Payment Subscription Tests Overview],
 )
-\
-
-This test validates the contract's ability to initiate a new subscription. It
-demonstrates:
-
-- Correct setup of subscription parameters
-
-- Proper creation of the Payment Datum
-- Accurate handling of inputs and outputs
-- Successful minting of the Payment NFT
 
 #pagebreak()
 = Detailed Test Case Scenarios
@@ -221,6 +222,10 @@ This process comprises of six checks all from the Payments Contract which are:
 #pagebreak()
 
 == Initiating a Subscription (succeed_initiate_subscription)
+\
+#initiate_subscription-link
+
+This test includes setting up a subscription with payment, creating the required datum and redeemer, and ensuring that the subscription is correctly recorded in the contract. It involves preparing inputs and outputs for the transaction and confirming that the subscription is successfully initiated.
 
 \
 #figure(
@@ -241,6 +246,10 @@ demonstrates:
 #pagebreak()
 
 == Terminate Subscription (succeed_terminate_subscription)
+\
+#terminate_subscription-link
+
+This scenario covers the case where a subscription is terminated before its end date. It involves calculating and distributing the refund and penalty fees based on the elapsed subscription time and ensuring that the contract correctly reflects the termination and payment of fees.
 
 \
 #figure(
@@ -255,6 +264,8 @@ appropriate refunds and penalties.
 #pagebreak()
 
 == Extend Subscription (succeed_extend_subscription)
+\
+#extend-subscriptions-link
 
 \
 #figure(
@@ -275,6 +286,11 @@ subscription, showcasing the flexibility offered to subscribers. It shows:
 #pagebreak()
 
 == Unsubscribe (succeed_unsubscribe)
+\
+#unsubscribe-link
+
+This test covers the scenario where a user unsubscribes before the end of the subscription period, including
+handling any remaining funds, refunds, or penalties. It verifies that the contract correctly processes the unsubscription and updates the state to reflect the change.
 
 \
 #figure(
@@ -295,6 +311,9 @@ demonstrates:
 #pagebreak()
 == Merchant Withdrawing Fees (succeed_merchant_withdraw)
 \
+#merchant_withdraw-link
+
+\
 #figure(
   image("./test-images/succeed_merchant_withdraw.png", width: 100%),
   caption: [Succeed Merchant Withdraw Test],
@@ -311,6 +330,9 @@ fees by a merchant. It shows:
 
 #pagebreak()
 == Subscriber Withdrawing Fees (succeed_subscriber_withdraw)
+\
+#subscriber_withdraw-link
+
 \
 #figure(
   image("./test-images/succeed_subscriber_withdraw.png", width: 100%),
