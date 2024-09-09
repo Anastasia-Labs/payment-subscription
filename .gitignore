@@ -1,0 +1,10 @@
+# Aiken compilation artifacts
+artifacts/
+# Aiken's project working directory
+build/
+
+off-chain/
+
+.vscode/
+assets/
+plutus.json
