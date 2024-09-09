@@ -19,7 +19,7 @@ pub fn validate_payment_datum_internal(datum: PaymentDatum) -> Bool {
     datum.total_subscription_fee == datum.interval_amount * datum.num_intervals
 
   let sane_values =
-    datum.subscription_start >= 0 && datum.subscription_end > datum.subscription_start && datum.interval_length > 0 && datum.interval_amount > 0 && datum.num_intervals > 0 && datum.minimum_ada > 0
+    datum.subscription_start >= 0 && datum.interval_length > 0 && datum.interval_amount > 0 && datum.num_intervals > 0 && datum.minimum_ada >= 0
   time_valid? && amounts_valid? && intervals_valid? && subscription_period_valid? && total_fee_valid? && sane_values?
 }
 
