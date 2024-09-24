@@ -1,7 +1,6 @@
 use aiken/transaction.{Input, Output, OutputReference, Transaction}
 use aiken/transaction/credential.{Address}
 use aiken/transaction/value.{PolicyId, Value}
-use assist/count
 use assist/data
 use assist/payout
 use assist/types/cip68
@@ -88,23 +87,30 @@ pub fn validate_update_service(
   tx: Transaction,
 ) -> Bool {
   // Find the output containing the reference NFT being sent back to this script itself
+  trace @"validate_update_service: 91"
   let validating_output =
     common_utils.output_by_addr_value(tx.outputs, service_addr, ref_nft)
 
   // Extract the new datum from the validating output
+  trace @"validate_update_service: 94"
   expect new_datum: ServiceDatum = data.output_datum(validating_output)
 
   // Validate service fee changes are within acceptable range
+  trace @"validate_update_service: 100"
   let service_fee_change_valid =
     is_fee_change_valid(datum.service_fee_qty, new_datum.service_fee_qty)
 
   and {
     // Validate that the metadata of the Reference NFT is updated within acceptable bounds .
+    trace @"validate_update_service: 103"
     is_service_metadata_valid(new_datum)?,
     //  Validate that the service fee should be limited to a range to prevent extreme flucutation in service
     // fee by the service provider e.g +/-10%
+    trace @"validate_update_service: 107"
     service_fee_change_valid?,
+    trace @"validate_update_service: 109"
     payout.at_least(service_addr, ref_nft, tx.outputs)?,
+    trace @"validate_update_service: 111"
     common_utils.check_nft_output_utxo(validating_output)?,
   }
 }
@@ -117,21 +123,33 @@ pub fn validate_remove_service(
 ) -> Bool {
   let validating_output =
     common_utils.output_by_addr_value(tx.outputs, service_addr, ref_nft)
+  expect [(policy_id, ref_asset_name, _)] = value.flatten(ref_nft)
+
+  // Validate that there are two script inputs 
+  expect [user_input, service_input] = tx.inputs
+
+  let user_nft =
+    user_input.output.value
+      |> value.without_lovelace()
+
+  expect [(upolicy_id, usr_asset_name, _)] = value.flatten(user_nft)
 
   // Extract the new datum from the validating output
   expect new_datum: ServiceDatum = data.output_datum(validating_output)
-
   // Ensure the service is being inactivated
   let service_is_inactive = datum.is_active && !new_datum.is_active
 
+  let validating_output =
+    common_utils.output_by_addr_value(tx.outputs, service_addr, ref_nft)
   let other_fields_unchanged =
     datum.service_fee == new_datum.service_fee && datum.service_fee_qty == new_datum.service_fee_qty && datum.penalty_fee == new_datum.penalty_fee && datum.penalty_fee_qty == new_datum.penalty_fee_qty && datum.num_intervals == new_datum.num_intervals
   and {
-    // Validate that there are two script input and two Script output back to the script address.
-    // two script input
-    count.inputs_by_addr(tx.inputs, service_addr, 2)?,
-    // two script output
-    count.outputs_by_addr(tx.outputs, service_addr, 2)?,
+    // Check that user input has a user nft,
+    (value.quantity_of(user_input.output.value, upolicy_id, usr_asset_name) == 1)?,
+    // Check that service input has a service nft,
+    (value.quantity_of(service_input.output.value, policy_id, ref_asset_name) == 1)?,
+    // // Validate that two Script output Leaving the script address.
+    // count.outputs_by_addr(tx.outputs, service_addr, 2)?,
     // Check that the reference NFT is burned
     service_is_inactive?,
     other_fields_unchanged?,

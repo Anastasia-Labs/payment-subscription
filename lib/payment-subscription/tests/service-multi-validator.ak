@@ -231,6 +231,7 @@ test success_remove_service() {
 
   let ref_value = value.add(value.zero(), own_cs, ref_tkn, 1)
   let user_value = value.add(value.zero(), own_cs, user_tkn, 1)
+
   let minted_value = value.merge(ref_value, user_value)
 
   let user_input =

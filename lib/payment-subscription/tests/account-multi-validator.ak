@@ -201,7 +201,7 @@ test succeed_update_account() {
   let account_output_ref = tests.test_input_utxo_02(tests.test_224_01())
 
   let datum = tests.test_datum_02("you@mail.com", "(717) 550-1675", 1)
-  let new_datum = tests.test_datum_02("you@mail.com", "(717) 550-1675", 1)
+  let new_datum = tests.test_datum_02("me@mail.com", "(717) 550-1675", 1)
 
   //   let redeemer = UpdateAccount
   let ref_tkn = values.unique_token_name(tx_hash, 1, cip68.prefix_100)
@@ -289,7 +289,7 @@ test succeed_update_account() {
   validate_update_account(account_addr, ref_nft, context.transaction)
 }
 
-test succeed_remove_account() {
+test success_remove_account() {
   let own_cs = tests.test_224_01()
   let tx_hash = tests.test_224_02()
   let init_output_ref = tests.test_input_utxo_02(tx_hash)
@@ -301,16 +301,20 @@ test succeed_remove_account() {
   let ref_tkn = values.unique_token_name(tx_hash, 1, cip68.prefix_100)
   let user_tkn = values.unique_token_name(tx_hash, 1, cip68.prefix_222)
 
-  let ref_value = value.add(value.zero(), own_cs, ref_tkn, -1)
-  let user_value = value.add(value.zero(), own_cs, user_tkn, -1)
-  let minted_value = value.merge(ref_value, user_value)
+  let ref_value = value.add(value.zero(), own_cs, ref_tkn, 1)
+  let user_value = value.add(value.zero(), own_cs, user_tkn, 1)
+
+  let mint_ref_value = value.add(value.zero(), own_cs, ref_tkn, -1)
+  let mint_user_value = value.add(value.zero(), own_cs, user_tkn, -1)
+  let minted_value = value.merge(mint_ref_value, mint_user_value)
 
   let user_input =
     tests.test_context_input_02(init_output_ref, own_cs, user_value, NoDatum)
   let account_input =
     tests.test_context_input_02(account_output_ref, own_cs, ref_value, datum)
 
-  let user_output = tests.test_utxo_02(own_cs, user_value, 100_000_000, NoDatum)
+  let user_output =
+    tests.test_utxo_02(own_cs, mint_user_value, 100_000_000, NoDatum)
 
   let context =
     ScriptContext {

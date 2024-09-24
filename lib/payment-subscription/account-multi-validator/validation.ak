@@ -3,7 +3,6 @@ use aiken/list
 use aiken/transaction.{Input, Output, OutputReference, Transaction}
 use aiken/transaction/credential.{Address}
 use aiken/transaction/value.{PolicyId, Value}
-use assist/count
 use assist/data
 use assist/payout
 use assist/types/cip68
@@ -120,29 +119,40 @@ pub fn validate_update_account(
 }
 
 pub fn validate_remove_account(
-  account_addr: Address,
+  _account_addr: Address,
   ref_nft: Value,
   tx: Transaction,
 ) -> Bool {
-  expect [(policy_id, asset_name, _)] = value.flatten(ref_nft)
+  // Validate that there are two script inputs 
+  expect [user_input, account_input, ..] = tx.inputs
+  let minted_value = value.from_minted_value(tx.mint)
+
+  let user_nft =
+    user_input.output.value
+      |> value.without_lovelace()
+
+  expect [(apolicy_id, ref_asset_name, _)] = value.flatten(ref_nft)
+  expect [(upolicy_id, usr_asset_name, _)] = value.flatten(user_nft)
 
   // Check that the reference NFT is burned
-  let minted_value = value.from_minted_value(tx.mint)
-  let burn_quantity = value.quantity_of(minted_value, policy_id, asset_name)
-  let is_ref_nft_burned = burn_quantity == -1
-
   and {
-    // Validate that there are two script input and one Script output back to the script address.
-    // two script input
-    count.inputs_by_addr(tx.inputs, account_addr, 2)?,
-    // one script output
-    count.outputs_by_addr(tx.outputs, account_addr, 1)?,
+    // Check that user input has a user nft,
+    (value.quantity_of(user_input.output.value, upolicy_id, usr_asset_name) == 1)?,
+    // Check that account input has a reference nft,
+    (value.quantity_of(account_input.output.value, apolicy_id, ref_asset_name) == 1)?,
     // Check that the reference NFT is burned
-    is_ref_nft_burned?,
+    (value.quantity_of(minted_value, apolicy_id, ref_asset_name) == -1)?,
+    // Check that the user NFT is burned
+    (value.quantity_of(minted_value, upolicy_id, usr_asset_name) == -1)?,
+    // // One Script output leaving the script address.
+    // count.outputs_by_addr(tx.outputs, account_addr, 1)?,
+    // is_ref_nft_burned?,
     // Ensure no output contains the reference NFT
     list.all(
       tx.outputs,
-      fn(output) { value.quantity_of(output.value, policy_id, asset_name) == 0 },
+      fn(output) {
+        value.quantity_of(output.value, apolicy_id, ref_asset_name) == 0
+      },
     )?,
   }
 }
