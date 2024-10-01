@@ -235,14 +235,25 @@ test success_remove_service() {
   let minted_value = value.merge(ref_value, user_value)
 
   let user_input =
-    tests.test_context_input_02(init_output_ref, own_cs, user_value, NoDatum)
+    tests.test_context_input_02(
+      init_output_ref,
+      tests.test_wallet_addr(),
+      user_value,
+      NoDatum,
+    )
   let service_input =
     tests.test_context_input_02(script_output_ref, own_cs, ref_value, datum)
 
   let new_datum =
     tests.test_service_datum(False, subscription_period, num_intervals)
 
-  let user_output = tests.test_utxo_02(own_cs, user_value, 100_000_000, NoDatum)
+  let user_output =
+    tests.test_utxo_02(
+      tests.test_wallet_addr(),
+      user_value,
+      100_000_000,
+      NoDatum,
+    )
   let service_output =
     tests.test_utxo_02(own_cs, ref_value, 100_000_000, new_datum)
 

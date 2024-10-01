@@ -7,7 +7,9 @@ use aiken/transaction.{
 use aiken/transaction/value
 use assist/types/cip68
 use assist/values
-use payment_subscription/common/types.{AssetClass, Payment, PenaltyDatum}
+use payment_subscription/common/types.{
+  AssetClass, Payment, PaymentDatum, Penalty, PenaltyDatum,
+}
 use payment_subscription/payment_multi_validator/validation.{
   validate_extend_subscription, validate_initial_subscription,
   validate_merchant_withdraw, validate_subscriber_withdraw,
@@ -406,8 +408,9 @@ test succeed_extend_subscription() {
       extend_output_ref,
       own_cs,
       initial_payment_value,
-      initial_payment_datum,
+      Payment(initial_payment_datum),
     )
+
   // Define extension parameters
   // 30 more days
   let extension_period = interval_length
@@ -416,7 +419,7 @@ test succeed_extend_subscription() {
 
   // Same as initial fee for simplicity
   // Create the new payment datum with extended period and increased fee
-  let new_payment_datum =
+  let new_payment_datum: PaymentDatum =
     tests.test_datum_03(
       service_tkn,
       user_account_tkn,
@@ -429,6 +432,7 @@ test succeed_extend_subscription() {
       last_claimed,
       penalty_fee_qty,
     )
+
   // Create the new payment output
   let new_payment_value =
     value.add(
@@ -442,7 +446,7 @@ test succeed_extend_subscription() {
       own_cs,
       new_payment_value,
       100_000_000,
-      new_payment_datum,
+      Payment(new_payment_datum),
     )
   // Create a mock subscriber input (to pay for the extension)
   let subscriber_pkh = tests.test_224_04()
@@ -539,7 +543,7 @@ test succeed_extend_subscription() {
   trace @"Original Payment Datum:"
   trace cbor.diagnostic(initial_payment_datum)
   trace @"Updated Payment Datum:"
-  trace cbor.diagnostic(new_payment_datum)
+  trace cbor.diagnostic(Payment(new_payment_datum))
 
   trace @"Step 4: Verifying Transaction"
   trace @"-------------------------------------"
@@ -625,7 +629,7 @@ test succeed_unsubscribe() {
       script_output_ref,
       own_cs,
       payment_value,
-      payment_datum,
+      Payment(payment_datum),
     )
 
   // Create the account input
@@ -664,7 +668,12 @@ test succeed_unsubscribe() {
   let penalty_datum =
     tests.test_penalty_datum(service_tkn, user_account_tkn, penalty_fee_qty)
   let penalty_output =
-    tests.test_utxo_02(own_cs, penalty_value, 100_000_000, penalty_datum)
+    tests.test_utxo_02(
+      own_cs,
+      penalty_value,
+      100_000_000,
+      Penalty(penalty_datum),
+    )
 
   let lower_bound = current_time + time_elapsed
   let upper_bound = lower_bound + 1
@@ -820,7 +829,7 @@ test succeed_merchant_withdraw() {
       script_output_ref,
       own_cs,
       payment_value,
-      payment_datum,
+      Payment(payment_datum),
     )
 
   // Create the service input (to prove service ownership)
@@ -878,7 +887,7 @@ test succeed_merchant_withdraw() {
       own_cs,
       payment_output_value,
       100_000_000,
-      new_payment_datum,
+      Payment(new_payment_datum),
     )
 
   let lower_bound = current_time

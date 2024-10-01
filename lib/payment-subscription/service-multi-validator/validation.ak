@@ -121,12 +121,12 @@ pub fn validate_remove_service(
   ref_nft: Value,
   tx: Transaction,
 ) -> Bool {
-  let validating_output =
-    common_utils.output_by_addr_value(tx.outputs, service_addr, ref_nft)
+  // Validate that there are two script inputs 
+  expect [user_input, service_input, ..] = tx.inputs
   expect [(policy_id, ref_asset_name, _)] = value.flatten(ref_nft)
 
-  // Validate that there are two script inputs 
-  expect [user_input, service_input] = tx.inputs
+  let validating_output =
+    common_utils.output_by_addr_value(tx.outputs, service_addr, ref_nft)
 
   let user_nft =
     user_input.output.value
@@ -148,8 +148,6 @@ pub fn validate_remove_service(
     (value.quantity_of(user_input.output.value, upolicy_id, usr_asset_name) == 1)?,
     // Check that service input has a service nft,
     (value.quantity_of(service_input.output.value, policy_id, ref_asset_name) == 1)?,
-    // // Validate that two Script output Leaving the script address.
-    // count.outputs_by_addr(tx.outputs, service_addr, 2)?,
     // Check that the reference NFT is burned
     service_is_inactive?,
     other_fields_unchanged?,

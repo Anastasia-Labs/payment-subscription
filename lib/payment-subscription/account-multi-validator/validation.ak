@@ -144,9 +144,6 @@ pub fn validate_remove_account(
     (value.quantity_of(minted_value, apolicy_id, ref_asset_name) == -1)?,
     // Check that the user NFT is burned
     (value.quantity_of(minted_value, upolicy_id, usr_asset_name) == -1)?,
-    // // One Script output leaving the script address.
-    // count.outputs_by_addr(tx.outputs, account_addr, 1)?,
-    // is_ref_nft_burned?,
     // Ensure no output contains the reference NFT
     list.all(
       tx.outputs,
