@@ -122,8 +122,13 @@ pub fn test_input_utxo_02(utxo_hash) {
   }
 }
 
-pub fn test_service_datum(status: Bool, subsc_period: Int, intervals: Int) {
-  let fee_qty = 100_000_000
+pub fn test_service_datum(
+  status: Bool,
+  subsc_period: Int,
+  intervals: Int,
+  interval_amount: Int,
+) {
+  // let fee_qty = 100_000_000
   let penalty_qty = 1_000_000
   let min_ada = 2_000_000
 
@@ -135,7 +140,7 @@ pub fn test_service_datum(status: Bool, subsc_period: Int, intervals: Int) {
       asset_name: value.ada_asset_name,
     },
     // Replace with actual AssetName
-    service_fee_qty: fee_qty,
+    service_fee_qty: interval_amount,
     penalty_fee: AssetClass {
       policy_id: value.ada_policy_id,
       asset_name: value.ada_asset_name,

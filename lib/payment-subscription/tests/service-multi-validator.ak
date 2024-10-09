@@ -19,10 +19,16 @@ test success_create_service() {
   // 30 days in milliseconds
   let interval_length = 30 * 24 * 60 * 60 * 1000
   let num_intervals = 1
+  let interval_amount = 100_000_000
 
   let is_active = True
   let datum =
-    tests.test_service_datum(is_active, interval_length, num_intervals)
+    tests.test_service_datum(
+      is_active,
+      interval_length,
+      num_intervals,
+      interval_amount,
+    )
 
   let ref_tkn = values.unique_token_name(tx_hash, 1, cip68.prefix_100)
   let user_tkn = values.unique_token_name(tx_hash, 1, cip68.prefix_222)
@@ -117,12 +123,23 @@ test success_update_service() {
   // 30 days in milliseconds
   let subscription_period = 30 * 24 * 60 * 60 * 1000
   let num_intervals = 1
+  let interval_amount = 100_000_000
 
   let is_active = True
   let datum =
-    tests.test_service_datum(is_active, subscription_period, num_intervals)
+    tests.test_service_datum(
+      is_active,
+      subscription_period,
+      num_intervals,
+      interval_amount,
+    )
   let new_datum =
-    tests.test_service_datum(is_active, subscription_period, num_intervals)
+    tests.test_service_datum(
+      is_active,
+      subscription_period,
+      num_intervals,
+      interval_amount,
+    )
 
   let ref_tkn = values.unique_token_name(tx_hash, 1, cip68.prefix_100)
   let user_tkn = values.unique_token_name(tx_hash, 1, cip68.prefix_222)
@@ -221,10 +238,16 @@ test success_remove_service() {
   // 30 days in milliseconds
   let subscription_period = 30 * 24 * 60 * 60 * 1000
   let num_intervals = 1
+  let interval_amount = 100_000_000
 
   let is_active = True
   let datum =
-    tests.test_service_datum(is_active, subscription_period, num_intervals)
+    tests.test_service_datum(
+      is_active,
+      subscription_period,
+      num_intervals,
+      interval_amount,
+    )
 
   let ref_tkn = values.unique_token_name(tx_hash, 1, cip68.prefix_100)
   let user_tkn = values.unique_token_name(tx_hash, 1, cip68.prefix_222)
@@ -245,7 +268,12 @@ test success_remove_service() {
     tests.test_context_input_02(script_output_ref, own_cs, ref_value, datum)
 
   let new_datum =
-    tests.test_service_datum(False, subscription_period, num_intervals)
+    tests.test_service_datum(
+      False,
+      subscription_period,
+      num_intervals,
+      interval_amount,
+    )
 
   let user_output =
     tests.test_utxo_02(

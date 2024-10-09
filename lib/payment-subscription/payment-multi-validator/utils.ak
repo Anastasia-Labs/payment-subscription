@@ -49,7 +49,7 @@ pub fn validate_extension_datum(
   service_datum: ServiceDatum,
 ) -> Bool {
   let unchanged_fields_valid =
-    old_datum.service_nft_tn == new_datum.service_nft_tn && old_datum.account_nft_tn == new_datum.account_nft_tn && old_datum.subscription_start == new_datum.subscription_start && old_datum.interval_amount == new_datum.interval_amount && old_datum.interval_length == new_datum.interval_length
+    old_datum.service_nft_tn == new_datum.service_nft_tn && old_datum.account_nft_tn == new_datum.account_nft_tn && old_datum.interval_amount == new_datum.interval_amount && old_datum.interval_length == new_datum.interval_length
 
   // Extension period calculation
   let extension_period = new_datum.subscription_end - old_datum.subscription_end

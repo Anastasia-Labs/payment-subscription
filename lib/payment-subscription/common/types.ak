@@ -52,15 +52,15 @@ pub type AccountDatum {
 // Payment Mint Purpose Redeemer
 pub type MintPayment {
   InitSubscripton { output_reference: OutputReference, input_index: Int }
-  TerminateSubscription
+  TerminateSubscription { merchant_input_index: Int, payment_input_index: Int }
 }
 
 // Payment Spend Purpose Redeemer
 pub type SpendPayment {
   Extend
   Unsubscribe
-  MerchantWithdraw
-  SubscriberWithdraw
+  MerchantWithdraw { merchant_input_index: Int, payment_input_index: Int }
+  SubscriberWithdraw { subscriber_input_index: Int, payment_input_index: Int }
 }
 
 // Datum type 

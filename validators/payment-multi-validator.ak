@@ -28,8 +28,14 @@ validator(service_policy_id: ByteArray, account_policy_id: ByteArray) {
           tx,
         )?
 
-      TerminateSubscription ->
-        validate_terminate_subscription(own_policy, account_policy_id, tx)
+      TerminateSubscription { merchant_input_index, payment_input_index } ->
+        validate_terminate_subscription(
+          own_policy,
+          service_policy_id,
+          merchant_input_index,
+          payment_input_index,
+          tx,
+        )
     }
   }
 
@@ -51,13 +57,21 @@ validator(service_policy_id: ByteArray, account_policy_id: ByteArray) {
         )
       Unsubscribe ->
         validate_unsubscribe(service_policy_id, account_policy_id, datum, tx)
-      MerchantWithdraw ->
-        validate_merchant_withdraw(service_policy_id, datum, tx)
-      SubscriberWithdraw ->
+      MerchantWithdraw { merchant_input_index, payment_input_index } ->
+        validate_merchant_withdraw(
+          service_policy_id,
+          datum,
+          merchant_input_index,
+          payment_input_index,
+          tx,
+        )
+      SubscriberWithdraw { subscriber_input_index, payment_input_index } ->
         validate_subscriber_withdraw(
           service_policy_id,
           account_policy_id,
           datum,
+          subscriber_input_index,
+          payment_input_index,
           tx,
         )
     }

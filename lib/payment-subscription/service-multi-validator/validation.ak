@@ -87,30 +87,23 @@ pub fn validate_update_service(
   tx: Transaction,
 ) -> Bool {
   // Find the output containing the reference NFT being sent back to this script itself
-  trace @"validate_update_service: 91"
   let validating_output =
     common_utils.output_by_addr_value(tx.outputs, service_addr, ref_nft)
 
   // Extract the new datum from the validating output
-  trace @"validate_update_service: 94"
   expect new_datum: ServiceDatum = data.output_datum(validating_output)
 
   // Validate service fee changes are within acceptable range
-  trace @"validate_update_service: 100"
   let service_fee_change_valid =
     is_fee_change_valid(datum.service_fee_qty, new_datum.service_fee_qty)
 
   and {
     // Validate that the metadata of the Reference NFT is updated within acceptable bounds .
-    trace @"validate_update_service: 103"
     is_service_metadata_valid(new_datum)?,
     //  Validate that the service fee should be limited to a range to prevent extreme flucutation in service
     // fee by the service provider e.g +/-10%
-    trace @"validate_update_service: 107"
     service_fee_change_valid?,
-    trace @"validate_update_service: 109"
     payout.at_least(service_addr, ref_nft, tx.outputs)?,
-    trace @"validate_update_service: 111"
     common_utils.check_nft_output_utxo(validating_output)?,
   }
 }

@@ -1,4 +1,3 @@
-use aiken/cbor
 use aiken/interval.{Finite, Interval}
 use aiken/list
 use aiken/time.{PosixTime}
@@ -72,10 +71,6 @@ pub fn validate_token_output(
   let token_quantity = value.quantity_of(output.value, policy, token_name)
   let payment_credential = output.address.payment_credential
 
-  trace @"token_name"
-  trace cbor.diagnostic(token_name)
-  trace @"token_quantity"
-  trace cbor.diagnostic(token_quantity)
   token_quantity == 1 && if is_credential {
     payment_credential == credential
   } else {
