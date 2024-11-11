@@ -18,7 +18,7 @@ pub fn validate_payment_datum_internal(datum: PaymentDatum) -> Bool {
     datum.total_subscription_fee == datum.interval_amount * datum.num_intervals
 
   let sane_values =
-    datum.subscription_start >= 0 && datum.interval_length > 0 && datum.interval_amount > 0 && datum.num_intervals > 0 && datum.minimum_ada >= 0
+    datum.subscription_start >= 0 && datum.subscription_end > datum.subscription_start && datum.interval_length > 0 && datum.interval_amount > 0 && datum.num_intervals > 0 && datum.minimum_ada > 0
   time_valid? && amounts_valid? && intervals_valid? && subscription_period_valid? && total_fee_valid? && sane_values?
 }
 
@@ -71,7 +71,11 @@ pub fn validate_extension_datum(
     new_datum.subscription_fee == service_datum.service_fee && new_datum.interval_length == service_datum.interval_length && new_datum.minimum_ada >= service_datum.minimum_ada
 
   let sane_values =
-    new_datum.subscription_start >= 0 && new_datum.subscription_end > new_datum.subscription_start && new_datum.interval_length > 0 && new_datum.interval_amount > 0 && new_datum.num_intervals > 0 && new_datum.minimum_ada >= 0
+    new_datum.subscription_start >= 0 && new_datum.subscription_end > new_datum.subscription_start && new_datum.interval_length > 0 && new_datum.interval_amount > 0 && new_datum.num_intervals > 0 && new_datum.minimum_ada > 0
+
+  // Ensure that the subscription start is at least negative interval_length
+  let valid_start_time =
+    new_datum.subscription_start >= -new_datum.interval_length
 
   and {
     unchanged_fields_valid?,
@@ -81,6 +85,7 @@ pub fn validate_extension_datum(
     follows_service_rules?,
     updated_fields_valid?,
     sane_values?,
+    valid_start_time?,
   }
 }
 
