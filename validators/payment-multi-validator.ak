@@ -1,3 +1,4 @@
+use aiken/cbor
 use aiken/transaction.{Mint, ScriptContext, Spend, Transaction}
 use payment_subscription/common/types.{
   Extend, InitSubscripton, MerchantWithdraw, MintPayment, PaymentValidatorDatum,
@@ -48,15 +49,15 @@ validator(service_policy_id: ByteArray, account_policy_id: ByteArray) {
     expect Spend(_output_reference) = purpose
 
     when redeemer is {
-      Extend ->
+      Extend { subscriber_input_index, payment_input_index } ->
         validate_extend_subscription(
           service_policy_id,
           account_policy_id,
           datum,
+          subscriber_input_index,
+          payment_input_index,
           tx,
         )
-      Unsubscribe ->
-        validate_unsubscribe(service_policy_id, account_policy_id, datum, tx)
       MerchantWithdraw { merchant_input_index, payment_input_index } ->
         validate_merchant_withdraw(
           service_policy_id,
@@ -65,7 +66,25 @@ validator(service_policy_id: ByteArray, account_policy_id: ByteArray) {
           payment_input_index,
           tx,
         )
-      SubscriberWithdraw { subscriber_input_index, payment_input_index } ->
+      Unsubscribe { subscriber_input_index, payment_input_index } ->
+        validate_unsubscribe(
+          service_policy_id,
+          account_policy_id,
+          datum,
+          subscriber_input_index,
+          payment_input_index,
+          tx,
+        )
+      SubscriberWithdraw { subscriber_input_index, payment_input_index } -> {
+        trace @" SubscriberWithdraw service_policy_id:"
+        trace cbor.diagnostic(service_policy_id)
+        trace @" SubscriberWithdraw account_policy_id: "
+        trace cbor.diagnostic(account_policy_id)
+        trace @" SubscriberWithdraw datum:"
+        trace cbor.diagnostic(datum)
+        trace @" SubscriberWithdraw subscriber_input_index:"
+        trace cbor.diagnostic(subscriber_input_index)
+
         validate_subscriber_withdraw(
           service_policy_id,
           account_policy_id,
@@ -74,6 +93,7 @@ validator(service_policy_id: ByteArray, account_policy_id: ByteArray) {
           payment_input_index,
           tx,
         )
+      }
     }
   }
 }

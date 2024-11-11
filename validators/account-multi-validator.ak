@@ -1,5 +1,6 @@
+use aiken/cbor
 use aiken/list
-use aiken/transaction.{Input, Mint, Output, ScriptContext, Spend, Transaction}
+use aiken/transaction.{Mint, ScriptContext, Transaction}
 use aiken/transaction/value.{from_minted_value}
 use payment_subscription/account_multi_validator/validation.{
   validate_create_account, validate_delete_account, validate_remove_account,
@@ -23,7 +24,10 @@ validator {
 
     when r is {
       CreateAccount { output_reference, input_index } -> {
-        // Ensure this outref is spent in this transaction
+        // Ensure this outref is spent in this transaction 
+        trace @" CreateAccount output_reference:"
+        trace cbor.diagnostic(output_reference)
+
         expect Some(input) = list.at(inputs, input_index)
         validate_create_account(
           own_policy,
@@ -43,21 +47,15 @@ validator {
     rdmr: SpendAccount,
     ctx: ScriptContext,
   ) -> Bool {
-    let ScriptContext { transaction: tx, purpose } = ctx
+    let ScriptContext { transaction: tx, .. } = ctx
 
-    expect Spend(output_reference) = purpose
-    // Validate that Account UTxO with a Account NFT is being spent.
-    expect Some(own_input) = transaction.find_input(tx.inputs, output_reference)
-
-    let account_addr = own_input.output.address
-    let ref_nft =
-      own_input.output.value
-        |> value.without_lovelace()
     when rdmr is {
-      UpdateAccount -> validate_update_account(account_addr, ref_nft, tx)
+      UpdateAccount { subscriber_input_index, account_input_index } ->
+        validate_update_account(subscriber_input_index, account_input_index, tx)
 
       // Removes the utxo entirely from the script address.
-      RemoveAccount -> validate_remove_account(account_addr, ref_nft, tx)
+      RemoveAccount { subscriber_input_index, account_input_index } ->
+        validate_remove_account(subscriber_input_index, account_input_index, tx)
     }
   }
 }

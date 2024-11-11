@@ -28,8 +28,8 @@ pub type CreateService {
 
 // Service Spend Purpose Redeemer
 pub type SpendService {
-  UpdateService
-  RemoveService
+  UpdateService { merchant_input_index: Int, service_input_index: Int }
+  RemoveService { merchant_input_index: Int, service_input_index: Int }
 }
 
 // Account Mint Purpose Redeemer
@@ -39,8 +39,8 @@ pub type MintAccount {
 }
 
 pub type SpendAccount {
-  UpdateAccount
-  RemoveAccount
+  UpdateAccount { subscriber_input_index: Int, account_input_index: Int }
+  RemoveAccount { subscriber_input_index: Int, account_input_index: Int }
 }
 
 pub type AccountDatum {
@@ -57,9 +57,9 @@ pub type MintPayment {
 
 // Payment Spend Purpose Redeemer
 pub type SpendPayment {
-  Extend
-  Unsubscribe
+  Extend { subscriber_input_index: Int, payment_input_index: Int }
   MerchantWithdraw { merchant_input_index: Int, payment_input_index: Int }
+  Unsubscribe { subscriber_input_index: Int, payment_input_index: Int }
   SubscriberWithdraw { subscriber_input_index: Int, payment_input_index: Int }
 }
 

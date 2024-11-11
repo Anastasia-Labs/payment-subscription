@@ -1,4 +1,4 @@
-use aiken/cbor
+// use aiken/cbor
 use aiken/dict
 use aiken/interval
 use aiken/transaction.{
@@ -13,7 +13,7 @@ use payment_subscription/account_multi_validator/validation.{
 }
 use payment_subscription/tests/tests
 
-test succeed_create_account() {
+test success_create_account() {
   let own_cs = tests.test_224_01()
   let tx_hash = tests.test_224_02()
   let init_output_ref = tests.test_input_utxo_02(tx_hash)
@@ -53,45 +53,39 @@ test succeed_create_account() {
       },
     }
 
-  trace @"Test: Creating a New Account"
-  trace @"-------------------------------------"
-
-  trace @"Step 1: Account Details"
-  trace @"-------------------------------------"
-  trace @"Email:"
-  trace cbor.diagnostic(datum.email)
-  trace @"Phone:"
-  trace cbor.diagnostic(datum.phone)
-
-  trace @"Step 2: Minting Account Tokens"
-  trace @"-------------------------------------"
-  trace @"Reference Token:"
-  trace cbor.diagnostic(ref_tkn)
-  trace @"User Token:"
-  trace cbor.diagnostic(user_tkn)
-
-  trace @"Step 3: Preparing Outputs"
-  trace @"-------------------------------------"
-  trace @"User Output:"
-  trace cbor.diagnostic(user_output)
-  trace @"Script Output:"
-  trace cbor.diagnostic(script_output)
-
-  trace @"Step 4: Validating Transaction"
-  trace @"-------------------------------------"
-  trace @"Transaction Inputs:"
-  trace cbor.diagnostic(context.transaction.inputs)
-  trace @"Transaction Outputs:"
-  trace cbor.diagnostic(context.transaction.outputs)
-  trace @"Minted Tokens:"
-  trace cbor.diagnostic(context.transaction.mint)
-
-  trace @"Step 5: Execution Result"
-  trace @"-------------------------------------"
-  trace @"Account Successfully Created!"
-  trace @"-------------------------------------"
-  trace @"Test Completed!"
-
+  // trace @"Test: Creating a New Account"
+  // trace @"-------------------------------------"
+  // trace @"Step 1: Account Details"
+  // trace @"-------------------------------------"
+  // trace @"Email:"
+  // trace cbor.diagnostic(datum.email)
+  // trace @"Phone:"
+  // trace cbor.diagnostic(datum.phone)
+  // trace @"Step 2: Minting Account Tokens"
+  // trace @"-------------------------------------"
+  // trace @"Reference Token:"
+  // trace cbor.diagnostic(ref_tkn)
+  // trace @"User Token:"
+  // trace cbor.diagnostic(user_tkn)
+  // trace @"Step 3: Preparing Outputs"
+  // trace @"-------------------------------------"
+  // trace @"User Output:"
+  // trace cbor.diagnostic(user_output)
+  // trace @"Script Output:"
+  // trace cbor.diagnostic(script_output)
+  // trace @"Step 4: Validating Transaction"
+  // trace @"-------------------------------------"
+  // trace @"Transaction Inputs:"
+  // trace cbor.diagnostic(context.transaction.inputs)
+  // trace @"Transaction Outputs:"
+  // trace cbor.diagnostic(context.transaction.outputs)
+  // trace @"Minted Tokens:"
+  // trace cbor.diagnostic(context.transaction.mint)
+  // trace @"Step 5: Execution Result"
+  // trace @"-------------------------------------"
+  // trace @"Account Successfully Created!"
+  // trace @"-------------------------------------"
+  // trace @"Test Completed!"
   //   mint_account(redeemer, context)
   let minted_tokens = context.transaction.mint |> from_minted_value()
 
@@ -149,45 +143,39 @@ test succeed_delete_account() {
       },
     }
 
-  trace @"Test: Deleting an Existing Account"
-  trace @"-------------------------------------"
-
-  trace @"Step 1: Account Details"
-  trace @"-------------------------------------"
-  trace @"Email:"
-  trace cbor.diagnostic(datum.email)
-  trace @"Phone:"
-  trace cbor.diagnostic(datum.phone)
-
-  trace @"Step 2: Burning Account Tokens"
-  trace @"-------------------------------------"
-  trace @"Reference Token to Burn:"
-  trace cbor.diagnostic(ref_tkn)
-  trace @"User Token to Burn:"
-  trace cbor.diagnostic(user_tkn)
-
-  trace @"Step 3: Preparing Inputs"
-  trace @"-------------------------------------"
-  trace @"User Input:"
-  trace cbor.diagnostic(user_input)
-  trace @"Account Input:"
-  trace cbor.diagnostic(account_input)
-
-  trace @"Step 4: Validating Transaction"
-  trace @"-------------------------------------"
-  trace @"Transaction Inputs:"
-  trace cbor.diagnostic(context.transaction.inputs)
-  trace @"Transaction Outputs:"
-  trace cbor.diagnostic(context.transaction.outputs)
-  trace @"Burned Tokens:"
-  trace cbor.diagnostic(context.transaction.mint)
-
-  trace @"Step 5: Execution Result"
-  trace @"-------------------------------------"
-  trace @"Account Successfully Deleted!"
-  trace @"-------------------------------------"
-  trace @"Test Completed!"
-
+  // trace @"Test: Deleting an Existing Account"
+  // trace @"-------------------------------------"
+  // trace @"Step 1: Account Details"
+  // trace @"-------------------------------------"
+  // trace @"Email:"
+  // trace cbor.diagnostic(datum.email)
+  // trace @"Phone:"
+  // trace cbor.diagnostic(datum.phone)
+  // trace @"Step 2: Burning Account Tokens"
+  // trace @"-------------------------------------"
+  // trace @"Reference Token to Burn:"
+  // trace cbor.diagnostic(ref_tkn)
+  // trace @"User Token to Burn:"
+  // trace cbor.diagnostic(user_tkn)
+  // trace @"Step 3: Preparing Inputs"
+  // trace @"-------------------------------------"
+  // trace @"User Input:"
+  // trace cbor.diagnostic(user_input)
+  // trace @"Account Input:"
+  // trace cbor.diagnostic(account_input)
+  // trace @"Step 4: Validating Transaction"
+  // trace @"-------------------------------------"
+  // trace @"Transaction Inputs:"
+  // trace cbor.diagnostic(context.transaction.inputs)
+  // trace @"Transaction Outputs:"
+  // trace cbor.diagnostic(context.transaction.outputs)
+  // trace @"Burned Tokens:"
+  // trace cbor.diagnostic(context.transaction.mint)
+  // trace @"Step 5: Execution Result"
+  // trace @"-------------------------------------"
+  // trace @"Account Successfully Deleted!"
+  // trace @"-------------------------------------"
+  // trace @"Test Completed!"
   //   mint_account(redeemer, context)
   let minted_tokens = context.transaction.mint |> from_minted_value()
 
@@ -240,56 +228,45 @@ test succeed_update_account() {
       },
     }
 
-  trace @"Test: Updating an Existing Account"
-  trace @"-------------------------------------"
-
-  trace @"Step 1: Current Account Details"
-  trace @"-------------------------------------"
-  trace @"Current Email:"
-  trace cbor.diagnostic(datum.email)
-  trace @"Current Phone:"
-  trace cbor.diagnostic(datum.phone)
-
-  trace @"Step 2: Updated Account Details"
-  trace @"-------------------------------------"
-  trace @"New Email:"
-  trace cbor.diagnostic(new_datum.email)
-  trace @"New Phone:"
-  trace cbor.diagnostic(new_datum.phone)
-
-  trace @"Step 3: Preparing Inputs and Outputs"
-  trace @"-------------------------------------"
-  trace @"User Input:"
-  trace cbor.diagnostic(user_input)
-  trace @"Account Input:"
-  trace cbor.diagnostic(account_input)
-  trace @"User Output:"
-  trace cbor.diagnostic(user_output)
-  trace @"Script Output:"
-  trace cbor.diagnostic(script_output)
-
-  trace @"Step 4: Validating Transaction"
-  trace @"-------------------------------------"
-  trace @"Transaction Inputs:"
-  trace cbor.diagnostic(context.transaction.inputs)
-  trace @"Transaction Outputs:"
-  trace cbor.diagnostic(context.transaction.outputs)
-
-  trace @"Step 5: Execution Result"
-  trace @"-------------------------------------"
-  trace @"Account Successfully Updated!"
-  trace @"-------------------------------------"
-  trace @"Test Completed!"
-
-  //   spend_account(datum, redeemer, context)
-  let account_addr = account_input.output.address
-  let ref_nft =
-    account_input.output.value
-      |> value.without_lovelace()
-  validate_update_account(account_addr, ref_nft, context.transaction)
+  // trace @"Test: Updating an Existing Account"
+  // trace @"-------------------------------------"
+  // trace @"Step 1: Current Account Details"
+  // trace @"-------------------------------------"
+  // trace @"Current Email:"
+  // trace cbor.diagnostic(datum.email)
+  // trace @"Current Phone:"
+  // trace cbor.diagnostic(datum.phone)
+  // trace @"Step 2: Updated Account Details"
+  // trace @"-------------------------------------"
+  // trace @"New Email:"
+  // trace cbor.diagnostic(new_datum.email)
+  // trace @"New Phone:"
+  // trace cbor.diagnostic(new_datum.phone)
+  // trace @"Step 3: Preparing Inputs and Outputs"
+  // trace @"-------------------------------------"
+  // trace @"User Input:"
+  // trace cbor.diagnostic(user_input)
+  // trace @"Account Input:"
+  // trace cbor.diagnostic(account_input)
+  // trace @"User Output:"
+  // trace cbor.diagnostic(user_output)
+  // trace @"Script Output:"
+  // trace cbor.diagnostic(script_output)
+  // trace @"Step 4: Validating Transaction"
+  // trace @"-------------------------------------"
+  // trace @"Transaction Inputs:"
+  // trace cbor.diagnostic(context.transaction.inputs)
+  // trace @"Transaction Outputs:"
+  // trace cbor.diagnostic(context.transaction.outputs)
+  // trace @"Step 5: Execution Result"
+  // trace @"-------------------------------------"
+  // trace @"Account Successfully Updated!"
+  // trace @"-------------------------------------"
+  // trace @"Test Completed!"
+  validate_update_account(0, 1, context.transaction)
 }
 
-test success_remove_account() {
+test succeed_remove_account() {
   let own_cs = tests.test_224_01()
   let tx_hash = tests.test_224_02()
   let init_output_ref = tests.test_input_utxo_02(tx_hash)
@@ -336,50 +313,44 @@ test success_remove_account() {
       },
     }
 
-  trace @"Test: Removing an Existing Account"
-  trace @"-------------------------------------"
-
-  trace @"Step 1: Account Details"
-  trace @"-------------------------------------"
-  trace @"Email:"
-  trace cbor.diagnostic(datum.email)
-  trace @"Phone:"
-  trace cbor.diagnostic(datum.phone)
-
-  trace @"Step 2: Tokens to Remove"
-  trace @"-------------------------------------"
-  trace @"Reference Token:"
-  trace cbor.diagnostic(ref_tkn)
-  trace @"User Token:"
-  trace cbor.diagnostic(user_tkn)
-
-  trace @"Step 3: Preparing Inputs and Outputs"
-  trace @"-------------------------------------"
-  trace @"User Input:"
-  trace cbor.diagnostic(user_input)
-  trace @"Account Input:"
-  trace cbor.diagnostic(account_input)
-  trace @"User Output:"
-  trace cbor.diagnostic(user_output)
-
-  trace @"Step 4: Validating Transaction"
-  trace @"-------------------------------------"
-  trace @"Transaction Inputs:"
-  trace cbor.diagnostic(context.transaction.inputs)
-  trace @"Transaction Outputs:"
-  trace cbor.diagnostic(context.transaction.outputs)
-  trace @"Burned Tokens:"
-  trace cbor.diagnostic(context.transaction.mint)
-
-  trace @"Step 5: Execution Result"
-  trace @"-------------------------------------"
-  trace @"Account Successfully Removed!"
-  trace @"-------------------------------------"
-  trace @"Test Completed!"
-
-  let account_addr = account_input.output.address
-  let ref_nft =
-    account_input.output.value
-      |> value.without_lovelace()
-  validate_remove_account(account_addr, ref_nft, context.transaction)
+  // trace @"Test: Removing an Existing Account"
+  // trace @"-------------------------------------"
+  // trace @"Step 1: Account Details"
+  // trace @"-------------------------------------"
+  // trace @"Email:"
+  // trace cbor.diagnostic(datum.email)
+  // trace @"Phone:"
+  // trace cbor.diagnostic(datum.phone)
+  // trace @"Step 2: Tokens to Remove"
+  // trace @"-------------------------------------"
+  // trace @"Reference Token:"
+  // trace cbor.diagnostic(ref_tkn)
+  // trace @"User Token:"
+  // trace cbor.diagnostic(user_tkn)
+  // trace @"Step 3: Preparing Inputs and Outputs"
+  // trace @"-------------------------------------"
+  // trace @"User Input:"
+  // trace cbor.diagnostic(user_input)
+  // trace @"Account Input:"
+  // trace cbor.diagnostic(account_input)
+  // trace @"User Output:"
+  // trace cbor.diagnostic(user_output)
+  // trace @"Step 4: Validating Transaction"
+  // trace @"-------------------------------------"
+  // trace @"Transaction Inputs:"
+  // trace cbor.diagnostic(context.transaction.inputs)
+  // trace @"Transaction Outputs:"
+  // trace cbor.diagnostic(context.transaction.outputs)
+  // trace @"Burned Tokens:"
+  // trace cbor.diagnostic(context.transaction.mint)
+  // trace @"Step 5: Execution Result"
+  // trace @"-------------------------------------"
+  // trace @"Account Successfully Removed!"
+  // trace @"-------------------------------------"
+  // trace @"Test Completed!"
+  // let account_addr = account_input.output.address
+  // let ref_nft =
+  //   account_input.output.value
+  //     |> value.without_lovelace()
+  validate_remove_account(0, 1, context.transaction)
 }

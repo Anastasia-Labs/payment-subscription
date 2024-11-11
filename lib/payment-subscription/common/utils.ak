@@ -1,3 +1,4 @@
+// use aiken/cbor
 use aiken/interval.{Finite, Interval}
 use aiken/list
 use aiken/time.{PosixTime}
@@ -85,11 +86,18 @@ pub fn get_input_by_token(inputs: List<Input>, policy_id: PolicyId) {
   )
 }
 
-pub fn must_be_after_deadline(range: ValidityRange, deadline: PosixTime) {
+pub fn must_be_after_start_date(range: ValidityRange, start_date: PosixTime) {
+  // trace @"start_date:"
+  // trace cbor.diagnostic(start_date)
+
   // Pattern match for the type of the lower bound
   when range.lower_bound.bound_type is {
-    // If the lower bound is finite, check if it's after the deadline
-    Finite(tx_earliest_time) -> deadline <= tx_earliest_time
+    // If the lower bound is finite, check if it's after the start_date
+    Finite(tx_earliest_time) ->
+      // trace @"tx_earliest_time:"
+      // trace cbor.diagnostic(tx_earliest_time)
+
+      start_date <= tx_earliest_time
     // Else, the lower bound is infinite, so we fail
     _ -> False
   }

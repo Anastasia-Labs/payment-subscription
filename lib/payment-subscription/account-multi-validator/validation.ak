@@ -47,7 +47,7 @@ pub fn validate_create_account(
   // Find the output UTxO containing the reference token
   expect [user_output, ref_output, ..] = outputs
 
-  // Validate user token
+  // Validate user token doesn't go back to the script
   let user_token_not_to_script =
     validate_token_output(
       user_output,
@@ -57,7 +57,7 @@ pub fn validate_create_account(
       False,
     )
 
-  // Validate reference token
+  // Validate reference token goes to the script
   let ref_token_to_script =
     validate_token_output(
       ref_output,
@@ -98,11 +98,27 @@ pub fn validate_delete_account(minted_tokens: Value) -> Bool {
 }
 
 pub fn validate_update_account(
-  // datum: AccountDatum,
-  account_addr: Address,
-  ref_nft: Value,
+  subscriber_input_index: Int,
+  account_input_index: Int,
   tx: Transaction,
 ) -> Bool {
+  // Validate that there are two script inputs 
+  expect Some(subscriber_input) = list.at(tx.inputs, subscriber_input_index)
+  expect Some(account_input) = list.at(tx.inputs, account_input_index)
+
+  let account_addr: Address = account_input.output.address
+
+  let ref_nft =
+    account_input.output.value
+      |> value.without_lovelace()
+
+  let user_nft =
+    subscriber_input.output.value
+      |> value.without_lovelace()
+
+  expect [(apolicy_id, ref_asset_name, _)] = value.flatten(ref_nft)
+  expect [(upolicy_id, usr_asset_name, _)] = value.flatten(user_nft)
+
   // Find the output containing the reference NFT being sent back to this script itself
   let validating_output =
     common_utils.output_by_addr_value(tx.outputs, account_addr, ref_nft)
@@ -111,6 +127,14 @@ pub fn validate_update_account(
   expect new_datum: AccountDatum = data.output_datum(validating_output)
 
   and {
+    // Check that user input has a user nft,
+    (value.quantity_of(
+      subscriber_input.output.value,
+      upolicy_id,
+      usr_asset_name,
+    ) == 1)?,
+    // Check that script input has a user nft,
+    (value.quantity_of(account_input.output.value, apolicy_id, ref_asset_name) == 1)?,
     // Validate that the metadata of the Reference NFT is updated within acceptable bounds .
     is_account_metadata_valid(new_datum)?,
     payout.at_least(account_addr, ref_nft, tx.outputs)?,
@@ -119,27 +143,42 @@ pub fn validate_update_account(
 }
 
 pub fn validate_remove_account(
-  _account_addr: Address,
-  ref_nft: Value,
+  subscriber_input_index: Int,
+  account_input_index: Int,
   tx: Transaction,
 ) -> Bool {
   // Validate that there are two script inputs 
-  expect [user_input, account_input, ..] = tx.inputs
+  expect Some(subscriber_input) = list.at(tx.inputs, subscriber_input_index)
+  expect Some(account_input) = list.at(tx.inputs, account_input_index)
+
+  let ref_nft =
+    account_input.output.value
+      |> value.without_lovelace()
+
+  // expect [subscriber_input, account_input, ..] = tx.inputs
   let minted_value = value.from_minted_value(tx.mint)
 
   let user_nft =
-    user_input.output.value
+    subscriber_input.output.value
       |> value.without_lovelace()
+
+  // Extract and validate the AccountDatum
+  expect account_datum: AccountDatum = data.input_datum(account_input)
 
   expect [(apolicy_id, ref_asset_name, _)] = value.flatten(ref_nft)
   expect [(upolicy_id, usr_asset_name, _)] = value.flatten(user_nft)
 
-  // Check that the reference NFT is burned
   and {
     // Check that user input has a user nft,
-    (value.quantity_of(user_input.output.value, upolicy_id, usr_asset_name) == 1)?,
+    (value.quantity_of(
+      subscriber_input.output.value,
+      upolicy_id,
+      usr_asset_name,
+    ) == 1)?,
     // Check that account input has a reference nft,
     (value.quantity_of(account_input.output.value, apolicy_id, ref_asset_name) == 1)?,
+    // Validate the Datum has valid account inputs.
+    is_account_metadata_valid(account_datum)?,
     // Check that the reference NFT is burned
     (value.quantity_of(minted_value, apolicy_id, ref_asset_name) == -1)?,
     // Check that the user NFT is burned
