@@ -1,4 +1,3 @@
-use aiken/cbor
 use aiken/list
 use aiken/math
 use aiken/transaction.{Input, Output, OutputReference, Transaction}
@@ -29,8 +28,6 @@ pub fn validate_initial_subscription(
 ) -> Bool {
   let minted_tokens = tx.mint |> from_minted_value()
   expect Some(account_input) = list.at(tx.inputs, input_index)
-  trace @"input_index:"
-  trace cbor.diagnostic(input_index)
 
   // Find the service reference input by searching for the token policy
   expect Some(service_ref_input) =
@@ -90,11 +87,6 @@ pub fn validate_initial_subscription(
   let expected_amount = payment_datum.interval_amount
 
   let locked_amount_valid = locked_amount >= expected_amount
-
-  trace @"expected_amount:"
-  trace cbor.diagnostic(expected_amount)
-  trace @"locked_amount:"
-  trace cbor.diagnostic(locked_amount)
 
   // Ensure user output DOES NOT go back to the script
   let user_token_not_to_script =
@@ -188,21 +180,29 @@ pub fn validate_extend_subscription(
   when datum is {
     Payment(payment_datum) -> {
       // Find the input being spent (current Payment Validator UTxO)
+      trace @"183"
       expect [account_input, payment_input, ..] = tx.inputs
       // Find the service reference input by searching for the token policy
+      trace @"185"
       expect Some(service_ref_input) =
         get_input_by_token(tx.reference_inputs, service_policy_id)
       // Find the new payment output
+      trace @"186"
       expect [_account_output, payment_output, ..] = tx.outputs
 
       // The script credential is part of the address of the input being spent
       let payment_script_credential =
         payment_input.output.address.payment_credential
       // Extract the datums
+      trace @"197"
       expect service_datum: ServiceDatum =
         data.output_datum(service_ref_input.output)
-      expect new_datum: PaymentDatum = data.output_datum(payment_output)
 
+      trace @"197"
+      expect Payment(new_datum): PaymentValidatorDatum =
+        data.output_datum(payment_output)
+
+      // expect new_datum: PaymentDatum = data.output_datum(payment_output)
       let payment_addr = payment_input.output.address
 
       // Extract the payment NFT from the input
@@ -340,9 +340,12 @@ pub fn validate_unsubscribe(
         validate_payment_against_service(payment_datum, service_datum)
 
       // Verify Penalty UTxO
-      expect penalty: PenaltyDatum = data.output_datum(penalty_output)
+      // expect penalty: PenaltyDatum = data.output_datum(penalty_output)
+      expect Penalty(penalty_datum): PaymentValidatorDatum =
+        data.output_datum(penalty_output)
+
       let penalty_output_valid =
-        penalty.service_nft_tn == payment_datum.service_nft_tn && penalty.account_nft_tn == payment_datum.account_nft_tn && payment_datum.penalty_fee_qty == penalty.penalty_fee_qty && penalty.penalty_fee_qty == service_datum.penalty_fee_qty
+        penalty_datum.service_nft_tn == payment_datum.service_nft_tn && penalty_datum.account_nft_tn == payment_datum.account_nft_tn && payment_datum.penalty_fee_qty == penalty_datum.penalty_fee_qty && penalty_datum.penalty_fee_qty == service_datum.penalty_fee_qty
 
       // Ensure token output goes back to the script
       let payment_token_to_script =
@@ -398,19 +401,14 @@ pub fn validate_merchant_withdraw(
       let payment_datum_valid =
         validate_payment_against_service(payment_datum, service_datum)
 
-      // Verify withdrawal amount
-      let actual_withdrawal_amount =
-        value.quantity_of(
-          merchant_output.value,
-          payment_datum.subscription_fee.policy_id,
-          payment_datum.subscription_fee.asset_name,
-        )
-
       // Get the current time
       let current_time = get_minimum_current_time_estimate(tx.validity_range)
 
       // Update the last_claimed field in the new datum
-      expect new_datum: PaymentDatum = data.output_datum(payment_output)
+      // expect new_datum: PaymentDatum = data.output_datum(payment_output)
+      expect Payment(new_datum): PaymentValidatorDatum =
+        data.output_datum(payment_output)
+
       let last_claimed_updated = new_datum.last_claimed == current_time
 
       // Verify that the Service NFT is preserved
@@ -429,6 +427,7 @@ pub fn validate_merchant_withdraw(
           payment_datum.interval_length,
           payment_datum.interval_amount,
         )
+      // TODO: Add to the funciton + payment_datum.minimum_ada
       // Verify that any remaining funds are returned to the payment validator
       // This is the amount of funds that should be left in the payment script after the withdrawal.
       let actual_remaining_amount =
@@ -439,10 +438,6 @@ pub fn validate_merchant_withdraw(
         )
       let remaining_funds_valid = actual_remaining_amount >= locked_amount
 
-      trace @"payment_datum.interval_length:"
-      trace cbor.diagnostic(payment_datum.interval_length)
-      trace @"actual_withdrawal_amount:"
-      trace cbor.diagnostic(actual_withdrawal_amount)
       and {
         has_service_nft?,
         payment_datum_valid?,

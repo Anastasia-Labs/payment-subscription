@@ -177,6 +177,11 @@ To run all tests, simply do:
 ```sh
 aiken check
 ```
+![payment-subscription.gif](/docs/images/payment_test.gif)
+
+Test results:
+
+![test_report.png](/docs/images/test_report.png)
 
 Each test case is designed to validate specific aspects of the multi-signature
 contract,To run only specific tests, do:

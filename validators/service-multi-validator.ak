@@ -17,6 +17,7 @@ validator {
     let Transaction { inputs, mint, outputs, .. } = tx
 
     let minted_tokens = mint |> from_minted_value()
+
     let CreateService { output_reference, input_index } = r
     expect Some(input) = list.at(inputs, input_index)
 
@@ -37,8 +38,10 @@ validator {
   ) -> Bool {
     let ScriptContext { transaction: tx, purpose } = ctx
 
+    trace @"line 42: "
     expect Spend(output_reference) = purpose
     // Validate that Service UTxO with a Service NFT is being spent.
+    trace @"line 45"
     expect Some(own_input) = transaction.find_input(tx.inputs, output_reference)
 
     let service_addr = own_input.output.address

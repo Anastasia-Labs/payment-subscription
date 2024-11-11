@@ -1,4 +1,3 @@
-use aiken/cbor
 use aiken/math
 use payment_subscription/common/types.{AssetClass, PaymentDatum, ServiceDatum}
 
@@ -19,7 +18,7 @@ pub fn validate_payment_datum_internal(datum: PaymentDatum) -> Bool {
     datum.total_subscription_fee == datum.interval_amount * datum.num_intervals
 
   let sane_values =
-    datum.subscription_start >= 0 && datum.interval_length > 0 && datum.interval_amount > 0 && datum.num_intervals > 0 && datum.minimum_ada >= 0
+    datum.subscription_start >= 0 && datum.subscription_end > datum.subscription_start && datum.interval_length > 0 && datum.interval_amount > 0 && datum.num_intervals > 0 && datum.minimum_ada > 0
   time_valid? && amounts_valid? && intervals_valid? && subscription_period_valid? && total_fee_valid? && sane_values?
 }
 
@@ -39,15 +38,6 @@ pub fn validate_payment_against_service(
     payment.penalty_fee == service.penalty_fee && payment.penalty_fee_qty == service.penalty_fee_qty
   let minimum_ada_valid =
     is_ada(payment.subscription_fee) && payment.minimum_ada >= 0
-
-  trace @"payment.subscription_fee:"
-  trace cbor.diagnostic(payment.subscription_fee)
-  trace @"service.service_fee:"
-  trace cbor.diagnostic(service.service_fee)
-  trace @"payment.interval_amount:"
-  trace cbor.diagnostic(payment.interval_amount)
-  trace @"service.service_fee_qty:"
-  trace cbor.diagnostic(service.service_fee_qty)
 
   interval_length_valid? && service_fee_valid? && penalty_fee_valid? && minimum_ada_valid?
 }
@@ -81,22 +71,11 @@ pub fn validate_extension_datum(
     new_datum.subscription_fee == service_datum.service_fee && new_datum.interval_length == service_datum.interval_length && new_datum.minimum_ada >= service_datum.minimum_ada
 
   let sane_values =
-    new_datum.subscription_start >= 0 && new_datum.subscription_end > new_datum.subscription_start && new_datum.interval_length > 0 && new_datum.interval_amount > 0 && new_datum.num_intervals > 0 && new_datum.minimum_ada >= 0
+    new_datum.subscription_start >= 0 && new_datum.subscription_end > new_datum.subscription_start && new_datum.interval_length > 0 && new_datum.interval_amount > 0 && new_datum.num_intervals > 0 && new_datum.minimum_ada > 0
 
-  trace @"extension_period:"
-  trace cbor.diagnostic(extension_period)
-  trace @"extension_intervals:"
-  trace cbor.diagnostic(extension_intervals)
-  trace @"expected_fee_increase:"
-  trace cbor.diagnostic(expected_fee_increase)
-  trace @"actual_fee_increase:"
-  trace cbor.diagnostic(extension_amount)
-  trace @"period_extension_valid:"
-  trace cbor.diagnostic(period_extension_valid)
-  trace @"fee_increase_valid:"
-  trace cbor.diagnostic(fee_increase_valid)
-  trace @"updated_fields_valid:"
-  trace cbor.diagnostic(updated_fields_valid)
+  // Ensure that the subscription start is at least negative interval_length
+  let valid_start_time =
+    new_datum.subscription_start >= -new_datum.interval_length
 
   and {
     unchanged_fields_valid?,
@@ -106,6 +85,7 @@ pub fn validate_extension_datum(
     follows_service_rules?,
     updated_fields_valid?,
     sane_values?,
+    valid_start_time?,
   }
 }
 

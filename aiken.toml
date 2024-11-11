@@ -1,12 +1,12 @@
-name = "aiken-lang/payment-subscription"
+name = "anastasia-labs/payment-subscription"
 version = "0.0.0"
 compiler = "v1.0.29-alpha"
 plutus = "v2"
 license = "Apache-2.0"
-description = "Aiken contracts for project 'aiken-lang/payment-subscription'"
+description = "Aiken contracts for project 'anastasia-labs/payment-subscription'"
 
 [repository]
-user = "aiken-lang"
+user = "anastasia-labs"
 project = "payment-subscription"
 platform = "github"
 

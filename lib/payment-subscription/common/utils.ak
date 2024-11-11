@@ -76,7 +76,6 @@ pub fn validate_token_output(
   trace cbor.diagnostic(token_name)
   trace @"token_quantity"
   trace cbor.diagnostic(token_quantity)
-
   token_quantity == 1 && if is_credential {
     payment_credential == credential
   } else {

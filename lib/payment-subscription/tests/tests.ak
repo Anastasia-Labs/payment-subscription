@@ -44,6 +44,10 @@ pub fn test_payment_cs() {
   bytearray.take(blake2b_256(#"07"), 28)
 }
 
+pub fn test_wallet_addr() {
+  bytearray.take(blake2b_256(#"08"), 28)
+}
+
 // Create a UTxO
 pub fn test_utxo_01() {
   Output {
