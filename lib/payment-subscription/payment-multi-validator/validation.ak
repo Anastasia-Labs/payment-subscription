@@ -1,4 +1,4 @@
-// use aiken/cbor
+use aiken/cbor
 use aiken/list
 use aiken/math
 use aiken/transaction.{Input, Output, OutputReference, Transaction}
@@ -61,8 +61,8 @@ pub fn validate_initial_subscription(
     validate_payment_against_service(payment_datum, service_datum)
 
   // Check to ensure the subscription period matches the service's requirements
-  // let interval_length_valid =
-  //   payment_datum.interval_length == service_datum.interval_length
+  let interval_length_valid =
+    payment_datum.interval_length == service_datum.interval_length
   //     │ PASS [mem: 8611592, cpu: 4493531449] succeed_initiate_subscription
   //  │ PASS [mem: 8604513, cpu: 4490844118] succeed_initiate_subscription
   // Verify the inputs contain 1 Service NFT Asset
@@ -112,28 +112,28 @@ pub fn validate_initial_subscription(
       True,
     )
 
-  expect subscriber_input.output_reference == output_reference
-  expect input_has_service_nft
-  expect input_has_account_nft
-  expect internal_datum_valid
-  expect datum_against_service_valid
-  expect payment_value == minted_tokens
-  expect locked_amount_valid
-  expect user_token_not_to_script
-  expect payment_token_to_script
-  True
-  // and {
-  //   // Validate that out_ref must be present in the Transaction Inputs.
-  //   input_has_service_nft?,
-  //   input_has_account_nft?,
-  //   internal_datum_valid?,
-  //   datum_against_service_valid?,
-  //   (payment_value == minted_tokens)?,
-  //   locked_amount_valid?,
-  //   user_token_not_to_script?,
-  //   payment_token_to_script?,
-  // }
-  // interval_length_valid?,
+  // expect subscriber_input.output_reference == output_reference
+  // expect input_has_service_nft
+  // expect input_has_account_nft
+  // expect internal_datum_valid
+  // expect datum_against_service_valid
+  // expect payment_value == minted_tokens
+  // expect locked_amount_valid
+  // expect user_token_not_to_script
+  // expect payment_token_to_script
+  // True
+  and {
+    // Validate that out_ref must be present in the Transaction Inputs.
+    input_has_service_nft?,
+    input_has_account_nft?,
+    internal_datum_valid?,
+    datum_against_service_valid?,
+    (payment_value == minted_tokens)?,
+    locked_amount_valid?,
+    user_token_not_to_script?,
+    payment_token_to_script?,
+    interval_length_valid?,
+  }
 }
 
 pub fn validate_terminate_subscription(
@@ -367,6 +367,10 @@ pub fn validate_merchant_withdraw(
 
       let last_claimed_updated =
         new_datum.last_claimed >= payment_datum.subscription_start
+      trace @"payment_datum.subscription_start:"
+      trace cbor.diagnostic(payment_datum.subscription_start)
+      trace @"new_datum.last_claimed:"
+      trace cbor.diagnostic(new_datum.last_claimed)
 
       // Verify that the Service NFT is preserved
       let merchant_nft_preserved =
@@ -527,7 +531,7 @@ pub fn validate_unsubscribe(
           account_output.value,
           payment_datum.subscription_fee.policy_id,
           payment_datum.subscription_fee.asset_name,
-        ) >= refund_amount
+        ) >= refund_amount - payment_datum.minimum_ada
 
       let payment_nft_in_penalty_output =
         value.quantity_of(penalty_output.value, policy_id, asset_name) == 1
