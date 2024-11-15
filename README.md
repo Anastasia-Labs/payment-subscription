@@ -14,7 +14,7 @@ decentralized framework.
 
 For a comprehensive understanding of the contract's architecture, design
 decisions, and implementation details, please refer to the
-[Design Documentation](https://github.com/Anastasia-Labs/payment-subscription/blob/service-multi-validator/docs/payment-subscription-design-specs/subscription-smart-contract.pdf).
+[Design Documentation](https://github.com/Anastasia-Labs/payment-subscription/blob/main/docs/payment-subscription-design-specs/subscription-smart-contract.pdf).
 This documentation provides in-depth insights into the contract's design,
 including its components, and detailed explanations of its functionality.
 
