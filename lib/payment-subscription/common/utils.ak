@@ -1,18 +1,20 @@
+use aiken/collection/list
 // use aiken/cbor
 use aiken/interval.{Finite, Interval}
-use aiken/list
-use aiken/time.{PosixTime}
-use aiken/transaction.{Input, Output, ValidityRange}
-use aiken/transaction/credential.{Address, Credential}
-use aiken/transaction/value.{PolicyId, Value}
-use assist/values
+use cardano/address.{Address, Credential}
+use cardano/assets.{PolicyId, Value}
+use cardano/transaction.{Input, Output, ValidityRange}
+use cardano/value
+
+type POSIXTime =
+  Int
 
 // Check only one NFT is present in the utxo
 pub fn check_nft_output_utxo(output: Output) -> Bool {
   let output_value =
     output.value
-      |> value.without_lovelace()
-      |> value.flatten()
+      |> assets.without_lovelace()
+      |> assets.flatten()
   list.length(output_value) == 1
 }
 
@@ -26,7 +28,7 @@ pub fn output_by_addr_value(
 ) -> Output {
   when outputs is {
     [output, ..rest] ->
-      if output.address == addr && values.contains(output.value, value) {
+      if output.address == addr && value.contains(output.value, value) {
         output
       } else {
         output_by_addr_value(rest, addr, value)
@@ -42,7 +44,7 @@ pub fn output_by_addr_value(
 pub fn output_by_value(outputs: List<Output>, value: Value) -> Output {
   when outputs is {
     [output, ..rest] ->
-      if values.contains(value, output.value) {
+      if value.contains(value, output.value) {
         output
       } else {
         output_by_value(rest, value)
@@ -58,7 +60,7 @@ pub fn validate_single_nft_input(
   policy: PolicyId,
   token_name: ByteArray,
 ) -> Bool {
-  value.quantity_of(input.output.value, policy, token_name) == 1
+  assets.quantity_of(input.output.value, policy, token_name) == 1
 }
 
 // Helper function to validate where the NFT goes
@@ -69,7 +71,7 @@ pub fn validate_token_output(
   credential: Credential,
   is_credential: Bool,
 ) -> Bool {
-  let token_quantity = value.quantity_of(output.value, policy, token_name)
+  let token_quantity = assets.quantity_of(output.value, policy, token_name)
   let payment_credential = output.address.payment_credential
 
   token_quantity == 1 && if is_credential {
@@ -82,11 +84,11 @@ pub fn validate_token_output(
 pub fn get_input_by_token(inputs: List<Input>, policy_id: PolicyId) {
   list.find(
     inputs,
-    fn(input) { list.has(value.policies(input.output.value), policy_id) },
+    fn(input) { list.has(assets.policies(input.output.value), policy_id) },
   )
 }
 
-pub fn must_be_after_start_date(range: ValidityRange, start_date: PosixTime) {
+pub fn must_be_after_start_date(range: ValidityRange, start_date: POSIXTime) {
   // trace @"start_date:"
   // trace cbor.diagnostic(start_date)
 
@@ -104,8 +106,8 @@ pub fn must_be_after_start_date(range: ValidityRange, start_date: PosixTime) {
 }
 
 pub fn get_minimum_current_time_estimate(
-  range: Interval<PosixTime>,
-) -> PosixTime {
+  range: Interval<POSIXTime>,
+) -> POSIXTime {
   when range.lower_bound.bound_type is {
     Finite(current_time) -> current_time
     _ -> fail @"Invalid lower bound"

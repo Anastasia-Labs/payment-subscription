@@ -1,7 +1,5 @@
-use aiken/cbor
-use aiken/list
-use aiken/transaction.{Mint, ScriptContext, Transaction}
-use aiken/transaction/value.{from_minted_value}
+use cardano/assets.{PolicyId}
+use cardano/transaction.{OutputReference, Transaction}
 use payment_subscription/common/types.{
   CreateService, RemoveService, ServiceDatum, SpendService, UpdateService,
 }
@@ -10,43 +8,20 @@ use payment_subscription/service_multi_validator/validation.{
 }
 
 // This validator script handles minting and spending of service NFTs
-validator {
+validator service {
   // Minting function: handles creation and deletion of service NFTs
-  fn mint_service(r: CreateService, ctx: ScriptContext) -> Bool {
-    let ScriptContext { transaction: tx, purpose } = ctx
-    expect Mint(own_policy) = purpose
-    let Transaction { inputs, mint, outputs, .. } = tx
-
-    let minted_tokens = mint |> from_minted_value()
-
+  mint(r: CreateService, policy_id: PolicyId, self: Transaction) {
     let CreateService { output_reference, input_index } = r
-    expect Some(input) = list.at(inputs, input_index)
-    trace @" CreateService output_reference:"
-    trace cbor.diagnostic(output_reference)
 
-    // let OutputReference { transaction_id, output_index } = output_reference
-    validate_create_service(
-      own_policy,
-      input,
-      minted_tokens,
-      output_reference,
-      outputs,
-    )
+    validate_create_service(policy_id, output_reference, input_index, self)
   }
 
-  fn spend_service(
-    datum: ServiceDatum,
+  spend(
+    datum: Option<ServiceDatum>,
     rdmr: SpendService,
-    ctx: ScriptContext,
-  ) -> Bool {
-    let ScriptContext { transaction: tx, .. } = ctx
-
-    // expect Spend(output_reference) = purpose
-    // Validate that Service UTxO with a Service NFT is being spent.
-    // expect Some(own_input) = transaction.find_input(tx.inputs, output_reference)
-    // let ref_nft =
-    //   own_input.output.value
-    //     |> value.without_lovelace()
+    _own_ref: OutputReference,
+    tx: Transaction,
+  ) {
     when rdmr is {
       UpdateService { merchant_input_index, service_input_index } ->
         validate_update_service(
@@ -65,5 +40,9 @@ validator {
           tx,
         )?
     }
+  }
+
+  else(_) {
+    fail
   }
 }

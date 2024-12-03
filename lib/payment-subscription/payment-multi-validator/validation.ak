@@ -1,11 +1,11 @@
-use aiken/cbor
-use aiken/list
+use aiken/collection/list
 use aiken/math
-use aiken/transaction.{Input, Output, OutputReference, Transaction}
-use aiken/transaction/credential
-use aiken/transaction/value.{PolicyId, from_minted_value}
-use assist/data
-use assist/values
+use cardano/address.{Script}
+use cardano/assets.{PolicyId}
+use cardano/transaction.{
+  InlineDatum, Input, Output, OutputReference, Transaction,
+}
+use cardano/value
 use payment_subscription/common/types.{
   Payment, PaymentDatum, PaymentValidatorDatum, Penalty, PenaltyDatum,
   ServiceDatum,
@@ -21,13 +21,14 @@ use payment_subscription/payment_multi_validator/utils.{
 
 pub fn validate_initial_subscription(
   own_policy: PolicyId,
-  account_policy_id: PolicyId,
   service_policy_id: PolicyId,
+  account_policy_id: PolicyId,
   output_reference: OutputReference,
   input_index: Int,
   tx: Transaction,
 ) -> Bool {
-  let minted_tokens = tx.mint |> from_minted_value()
+  let minted_tokens = tx.mint
+  // |> from_minted_value()
   expect Some(subscriber_input) = list.at(tx.inputs, input_index)
 
   // Find the service reference input by searching for the token policy
@@ -37,22 +38,25 @@ pub fn validate_initial_subscription(
   expect [user_output, payment_output, ..] = tx.outputs
 
   // Extract datums
-  expect Payment(payment_datum): PaymentValidatorDatum =
-    data.output_datum(payment_output)
+  expect InlineDatum(out_utxo_inline_datum) = payment_output.datum
+  expect Some(Payment(payment_datum)): Option<PaymentValidatorDatum> =
+    out_utxo_inline_datum
 
-  expect service_datum: ServiceDatum =
-    data.output_datum(service_ref_input.output)
-  let payment_payment_credential = credential.ScriptCredential(own_policy)
+  expect InlineDatum(service_inline_datum) = service_ref_input.output.datum
+  expect service_datum: ServiceDatum = service_inline_datum
+
+  let payment_payment_credential = Script(own_policy)
 
   // Create a unique token name
   let payment_tkn =
-    values.unique_token_name(
-      output_reference.transaction_id.hash,
+    value.unique_token_name(
+      output_reference.transaction_id,
       output_reference.output_index,
       #"",
+      "",
     )
   // Construct one Payment token value 
-  let payment_value = value.from_asset(own_policy, payment_tkn, 1)
+  let payment_value = assets.from_asset(own_policy, payment_tkn, 1)
 
   // Validate internal consistency of payment datum
   let internal_datum_valid = validate_payment_datum_internal(payment_datum)
@@ -63,8 +67,6 @@ pub fn validate_initial_subscription(
   // Check to ensure the subscription period matches the service's requirements
   let interval_length_valid =
     payment_datum.interval_length == service_datum.interval_length
-  //     │ PASS [mem: 8611592, cpu: 4493531449] succeed_initiate_subscription
-  //  │ PASS [mem: 8604513, cpu: 4490844118] succeed_initiate_subscription
   // Verify the inputs contain 1 Service NFT Asset
   let input_has_service_nft =
     validate_single_nft_input(
@@ -83,7 +85,7 @@ pub fn validate_initial_subscription(
 
   // Verify the correct amount is locked
   let locked_amount =
-    value.quantity_of(
+    assets.quantity_of(
       payment_output.value,
       payment_datum.subscription_fee.policy_id,
       payment_datum.subscription_fee.asset_name,
@@ -112,16 +114,6 @@ pub fn validate_initial_subscription(
       True,
     )
 
-  // expect subscriber_input.output_reference == output_reference
-  // expect input_has_service_nft
-  // expect input_has_account_nft
-  // expect internal_datum_valid
-  // expect datum_against_service_valid
-  // expect payment_value == minted_tokens
-  // expect locked_amount_valid
-  // expect user_token_not_to_script
-  // expect payment_token_to_script
-  // True
   and {
     // Validate that out_ref must be present in the Transaction Inputs.
     input_has_service_nft?,
@@ -147,14 +139,10 @@ pub fn validate_terminate_subscription(
   // expect [subscriber_input, payment_input, ..] = tx.inputs
   expect Some(merchant_input) = list.at(tx.inputs, merchant_input_index)
   expect Some(payment_input) = list.at(tx.inputs, payment_input_index)
-  let minted_tokens = tx.mint |> from_minted_value()
+  let minted_tokens = tx.mint
 
-  // Extract the penalty datum from the input
-  // expect Penalty(penalty_datum): PaymentValidatorDatum =
-  //   data.output_datum(payment_input.output)
-  // Verify the account NFT
   let merchant_nft =
-    merchant_input.output.value |> value.without_lovelace() |> value.flatten()
+    merchant_input.output.value |> assets.without_lovelace() |> assets.flatten()
 
   expect [(merchant_policy, merchant_token_name, _)] = merchant_nft
 
@@ -167,14 +155,14 @@ pub fn validate_terminate_subscription(
   // Extract the NFT from the input
   let payment_nft =
     payment_input.output.value
-      |> value.without_lovelace()
-      |> value.flatten()
+      |> assets.without_lovelace()
+      |> assets.flatten()
 
   // Ensure there's exactly one token and extract its details
   expect [(token_policy, token_name, _)] = payment_nft
 
   // Get the tokens being minted (or burned) in this transaction
-  expect [(pid, tkn, amt)] = value.flatten(minted_tokens)
+  expect [(pid, tkn, amt)] = assets.flatten(minted_tokens)
 
   // Verify all conditions are met
   and {
@@ -193,13 +181,13 @@ pub fn validate_terminate_subscription(
 pub fn validate_extend_subscription(
   service_policy_id: ByteArray,
   _account_policy_id: ByteArray,
-  datum: PaymentValidatorDatum,
+  datum: Option<PaymentValidatorDatum>,
   subscriber_input_index: Int,
   payment_input_index: Int,
   tx: Transaction,
 ) -> Bool {
   when datum is {
-    Payment(payment_datum) -> {
+    Some(Payment(payment_datum)) -> {
       // Find the input being spent (current Payment Validator UTxO)
       expect Some(subscriber_input) = list.at(tx.inputs, subscriber_input_index)
       expect Some(payment_input) = list.at(tx.inputs, payment_input_index)
@@ -213,25 +201,25 @@ pub fn validate_extend_subscription(
       let payment_script_credential =
         payment_input.output.address.payment_credential
       // Extract the datums
-      expect service_datum: ServiceDatum =
-        data.output_datum(service_ref_input.output)
+      expect InlineDatum(service_inline_datum) = service_ref_input.output.datum
+      expect service_datum: ServiceDatum = service_inline_datum
 
-      expect Payment(new_datum): PaymentValidatorDatum =
-        data.output_datum(payment_output)
+      expect InlineDatum(out_utxo_inline_datum) = payment_output.datum
+      expect Payment(new_datum): PaymentValidatorDatum = out_utxo_inline_datum
 
       let payment_addr = payment_input.output.address
 
       // Extract the payment NFT from the input
-      let payment_nft = payment_input.output.value |> value.without_lovelace()
-      expect [(policy_id, asset_name, 1)] = value.flatten(payment_nft)
+      let payment_nft = payment_input.output.value |> assets.without_lovelace()
+      expect [(policy_id, asset_name, 1)] = assets.flatten(payment_nft)
 
       // Validate the datum from the Service Contract as a reference input.
       let datum_against_service_valid =
         validate_payment_against_service(payment_datum, service_datum)
 
       // Verify the new payment output
-      let original_amount = value.lovelace_of(payment_input.output.value)
-      let new_amount = value.lovelace_of(payment_output.value)
+      let original_amount = assets.lovelace_of(payment_input.output.value)
+      let new_amount = assets.lovelace_of(payment_output.value)
       let amount_increased = new_amount >= original_amount
       let extension_amount = new_amount - original_amount
 
@@ -249,8 +237,8 @@ pub fn validate_extend_subscription(
 
       let subscriber_nft =
         subscriber_input.output.value
-          |> value.without_lovelace()
-          |> value.flatten()
+          |> assets.without_lovelace()
+          |> assets.flatten()
 
       expect [(account_policy, subscriber_token_name, _)] = subscriber_nft
 
@@ -297,13 +285,14 @@ pub fn validate_extend_subscription(
         correct_output_address?,
       }
     }
-    Penalty(_) -> False
+    Some(Penalty(_)) -> False
+    None -> False
   }
 }
 
 pub fn validate_merchant_withdraw(
   service_policy_id: ByteArray,
-  datum: PaymentValidatorDatum,
+  datum: Option<PaymentValidatorDatum>,
   merchant_input_index: Int,
   payment_input_index: Int,
   tx: Transaction,
@@ -317,9 +306,9 @@ pub fn validate_merchant_withdraw(
 
   let user_nft =
     merchant_input.output.value
-      |> value.without_lovelace()
+      |> assets.without_lovelace()
 
-  expect [(_, merchant_asset_name, _)] = value.flatten(user_nft)
+  expect [(_, merchant_asset_name, _)] = assets.flatten(user_nft)
 
   let merchant_has_service_nft =
     validate_single_nft_input(
@@ -330,15 +319,15 @@ pub fn validate_merchant_withdraw(
 
   let payment_nft =
     payment_input.output.value
-      |> value.without_lovelace()
+      |> assets.without_lovelace()
 
-  expect [(payment_policy, payment_asset_name, _)] = value.flatten(payment_nft)
+  expect [(payment_policy, payment_asset_name, _)] = assets.flatten(payment_nft)
 
   let payment_input_has_payment_nft =
     validate_single_nft_input(payment_input, payment_policy, payment_asset_name)
 
   when datum is {
-    Payment(payment_datum) -> {
+    Some(Payment(payment_datum)) -> {
       let ref_has_service_nft =
         validate_single_nft_input(
           service_ref_input,
@@ -346,12 +335,12 @@ pub fn validate_merchant_withdraw(
           payment_datum.service_nft_tn,
         )
 
-      expect service_datum: ServiceDatum =
-        data.output_datum(service_ref_input.output)
+      expect InlineDatum(service_inline_datum) = service_ref_input.output.datum
+      expect service_datum: ServiceDatum = service_inline_datum
 
       expect [merchant_output, payment_output, ..] = tx.outputs
 
-      let ada_amount = value.lovelace_of(merchant_input.output.value)
+      let ada_amount = assets.lovelace_of(merchant_input.output.value)
       let has_minimum_ada = ada_amount >= payment_datum.minimum_ada
 
       // Validate payment datum against service datum
@@ -362,19 +351,16 @@ pub fn validate_merchant_withdraw(
       let current_time = get_minimum_current_time_estimate(tx.validity_range)
 
       // Update the last_claimed field in the new datum
-      expect Payment(new_datum): PaymentValidatorDatum =
-        data.output_datum(payment_output)
+      expect InlineDatum(out_utxo_inline_datum) = payment_output.datum
+      expect Payment(new_datum): PaymentValidatorDatum = out_utxo_inline_datum
 
+      // Update the last_claimed field in the new datum
       let last_claimed_updated =
         new_datum.last_claimed >= payment_datum.subscription_start
-      trace @"payment_datum.subscription_start:"
-      trace cbor.diagnostic(payment_datum.subscription_start)
-      trace @"new_datum.last_claimed:"
-      trace cbor.diagnostic(new_datum.last_claimed)
 
       // Verify that the Service NFT is preserved
       let merchant_nft_preserved =
-        value.quantity_of(
+        assets.quantity_of(
           merchant_output.value,
           service_policy_id,
           merchant_asset_name,
@@ -391,7 +377,7 @@ pub fn validate_merchant_withdraw(
       // Verify that any remaining funds are returned to the payment validator
       // This is the amount of funds that should be left in the payment script after the withdrawal.
       let actual_remaining_amount =
-        value.quantity_of(
+        assets.quantity_of(
           payment_output.value,
           payment_datum.subscription_fee.policy_id,
           payment_datum.subscription_fee.asset_name,
@@ -416,7 +402,7 @@ pub fn validate_merchant_withdraw(
       }
     }
 
-    Penalty(penalty_datum) -> {
+    Some(Penalty(penalty_datum)) -> {
       expect [merchant_output, ..] = tx.outputs
 
       let ref_has_service_nft =
@@ -436,7 +422,7 @@ pub fn validate_merchant_withdraw(
 
       // Verify the penalty amount in the input
       let penalty_input_amount_valid =
-        value.quantity_of(
+        assets.quantity_of(
           payment_input.output.value,
           penalty_datum.penalty_fee.policy_id,
           penalty_datum.penalty_fee.asset_name,
@@ -444,7 +430,7 @@ pub fn validate_merchant_withdraw(
 
       // Verify withdrawal of penalty to merchant
       let penalty_withdrawal_valid =
-        value.quantity_of(
+        assets.quantity_of(
           merchant_output.value,
           penalty_datum.penalty_fee.policy_id,
           penalty_datum.penalty_fee.asset_name,
@@ -452,11 +438,7 @@ pub fn validate_merchant_withdraw(
 
       // Verify the Penalty NFT is burned
       let penalty_nft_burned =
-        value.quantity_of(
-          value.from_minted_value(tx.mint),
-          payment_policy,
-          payment_asset_name,
-        ) == -1
+        assets.quantity_of(tx.mint, payment_policy, payment_asset_name) == -1
 
       and {
         // Verify that the merchant has the Service NFT
@@ -468,6 +450,11 @@ pub fn validate_merchant_withdraw(
         penalty_nft_burned?,
       }
     }
+    None -> {
+      // Handle the case where datum is None
+      trace @" No Penalty Datum"
+      False
+    }
   }
 }
 
@@ -476,15 +463,14 @@ pub fn validate_merchant_withdraw(
 pub fn validate_unsubscribe(
   service_policy_id: ByteArray,
   account_policy_id: ByteArray,
-  datum: PaymentValidatorDatum,
+  datum: Option<PaymentValidatorDatum>,
   subscriber_input_index: Int,
   payment_input_index: Int,
   tx: Transaction,
 ) -> Bool {
   when datum is {
-    Payment(payment_datum) -> {
+    Some(Payment(payment_datum)) -> {
       // Find the inputs being spent (current Payment Validator UTxO)
-      // expect [subscriber_input, payment_input, ..] = tx.inputs
       expect Some(subscriber_input) = list.at(tx.inputs, subscriber_input_index)
       expect Some(payment_input) = list.at(tx.inputs, payment_input_index)
 
@@ -502,8 +488,8 @@ pub fn validate_unsubscribe(
           account_policy_id,
           payment_datum.account_nft_tn,
         )
-      let payment_nft = payment_input.output.value |> value.without_lovelace()
-      expect [(policy_id, asset_name, 1)] = value.flatten(payment_nft)
+      let payment_nft = payment_input.output.value |> assets.without_lovelace()
+      expect [(policy_id, asset_name, 1)] = assets.flatten(payment_nft)
 
       // Verify Penalty UTxO is created
       expect [account_output, penalty_output, ..] = tx.outputs
@@ -523,30 +509,29 @@ pub fn validate_unsubscribe(
           total_subscription_time - time_elapsed
         ) / total_subscription_time
 
-      // trace @"refund_amount:"
-      // trace cbor.diagnostic(refund_amount)
       // Verify refund output to subscriber
       let refund_output_valid =
-        value.quantity_of(
+        assets.quantity_of(
           account_output.value,
           payment_datum.subscription_fee.policy_id,
           payment_datum.subscription_fee.asset_name,
         ) >= refund_amount - payment_datum.minimum_ada
 
       let payment_nft_in_penalty_output =
-        value.quantity_of(penalty_output.value, policy_id, asset_name) == 1
+        assets.quantity_of(penalty_output.value, policy_id, asset_name) == 1
 
       // Extract the datums
-      expect service_datum: ServiceDatum =
-        data.output_datum(service_ref_input.output)
+      expect InlineDatum(service_inline_datum) = service_ref_input.output.datum
+      expect service_datum: ServiceDatum = service_inline_datum
 
       let payment_datum_valid =
         validate_payment_against_service(payment_datum, service_datum)
 
-      // Verify Penalty UTxO
+      expect InlineDatum(out_utxo_inline_datum) = penalty_output.datum
       expect Penalty(penalty_datum): PaymentValidatorDatum =
-        data.output_datum(penalty_output)
+        out_utxo_inline_datum
 
+      // Verify Penalty UTxO
       let penalty_output_valid =
         penalty_datum.service_nft_tn == payment_datum.service_nft_tn && penalty_datum.account_nft_tn == payment_datum.account_nft_tn && payment_datum.penalty_fee_qty == penalty_datum.penalty_fee_qty && penalty_datum.penalty_fee_qty == service_datum.penalty_fee_qty
 
@@ -569,20 +554,21 @@ pub fn validate_unsubscribe(
         payment_token_to_script?,
       }
     }
-    Penalty(_) -> False
+    Some(Penalty(_)) -> False
+    None -> False
   }
 }
 
 pub fn validate_subscriber_withdraw(
   service_policy_id: ByteArray,
   account_policy_id: ByteArray,
-  datum: PaymentValidatorDatum,
+  datum: Option<PaymentValidatorDatum>,
   subscriber_input_index: Int,
   payment_input_index: Int,
   tx: Transaction,
 ) -> Bool {
   when datum is {
-    Payment(payment_datum) -> {
+    Some(Payment(payment_datum)) -> {
       // Find the payment input being spent
       expect Some(subscriber_input) = list.at(tx.inputs, subscriber_input_index)
       expect Some(payment_input) = list.at(tx.inputs, payment_input_index)
@@ -591,18 +577,11 @@ pub fn validate_subscriber_withdraw(
       expect Some(service_ref_input) =
         get_input_by_token(tx.reference_inputs, service_policy_id)
 
-      // trace @"validate_subscriber_withdraw:"
-      // trace @"subscriber_input:"
-      // trace cbor.diagnostic(subscriber_input)
-      // trace @"payment_input:"
-      // trace cbor.diagnostic(payment_input)
-      // trace @"service_ref_input:"
-      // trace cbor.diagnostic(service_ref_input)
       let account_user_nft =
         subscriber_input.output.value
-          |> value.without_lovelace()
+          |> assets.without_lovelace()
 
-      expect [(_, account_asset_name, _)] = value.flatten(account_user_nft)
+      expect [(_, account_asset_name, _)] = assets.flatten(account_user_nft)
 
       let subscriber_has_account_nft =
         validate_single_nft_input(
@@ -613,8 +592,9 @@ pub fn validate_subscriber_withdraw(
       expect [user_output, payment_output, ..] = tx.outputs
 
       // Extract the service datum
-      expect service_datum: ServiceDatum =
-        data.output_datum(service_ref_input.output)
+      expect InlineDatum(service_inline_datum) = service_ref_input.output.datum
+      expect service_datum: ServiceDatum = service_inline_datum
+
       // Ensure the service is inactive
       let service_is_inactive = !service_datum.is_active
 
@@ -622,19 +602,20 @@ pub fn validate_subscriber_withdraw(
       let payment_datum_valid =
         validate_payment_against_service(payment_datum, service_datum)
 
-      expect Payment(payment_datum): PaymentValidatorDatum =
-        data.output_datum(payment_output)
+      expect InlineDatum(out_utxo_inline_datum) = payment_output.datum
+      expect Some(Payment(payment_datum)): Option<PaymentValidatorDatum> =
+        out_utxo_inline_datum
 
       let penalty_output_valid =
         payment_datum.service_nft_tn == payment_datum.service_nft_tn && payment_datum.account_nft_tn == payment_datum.account_nft_tn && payment_datum.penalty_fee_qty == payment_datum.penalty_fee_qty && payment_datum.penalty_fee_qty == service_datum.penalty_fee_qty
 
-      let payment_nft = payment_input.output.value |> value.without_lovelace()
+      let payment_nft = payment_input.output.value |> assets.without_lovelace()
       expect [(payment_policy_id, payment_asset_name, 1)] =
-        value.flatten(payment_nft)
+        assets.flatten(payment_nft)
 
       // Calculate the refund amount (full remaining balance)
       let refund_amount =
-        value.quantity_of(
+        assets.quantity_of(
           payment_input.output.value,
           payment_datum.subscription_fee.policy_id,
           payment_datum.subscription_fee.asset_name,
@@ -642,7 +623,7 @@ pub fn validate_subscriber_withdraw(
 
       // Ensure the user receives the full refund
       let full_refund_given =
-        value.quantity_of(
+        assets.quantity_of(
           user_output.value,
           payment_datum.subscription_fee.policy_id,
           payment_datum.subscription_fee.asset_name,
@@ -650,14 +631,14 @@ pub fn validate_subscriber_withdraw(
 
       // Verify that the Account NFT is preserved in the user output
       let account_nft_preserved =
-        value.quantity_of(
+        assets.quantity_of(
           user_output.value,
           account_policy_id,
           payment_datum.account_nft_tn,
         ) == 1
 
       let payment_nft_in_penalty_output =
-        value.quantity_of(
+        assets.quantity_of(
           payment_output.value,
           payment_policy_id,
           payment_asset_name,
@@ -673,6 +654,7 @@ pub fn validate_subscriber_withdraw(
         payment_nft_in_penalty_output?,
       }
     }
-    Penalty(_) -> False
+    Some(Penalty(_)) -> False
+    None -> False
   }
 }

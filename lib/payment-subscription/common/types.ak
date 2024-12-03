@@ -1,5 +1,5 @@
-use aiken/transaction.{OutputReference}
-use aiken/transaction/value.{AssetName, PolicyId}
+use cardano/assets.{AssetName, PolicyId}
+use cardano/transaction.{OutputReference}
 
 /// There's got to be some functional way to do efficient checks on this.
 /// Consider experimenting after testnet.

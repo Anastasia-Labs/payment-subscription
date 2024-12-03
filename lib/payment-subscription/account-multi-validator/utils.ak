@@ -1,4 +1,4 @@
-use aiken/bytearray
+use aiken/primitive/bytearray
 use payment_subscription/common/types.{AccountDatum}
 
 // Helper function to validate tha account metadata
