@@ -1,7 +1,7 @@
 name = "anastasia-labs/payment-subscription"
 version = "0.0.0"
-compiler = "v1.0.29-alpha"
-plutus = "v2"
+compiler = "v1.1.7"
+plutus = "v3"
 license = "Apache-2.0"
 description = "Aiken contracts for project 'anastasia-labs/payment-subscription'"
 
@@ -12,16 +12,17 @@ platform = "github"
 
 [[dependencies]]
 name = "aiken-lang/stdlib"
-version = "1.9.0"
+version = "2.1.0"
 source = "github"
-
-[[dependencies]]
-name = "logicalmechanism/assist"
-version = "v0.4.10"
-source = "github"
-
 
 [[dependencies]]
 name = "anastasia-labs/aiken-design-patterns"
 version = "9a1e82c"
 source = "github"
+
+[[dependencies]]
+name = "logical-mechanism/assist"
+version = "v0.5.1"
+source = "github"
+
+[config]

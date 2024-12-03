@@ -1,5 +1,5 @@
-use aiken/cbor
-use aiken/transaction.{Mint, ScriptContext, Spend, Transaction}
+use cardano/assets.{PolicyId}
+use cardano/transaction.{OutputReference, Transaction}
 use payment_subscription/common/types.{
   Extend, InitSubscripton, MerchantWithdraw, MintPayment, PaymentValidatorDatum,
   SpendPayment, SubscriberWithdraw, TerminateSubscription, Unsubscribe,
@@ -10,44 +10,38 @@ use payment_subscription/payment_multi_validator/validation.{
   validate_terminate_subscription, validate_unsubscribe,
 }
 
-validator(service_policy_id: ByteArray, account_policy_id: ByteArray) {
-  fn mint_payment(redeemer: MintPayment, ctx: ScriptContext) -> Bool {
-    let ScriptContext { transaction: tx, purpose } = ctx
-    expect Mint(own_policy) = purpose
-    let Transaction { .. } = tx
-
-    when redeemer is {
+validator payment(service_policy_id: ByteArray, account_policy_id: ByteArray) {
+  mint(r: MintPayment, policy_id: PolicyId, self: Transaction) {
+    when r is {
       InitSubscripton { output_reference, input_index } ->
         // Ensure this outref is spent in this transaction
 
         validate_initial_subscription(
-          own_policy,
-          account_policy_id,
+          policy_id,
           service_policy_id,
+          account_policy_id,
           output_reference,
           input_index,
-          tx,
-        )?
+          self,
+        )
 
       TerminateSubscription { merchant_input_index, payment_input_index } ->
         validate_terminate_subscription(
-          own_policy,
+          policy_id,
           service_policy_id,
           merchant_input_index,
           payment_input_index,
-          tx,
+          self,
         )
     }
   }
 
-  fn spend_payment(
-    datum: PaymentValidatorDatum,
+  spend(
+    datum: Option<PaymentValidatorDatum>,
     redeemer: SpendPayment,
-    ctx: ScriptContext,
-  ) -> Bool {
-    let ScriptContext { transaction: tx, purpose } = ctx
-    expect Spend(_output_reference) = purpose
-
+    _own_ref: OutputReference,
+    self: Transaction,
+  ) {
     when redeemer is {
       Extend { subscriber_input_index, payment_input_index } ->
         validate_extend_subscription(
@@ -56,7 +50,7 @@ validator(service_policy_id: ByteArray, account_policy_id: ByteArray) {
           datum,
           subscriber_input_index,
           payment_input_index,
-          tx,
+          self,
         )
       MerchantWithdraw { merchant_input_index, payment_input_index } ->
         validate_merchant_withdraw(
@@ -64,7 +58,7 @@ validator(service_policy_id: ByteArray, account_policy_id: ByteArray) {
           datum,
           merchant_input_index,
           payment_input_index,
-          tx,
+          self,
         )
       Unsubscribe { subscriber_input_index, payment_input_index } ->
         validate_unsubscribe(
@@ -73,27 +67,21 @@ validator(service_policy_id: ByteArray, account_policy_id: ByteArray) {
           datum,
           subscriber_input_index,
           payment_input_index,
-          tx,
+          self,
         )
-      SubscriberWithdraw { subscriber_input_index, payment_input_index } -> {
-        trace @" SubscriberWithdraw service_policy_id:"
-        trace cbor.diagnostic(service_policy_id)
-        trace @" SubscriberWithdraw account_policy_id: "
-        trace cbor.diagnostic(account_policy_id)
-        trace @" SubscriberWithdraw datum:"
-        trace cbor.diagnostic(datum)
-        trace @" SubscriberWithdraw subscriber_input_index:"
-        trace cbor.diagnostic(subscriber_input_index)
-
+      SubscriberWithdraw { subscriber_input_index, payment_input_index } ->
         validate_subscriber_withdraw(
           service_policy_id,
           account_policy_id,
           datum,
           subscriber_input_index,
           payment_input_index,
-          tx,
+          self,
         )
-      }
     }
+  }
+
+  else(_) {
+    fail
   }
 }

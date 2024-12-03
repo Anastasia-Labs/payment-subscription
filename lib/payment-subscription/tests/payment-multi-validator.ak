@@ -1,14 +1,12 @@
 // use aiken/cbor
-use aiken/dict
+use aiken/collection/dict
 use aiken/interval.{Finite, Interval, IntervalBound}
-use aiken/transaction.{
-  Mint, NoDatum, ScriptContext, Spend, Transaction, TransactionId,
-}
-use aiken/transaction/value
-use assist/types/cip68
-use assist/values
+use cardano/assets.{zero}
+use cardano/script_context.{Minting, ScriptContext, Spending}
+use cardano/transaction.{NoDatum, Transaction}
+use cardano/value
 use payment_subscription/common/types.{
-  AssetClass, Payment, PaymentDatum, Penalty, PenaltyDatum,
+  AssetClass, InitSubscripton, Payment, PaymentDatum, Penalty, PenaltyDatum,
 }
 use payment_subscription/payment_multi_validator/validation.{
   validate_extend_subscription, validate_initial_subscription,
@@ -16,6 +14,7 @@ use payment_subscription/payment_multi_validator/validation.{
   validate_terminate_subscription, validate_unsubscribe,
 }
 use payment_subscription/tests/tests
+use types/cip68.{prefix_100, prefix_222}
 
 // Happy path tests
 test succeed_initiate_subscription() {
@@ -30,11 +29,10 @@ test succeed_initiate_subscription() {
   let init_output_ref = tests.test_input_utxo_02(tx_hash)
   let input_index = 0
 
-  let payment_tkn = values.unique_token_name(tx_hash, 1, #"")
-  let service_tkn =
-    values.unique_token_name(service_tx_hash, 1, cip68.prefix_100)
+  let payment_tkn = value.unique_token_name(tx_hash, 1, #"", "")
+  let service_tkn = value.unique_token_name(service_tx_hash, 1, prefix_100, "")
   let user_account_tkn =
-    values.unique_token_name(account_tx_hash, 1, cip68.prefix_222)
+    value.unique_token_name(account_tx_hash, 1, prefix_222, "")
 
   let current_time = 1000000
   let last_claimed = 500000
@@ -71,9 +69,9 @@ test succeed_initiate_subscription() {
       penalty_qty,
     )
 
-  let payment_value = value.add(value.zero(), own_cs, payment_tkn, 1)
-  let service_value = value.add(value.zero(), service_cs, service_tkn, 1)
-  let account_value = value.add(value.zero(), account_cs, user_account_tkn, 1)
+  let payment_value = assets.add(zero, own_cs, payment_tkn, 1)
+  let service_value = assets.add(zero, service_cs, service_tkn, 1)
+  let account_value = assets.add(zero, account_cs, user_account_tkn, 1)
 
   let service_input =
     tests.test_context_input_02(
@@ -103,7 +101,7 @@ test succeed_initiate_subscription() {
       own_cs,
       payment_value,
       interval_amount,
-      Payment(payment_datum),
+      Some(Payment(payment_datum)),
     )
 
   let insert_timerange =
@@ -119,70 +117,38 @@ test succeed_initiate_subscription() {
     }
   let context =
     ScriptContext {
-      purpose: Mint(own_cs),
       transaction: Transaction {
         inputs: [account_input, service_input],
         // Normally used to read Datum
         reference_inputs: [service_input],
         // There should be two outputs.
         outputs: [user_output, payment_output],
-        fee: value.zero(),
-        mint: value.to_minted_value(payment_value),
+        fee: 0,
+        mint: payment_value,
         certificates: [],
         withdrawals: [],
         validity_range: insert_timerange,
         extra_signatories: [],
         redeemers: [],
-        datums: dict.new(),
-        id: TransactionId { hash: tx_hash },
+        datums: dict.empty,
+        id: tx_hash,
+        votes: [],
+        proposal_procedures: [],
+        current_treasury_amount: None,
+        treasury_donation: None,
       },
+      redeemer: InitSubscripton {
+        output_reference: init_output_ref,
+        input_index: 0,
+      },
+      // Added the missing 'redeemer' field
+      info: Minting(own_cs),
     }
 
-  // trace @"Test: Initiating a New Subscription"
-  // trace @"-------------------------------------"
-  // trace @"Step 1: Setting up the subscription"
-  // trace @"-------------------------------------"
-  // trace @"Service Currency Symbol:"
-  // trace cbor.diagnostic(service_cs)
-  // trace @"Account Currency Symbol:"
-  // trace cbor.diagnostic(account_cs)
-  // trace @"Subscription Fee: (lovelace)"
-  // trace cbor.diagnostic(total_subscription_fee)
-  // trace @"Subscription Period: (days)"
-  // trace cbor.diagnostic(interval_length / ( 24 * 60 * 60 * 1000 ))
-  // trace @"Penalty Fee: (lovelace)"
-  // trace cbor.diagnostic(penalty_qty)
-  // trace @"Step 2: Creating Payment Datum"
-  // trace @"-------------------------------------"
-  // trace @"Service NFT:"
-  // trace cbor.diagnostic(service_tkn)
-  // trace @"Account NFT:"
-  // trace cbor.diagnostic(user_account_tkn)
-  // trace @"Subscription Start:"
-  // trace cbor.diagnostic(current_time)
-  // trace @"Subscription End:"
-  // trace cbor.diagnostic(current_time + interval_length)
-  // trace @"Step 3: Preparing Inputs"
-  // trace @"-------------------------------------"
-  // trace @"Account Input:"
-  // trace cbor.diagnostic(account_input)
-  // trace @"Service Input:"
-  // trace cbor.diagnostic(service_input)
-  // trace @"Step 4: Preparing Outputs"
-  // trace @"-------------------------------------"
-  // trace @"User Output:"
-  // trace cbor.diagnostic(user_output)
-  // trace @"Payment Output:"
-  // trace cbor.diagnostic(payment_output)
-  // trace @"Step 5: Execution Result"
-  // trace @"-------------------------------------"
-  // trace @"Subscription Successfully Initiated!"
-  // trace @"-------------------------------------"
-  // trace @"Test Completed!"
   validate_initial_subscription(
     own_cs,
-    account_cs,
     service_cs,
+    account_cs,
     init_output_ref,
     input_index,
     context.transaction,
@@ -205,15 +171,12 @@ test succeed_terminate_subscription() {
   // 30 days in milliseconds
   let interval_length = 30 * 24 * 60 * 60 * 1000
 
-  // let total_subscription_fee = 1_000_000_000
-  let user_account_tkn = values.unique_token_name(tx_hash, 1, cip68.prefix_222)
-  let user_service_tkn =
-    values.unique_token_name(service_cs, 1, cip68.prefix_222)
-  let payment_tkn = values.unique_token_name(payment_tx_hash, 1, #"")
-  let service_tkn =
-    values.unique_token_name(service_tx_hash, 1, cip68.prefix_100)
+  let user_account_tkn = value.unique_token_name(tx_hash, 1, prefix_222, "")
+  let user_service_tkn = value.unique_token_name(service_cs, 1, prefix_222, "")
+  let payment_tkn = value.unique_token_name(payment_tx_hash, 1, #"", "")
+  let service_tkn = value.unique_token_name(service_tx_hash, 1, prefix_100, "")
 
-  let service_value = value.add(value.zero(), service_cs, user_service_tkn, 1)
+  let service_value = assets.add(zero, service_cs, user_service_tkn, 1)
 
   // Create the payment input (the one being spent)
   let merchant_input =
@@ -229,16 +192,16 @@ test succeed_terminate_subscription() {
       service_nft_tn: service_tkn,
       account_nft_tn: user_account_tkn,
       penalty_fee: AssetClass {
-        policy_id: value.ada_policy_id,
-        asset_name: value.ada_asset_name,
+        policy_id: assets.ada_policy_id,
+        asset_name: assets.ada_asset_name,
       },
       penalty_fee_qty,
     }
   let penalty_value =
-    value.add(value.from_lovelace(penalty_fee_qty), own_cs, payment_tkn, 1)
+    assets.add(assets.from_lovelace(penalty_fee_qty), own_cs, payment_tkn, 1)
 
   let merchant_output =
-    tests.test_utxo_02(service_cs, value.zero(), penalty_fee_qty, NoDatum)
+    tests.test_utxo_02(service_cs, zero, penalty_fee_qty, NoDatum)
 
   let penalty_input =
     tests.test_context_input_02(
@@ -262,70 +225,32 @@ test succeed_terminate_subscription() {
   // Create the transaction
   let context =
     ScriptContext {
-      purpose: Mint(own_cs),
       transaction: Transaction {
         inputs: [merchant_input, penalty_input],
         reference_inputs: [],
         outputs: [merchant_output],
-        fee: value.zero(),
-        mint: value.to_minted_value(
-          value.add(value.zero(), own_cs, payment_tkn, -1),
-        ),
+        fee: 0,
+        mint: assets.add(zero, own_cs, payment_tkn, -1),
         certificates: [],
         withdrawals: [],
         validity_range: insert_timerange,
         extra_signatories: [],
         redeemers: [],
-        datums: dict.new(),
-        id: TransactionId { hash: tx_hash },
+        datums: dict.empty,
+        id: tx_hash,
+        votes: [],
+        proposal_procedures: [],
+        current_treasury_amount: None,
+        treasury_donation: None,
       },
+      redeemer: InitSubscripton {
+        output_reference: init_output_ref,
+        input_index: 0,
+      },
+      // Added the missing 'redeemer' field
+      info: Minting(own_cs),
     }
 
-  // trace @"Test: Terminating a Subscription"
-  // trace @"-------------------------------------"
-  // trace @"Step 1: Subscription Details"
-  // trace @"-------------------------------------"
-  // trace @"Service Currency Symbol:"
-  // trace cbor.diagnostic(service_cs)
-  // trace @"Account Currency Symbol:"
-  // trace cbor.diagnostic(account_cs)
-  // trace @"Payment Currency Symbol:"
-  // trace cbor.diagnostic(own_cs)
-  // trace @"Original Subscription Start:"
-  // trace cbor.diagnostic(current_time)
-  // trace @"Original Subscription End:"
-  // trace cbor.diagnostic(current_time + interval_length)
-  // trace @"Termination Time (mid-subscription):"
-  // trace cbor.diagnostic(current_time + time_elapsed)
-  // trace @"Step 2: Calculating Refund and Penalty"
-  // trace @"-------------------------------------"
-  // trace @"Total Subscription Time:"
-  // trace cbor.diagnostic(interval_length)
-  // trace @"Time Elapsed:"
-  // trace cbor.diagnostic(time_elapsed)
-  // trace @"Original Payment Amount:"
-  // trace cbor.diagnostic(total_subscription_fee)
-  // trace @"Penalty Applied:"
-  // trace cbor.diagnostic(penalty_fee_qty)
-  // trace @"Step 3: Processing Termination"
-  // trace @"-------------------------------------"
-  // trace @"Payment NFT to be burned:"
-  // trace cbor.diagnostic(payment_tkn)
-  // trace @"Merchant Output:"
-  // trace cbor.diagnostic(merchant_output)
-  // trace @"Step 4: Verifying Transaction"
-  // trace @"-------------------------------------"
-  // trace @"Transaction Inputs:"
-  // trace cbor.diagnostic(context.transaction.inputs)
-  // trace @"Transaction Outputs:"
-  // trace cbor.diagnostic(context.transaction.outputs)
-  // trace @"Burned Tokens:"
-  // trace cbor.diagnostic(context.transaction.mint)
-  // trace @"Step 5: Execution Result"
-  // trace @"-------------------------------------"
-  // trace @"Subscription Successfully Terminated"
-  // trace @"-------------------------------------"
-  // trace @"Test Completed!"
   validate_terminate_subscription(own_cs, account_cs, 0, 1, context.transaction)
 }
 
@@ -340,13 +265,12 @@ test succeed_extend_subscription() {
 
   let extend_output_ref = tests.test_input_utxo_02(payment_tx_hash)
 
-  let payment_tkn = values.unique_token_name(payment_tx_hash, 1, #"")
-  let service_tkn =
-    values.unique_token_name(service_tx_hash, 1, cip68.prefix_100)
-  let user_account_tkn = values.unique_token_name(tx_hash, 1, cip68.prefix_222)
+  let payment_tkn = value.unique_token_name(payment_tx_hash, 1, #"", "")
+  let service_tkn = value.unique_token_name(service_tx_hash, 1, prefix_100, "")
+  let user_account_tkn = value.unique_token_name(tx_hash, 1, prefix_222, "")
 
-  let service_value = value.add(value.zero(), service_cs, service_tkn, 1)
-  let user_value = value.add(value.zero(), account_cs, user_account_tkn, 1)
+  let service_value = assets.add(zero, service_cs, service_tkn, 1)
+  let user_value = assets.add(zero, account_cs, user_account_tkn, 1)
 
   let current_time = 1000000
   let last_claimed = 500000
@@ -373,8 +297,8 @@ test succeed_extend_subscription() {
     )
   // Create the payment input (the one being spent)
   let initial_payment_value =
-    value.add(
-      value.from_lovelace(total_subscription_fee),
+    assets.add(
+      assets.from_lovelace(total_subscription_fee),
       own_cs,
       payment_tkn,
       1,
@@ -411,8 +335,8 @@ test succeed_extend_subscription() {
 
   // Create the new payment output
   let new_payment_value =
-    value.add(
-      value.from_lovelace(total_subscription_fee + extension_fee),
+    assets.add(
+      assets.from_lovelace(total_subscription_fee + extension_fee),
       own_cs,
       payment_tkn,
       1,
@@ -469,76 +393,45 @@ test succeed_extend_subscription() {
   let user_change_output =
     tests.test_user_utxo(
       subscriber_pkh,
-      value.from_lovelace(change_amount),
+      assets.from_lovelace(change_amount),
       NoDatum,
     )
+
+  let as_data: Data = Payment(initial_payment_datum)
+
   // Create the transaction
   let context =
     ScriptContext {
-      purpose: Spend(extend_output_ref),
       transaction: Transaction {
         inputs: [subscriber_input, payment_input],
         reference_inputs: [service_input],
         outputs: [user_change_output, payment_output],
-        fee: value.zero(),
-        mint: value.to_minted_value(value.zero()),
+        fee: 0,
+        mint: zero,
         certificates: [],
         withdrawals: [],
         validity_range: insert_timerange,
         extra_signatories: [],
         redeemers: [],
-        datums: dict.new(),
-        id: TransactionId { hash: tx_hash },
+        datums: dict.empty,
+        id: tx_hash,
+        votes: [],
+        proposal_procedures: [],
+        current_treasury_amount: None,
+        treasury_donation: None,
       },
+      redeemer: InitSubscripton {
+        output_reference: extend_output_ref,
+        input_index: 0,
+      },
+      // Added the missing 'redeemer' field
+      info: Spending(extend_output_ref, Some(as_data)),
     }
 
-  // trace @"Test: Extending an Existing Subscription"
-  // trace @"-------------------------------------"
-  // trace @"Step 1: Current Subscription Details"
-  // trace @"-------------------------------------"
-  // trace @"Service Currency Symbol:"
-  // trace cbor.diagnostic(service_cs)
-  // trace @"Account Currency Symbol:"
-  // trace cbor.diagnostic(account_cs)
-  // trace @"Current Subscription Start:"
-  // trace cbor.diagnostic(current_time)
-  // trace @"Current Subscription End:"
-  // trace cbor.diagnostic(current_time + interval_length)
-  // trace @"Current Subscription Fee: (lovelace)"
-  // trace cbor.diagnostic(total_subscription_fee)
-  // trace @"Step 2: Extension Details"
-  // trace @"-------------------------------------"
-  // trace @"Extension Period: (days)"
-  // trace cbor.diagnostic(extension_period / ( 24 * 60 * 60 * 1000 ))
-  // trace @"New Subscription End:"
-  // trace cbor.diagnostic(
-  //   initial_payment_datum.subscription_end + extension_period,
-  // )
-  // trace @"Additional Fee for Extension: (lovelace)"
-  // trace cbor.diagnostic(extension_fee)
-  // trace @"Step 3: Updating Payment Datum"
-  // trace @"-------------------------------------"
-  // trace @"Original Payment Datum:"
-  // trace cbor.diagnostic(initial_payment_datum)
-  // trace @"Updated Payment Datum:"
-  // trace cbor.diagnostic(Payment(new_payment_datum))
-  // trace @"Step 4: Verifying Transaction"
-  // trace @"-------------------------------------"
-  // trace @"Transaction Inputs:"
-  // trace cbor.diagnostic(context.transaction.inputs)
-  // trace @"Transaction Outputs:"
-  // trace cbor.diagnostic(context.transaction.outputs)
-  // trace @"Reference Inputs:"
-  // trace cbor.diagnostic(context.transaction.reference_inputs)
-  // trace @"Step 5: Execution Result"
-  // trace @"-------------------------------------"
-  // trace @"Subscription Successfully Extended!"
-  // trace @"-------------------------------------"
-  // trace @"Test Completed!"
   validate_extend_subscription(
     service_cs,
     account_cs,
-    Payment(initial_payment_datum),
+    Some(Payment(initial_payment_datum)),
     0,
     1,
     context.transaction,
@@ -555,12 +448,11 @@ test succeed_merchant_withdraw() {
 
   let script_output_ref = tests.test_input_utxo_02(payment_tx_hash)
 
-  let payment_tkn = values.unique_token_name(payment_tx_hash, 1, #"")
-  let service_tkn =
-    values.unique_token_name(service_tx_hash, 1, cip68.prefix_100)
+  let payment_tkn = value.unique_token_name(payment_tx_hash, 1, #"", "")
+  let service_tkn = value.unique_token_name(service_tx_hash, 1, prefix_100, "")
   let service_user_tkn =
-    values.unique_token_name(service_tx_hash, 1, cip68.prefix_222)
-  let user_account_tkn = values.unique_token_name(tx_hash, 1, cip68.prefix_222)
+    value.unique_token_name(service_tx_hash, 1, prefix_222, "")
+  let user_account_tkn = value.unique_token_name(tx_hash, 1, prefix_222, "")
 
   let subscription_start = 1000000
   // 30 days in milliseconds
@@ -600,23 +492,23 @@ test succeed_merchant_withdraw() {
     )
 
   let payment_value =
-    value.add(
-      value.from_lovelace(total_subscription_fee),
+    assets.add(
+      assets.from_lovelace(total_subscription_fee),
       own_cs,
       payment_tkn,
       1,
     )
   let service_value =
-    value.add(
-      value.from_lovelace(total_subscription_fee),
+    assets.add(
+      assets.from_lovelace(total_subscription_fee),
       service_cs,
       service_tkn,
       1,
     )
 
   let merchant_value =
-    value.add(
-      value.from_lovelace(total_subscription_fee),
+    assets.add(
+      assets.from_lovelace(total_subscription_fee),
       service_cs,
       service_user_tkn,
       1,
@@ -636,7 +528,7 @@ test succeed_merchant_withdraw() {
       script_output_ref,
       own_cs,
       payment_value,
-      Payment(payment_datum),
+      Some(Payment(payment_datum)),
     )
 
   // Create the service input (to prove service ownership)
@@ -649,15 +541,14 @@ test succeed_merchant_withdraw() {
     )
 
   // Calculate withdrawable amount using stepped vesting
-  // let time_elapsed = current_time - last_claimed
   let withdrawable_amount = 2 * interval_amount
   let minimum_ada = 2_000_000
 
   // Calculate withdrawable amount (assuming half of the subscription period has passed)
   let actual_withdrawal = withdrawable_amount
   let merchant_output_value =
-    value.add(
-      value.from_lovelace(actual_withdrawal + minimum_ada),
+    assets.add(
+      assets.from_lovelace(actual_withdrawal + minimum_ada),
       service_cs,
       service_user_tkn,
       1,
@@ -670,7 +561,7 @@ test succeed_merchant_withdraw() {
   // Create remaining funds output (if any)
   let remaining_amount = total_subscription_fee - actual_withdrawal
   let payment_output_value =
-    value.add(value.from_lovelace(remaining_amount), own_cs, payment_tkn, 1)
+    assets.add(assets.from_lovelace(remaining_amount), own_cs, payment_tkn, 1)
 
   let interval_amount = 100_000_000
   let num_intervals = 1
@@ -709,55 +600,14 @@ test succeed_merchant_withdraw() {
       [merchant_input, payment_input],
       [service_input],
       [merchant_output, payment_output],
-      value.zero(),
+      zero,
       insert_timerange,
       tx_hash,
     )
 
-  // trace @"Test: Withdrawing Subscription Fees"
-  // trace @"-------------------------------------"
-  // trace @"Step 1: Current Contract State"
-  // trace @"-------------------------------------"
-  // trace @"Service Currency Symbol:"
-  // trace cbor.diagnostic(service_cs)
-  // trace @"Payment Currency Symbol:"
-  // trace cbor.diagnostic(own_cs)
-  // trace @"Subscription Start:"
-  // trace cbor.diagnostic(subscription_start)
-  // trace @"Subscription End:"
-  // trace cbor.diagnostic(subscription_end)
-  // trace @"Total Subscription Fee: (lovelace)"
-  // trace cbor.diagnostic(total_subscription_fee)
-  // trace @"Last Claimed:"
-  // trace cbor.diagnostic(last_claimed)
-  // trace @"Current Time:"
-  // trace cbor.diagnostic(current_time)
-  // trace @"Step 2: Withdrawal Calculation"
-  // trace @"-------------------------------------"
-  // trace @"Time Elapsed: (days)"
-  // trace cbor.diagnostic(time_elapsed / ( 24 * 60 * 60 * 1000 ))
-  // trace @"Actual Withdrawal: (lovelace)"
-  // trace cbor.diagnostic(actual_withdrawal)
-  // trace @"Step 3: Verifying Outputs"
-  // trace @"-------------------------------------"
-  // trace @"Merchant Output:"
-  // trace cbor.diagnostic(merchant_output)
-  // trace @"Remaining Payment Output:"
-  // trace cbor.diagnostic(payment_output)
-  // trace @"Step 4: Updating Payment Datum"
-  // trace @"-------------------------------------"
-  // trace @"Original Last Claimed:"
-  // trace cbor.diagnostic(last_claimed)
-  // trace @"Updated Last Claimed:"
-  // trace cbor.diagnostic(current_time)
-  // trace @"Step 5: Execution Result"
-  // trace @"-------------------------------------"
-  // trace @"Withdrawal Successfully Processed!"
-  // trace @"-------------------------------------"
-  // trace @"Test Completed!"
   validate_merchant_withdraw(
     service_cs,
-    Payment(payment_datum),
+    Some(Payment(payment_datum)),
     // merchant input_index
     0,
     // payment input_index
@@ -778,11 +628,10 @@ test succeed_unsubscribe() {
 
   let script_output_ref = tests.test_input_utxo_02(payment_tx_hash)
 
-  let payment_tkn = values.unique_token_name(payment_tx_hash, 1, #"")
-  let service_tkn =
-    values.unique_token_name(service_tx_hash, 1, cip68.prefix_222)
+  let payment_tkn = value.unique_token_name(payment_tx_hash, 1, #"", "")
+  let service_tkn = value.unique_token_name(service_tx_hash, 1, prefix_222, "")
   let user_account_tkn =
-    values.unique_token_name(account_tx_hash, 1, cip68.prefix_222)
+    value.unique_token_name(account_tx_hash, 1, prefix_222, "")
 
   let current_time = 1000000
   let last_claimed = 500000
@@ -808,14 +657,14 @@ test succeed_unsubscribe() {
     )
 
   let payment_value =
-    value.add(
-      value.from_lovelace(total_subscription_fee),
+    assets.add(
+      assets.from_lovelace(total_subscription_fee),
       own_cs,
       payment_tkn,
       1,
     )
-  let account_value = value.add(value.zero(), account_cs, user_account_tkn, 1)
-  let service_value = value.add(value.zero(), service_cs, service_tkn, 1)
+  let account_value = assets.add(zero, account_cs, user_account_tkn, 1)
+  let service_value = assets.add(zero, service_cs, service_tkn, 1)
 
   let is_active = True
   let service_datum =
@@ -859,13 +708,13 @@ test succeed_unsubscribe() {
   let refund_output =
     tests.test_utxo_02(
       account_cs,
-      value.from_lovelace(refund_amount),
+      assets.from_lovelace(refund_amount),
       100_000_000,
       NoDatum,
     )
 
   let penalty_value =
-    value.add(value.from_lovelace(penalty_fee_qty), own_cs, payment_tkn, 1)
+    assets.add(assets.from_lovelace(penalty_fee_qty), own_cs, payment_tkn, 1)
 
   // Create penalty output
   let penalty_datum =
@@ -895,56 +744,10 @@ test succeed_unsubscribe() {
       tx_hash,
     )
 
-  // trace @"Test: Unsubscribing from a Service"
-  // trace @"-------------------------------------"
-  // trace @"Step 1: Current Subscription Details"
-  // trace @"-------------------------------------"
-  // trace @"Original Subscription Fee: (lovelace)"
-  // trace cbor.diagnostic(total_subscription_fee)
-  // trace @"Subscription period: (days)"
-  // trace cbor.diagnostic(interval_length / ( 24 * 60 * 60 * 1000 ))
-  // trace @"Unsubscribe Details:"
-  // trace @"Time elapsed: (days)"
-  // trace cbor.diagnostic(time_elapsed / ( 24 * 60 * 60 * 1000 ))
-  // trace @"Refund Amount: (lovelace)"
-  // trace cbor.diagnostic(refund_amount)
-  // trace @"Penalty Fee: (lovelace)"
-  // trace cbor.diagnostic(penalty_fee_qty)
-  // trace @"Refunded to user:"
-  // trace cbor.diagnostic(refund_amount)
-  // trace @"Penalty retained:"
-  // trace cbor.diagnostic(penalty_fee_qty)
-  // trace @"Step 2: Unsubscribe Process"
-  // trace @"-------------------------------------"
-  // trace @"Time of Unsubscription:"
-  // trace cbor.diagnostic(current_time)
-  // trace @"Refund Amount:"
-  // trace cbor.diagnostic(refund_amount)
-  // trace @"Penalty Amount:"
-  // trace cbor.diagnostic(penalty_fee_qty)
-  // trace @"Step 3: Verifying Outputs"
-  // trace @"-------------------------------------"
-  // trace @"Refund Output:"
-  // trace cbor.diagnostic(refund_output)
-  // trace @"Penalty Output:"
-  // trace cbor.diagnostic(penalty_output)
-  // trace @"Step 4: Validating Transaction"
-  // trace @"-------------------------------------"
-  // trace @"Transaction Inputs:"
-  // trace cbor.diagnostic(context.transaction.inputs)
-  // trace @"Transaction Outputs:"
-  // trace cbor.diagnostic(context.transaction.outputs)
-  // trace @"Minted Tokens:"
-  // trace cbor.diagnostic(context.transaction.mint)
-  // trace @"Step 5: Execution Result"
-  // trace @"-------------------------------------"
-  // trace @"Unsubscription Successfully Processed!"
-  // trace @"-------------------------------------"
-  // trace @"Test Completed!"
   validate_unsubscribe(
     service_cs,
     account_cs,
-    Payment(payment_datum),
+    Some(Payment(payment_datum)),
     0,
     1,
     context.transaction,
@@ -962,10 +765,9 @@ test succeed_subscriber_withdraw() {
 
   let script_output_ref = tests.test_input_utxo_02(payment_tx_hash)
 
-  let payment_tkn = values.unique_token_name(payment_tx_hash, 1, #"")
-  let service_tkn =
-    values.unique_token_name(service_tx_hash, 1, cip68.prefix_222)
-  let user_account_tkn = values.unique_token_name(tx_hash, 1, cip68.prefix_222)
+  let payment_tkn = value.unique_token_name(payment_tx_hash, 1, #"", "")
+  let service_tkn = value.unique_token_name(service_tx_hash, 1, prefix_222, "")
+  let user_account_tkn = value.unique_token_name(tx_hash, 1, prefix_222, "")
 
   let subscription_start = 1000000
   let interval_length = 30 * 24 * 60 * 60 * 1000
@@ -1002,17 +804,17 @@ test succeed_subscriber_withdraw() {
       interval_amount,
     )
 
-  let account_value = value.add(value.zero(), account_cs, user_account_tkn, 1)
+  let account_value = assets.add(zero, account_cs, user_account_tkn, 1)
   let payment_value =
-    value.add(
-      value.from_lovelace(total_subscription_fee),
+    assets.add(
+      assets.from_lovelace(total_subscription_fee),
       own_cs,
       payment_tkn,
       1,
     )
   let service_value =
-    value.add(
-      value.from_lovelace(total_subscription_fee),
+    assets.add(
+      assets.from_lovelace(total_subscription_fee),
       service_cs,
       service_tkn,
       1,
@@ -1043,8 +845,8 @@ test succeed_subscriber_withdraw() {
       service_datum,
     )
   let account_output_value =
-    value.add(
-      value.from_lovelace(total_subscription_fee),
+    assets.add(
+      assets.from_lovelace(total_subscription_fee),
       account_cs,
       user_account_tkn,
       1,
@@ -1054,17 +856,12 @@ test succeed_subscriber_withdraw() {
     tests.test_utxo_02(account_cs, account_output_value, 100_000_000, NoDatum)
 
   // Create remaining funds output (if any)
-  // let penalty_value =
-  //   value.add(value.from_lovelace(penalty_fee_qty), own_cs, payment_tkn, 1)
-  // Create penalty output
-  // let penalty_datum =
-  //   tests.test_penalty_datum(service_tkn, user_account_tkn, penalty_fee_qty)
   let penalty_output =
     tests.test_utxo_02(
       own_cs,
       payment_value,
       100_000_000,
-      Payment(payment_datum),
+      Some(Payment(payment_datum)),
     )
 
   let insert_timerange = tests.test_time_range(current_time, current_time + 1)
@@ -1075,47 +872,16 @@ test succeed_subscriber_withdraw() {
       [account_input, payment_input],
       [service_input],
       [user_output, penalty_output],
-      value.add(value.zero(), own_cs, payment_tkn, -1),
+      assets.add(zero, own_cs, payment_tkn, -1),
       // Burning payment NFT
       insert_timerange,
       tx_hash,
     )
 
-  // trace @"Test: Withdrawing from Inactive Service"
-  // trace @"-------------------------------------"
-  // trace @"Step 1: Current Contract State"
-  // trace @"-------------------------------------"
-  // trace @"Service Active Status:"
-  // trace cbor.diagnostic(service_datum.is_active)
-  // trace @"Payment Amount:"
-  // trace cbor.diagnostic(total_subscription_fee)
-  // trace @"Step 2: Withdrawal Process"
-  // trace @"-------------------------------------"
-  // trace @"Refund Amount:"
-  // trace cbor.diagnostic(total_subscription_fee)
-  // trace @"Step 3: Verifying Outputs"
-  // trace @"-------------------------------------"
-  // trace @"User Output:"
-  // trace cbor.diagnostic(user_output)
-  // trace @"Payment Output:"
-  // trace cbor.diagnostic(penalty_output)
-  // trace @"Step 4: Validating Transaction"
-  // trace @"-------------------------------------"
-  // trace @"Transaction Inputs:"
-  // trace cbor.diagnostic(context.transaction.inputs)
-  // trace @"Transaction Outputs:"
-  // trace cbor.diagnostic(context.transaction.outputs)
-  // trace @"Tokens:"
-  // trace cbor.diagnostic(context.transaction.mint)
-  // trace @"Step 5: Execution Result"
-  // trace @"-------------------------------------"
-  // trace @"Withdrawal from Inactive Service Successfully Processed!"
-  // trace @"-------------------------------------"
-  // trace @"Test Completed!"
   validate_subscriber_withdraw(
     service_cs,
     account_cs,
-    Payment(payment_datum),
+    Some(Payment(payment_datum)),
     0,
     1,
     context.transaction,
