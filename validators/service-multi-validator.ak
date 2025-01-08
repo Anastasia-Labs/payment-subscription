@@ -47,12 +47,10 @@ validator {
         |> value.without_lovelace()
 
     when rdmr is {
-      UpdateService ->
-        validate_update_service(datum, service_addr, ref_nft, tx)?
+      UpdateService -> validate_update_service(datum, service_addr, ref_nft, tx)
 
       // Convert the Service from active to inactive.
-      RemoveService ->
-        validate_remove_service(datum, service_addr, ref_nft, tx)?
+      RemoveService -> validate_remove_service(datum, service_addr, ref_nft, tx)
     }
   }
 }
