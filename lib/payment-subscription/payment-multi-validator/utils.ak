@@ -49,7 +49,7 @@ pub fn validate_extension_datum(
   service_datum: ServiceDatum,
 ) -> Bool {
   let unchanged_fields_valid =
-    old_datum.service_nft_tn == new_datum.service_nft_tn && old_datum.account_nft_tn == new_datum.account_nft_tn && old_datum.interval_amount == new_datum.interval_amount && old_datum.interval_length == new_datum.interval_length
+    old_datum.service_nft_tn == new_datum.service_nft_tn && old_datum.subscriber_nft_tn == new_datum.subscriber_nft_tn && old_datum.interval_amount == new_datum.interval_amount && old_datum.interval_length == new_datum.interval_length
 
   // Extension period calculation
   let extension_period = new_datum.subscription_end - old_datum.subscription_end
@@ -89,15 +89,28 @@ pub fn validate_extension_datum(
   }
 }
 
-pub fn calculate_locked_amount(
-  num_intervals: Int,
+// pub fn calculate_locked_amount(
+//   num_intervals: Int,
+//   current_time: Int,
+//   subscription_start: Int,
+//   interval_length: Int,
+//   interval_amount: Int,
+// ) -> Int {
+//   let elapsed = math.max(current_time - subscription_start, 0)
+//   let intervals_passed = elapsed / interval_length
+//   let remaining_intervals = math.max(num_intervals - intervals_passed, 0)
+//   remaining_intervals * interval_amount
+// }
+
+pub fn calculate_withdrawable_amount(
+  payment_datum: PaymentDatum,
   current_time: Int,
-  subscription_start: Int,
-  interval_length: Int,
-  interval_amount: Int,
 ) -> Int {
-  let elapsed = math.max(current_time - subscription_start, 0)
-  let intervals_passed = elapsed / interval_length
-  let remaining_intervals = math.max(num_intervals - intervals_passed, 0)
-  remaining_intervals * interval_amount
+  let time_since_last_claim =
+    math.max(current_time - payment_datum.last_claimed, 0)
+  let intervals_passed = time_since_last_claim / payment_datum.interval_length
+  let claimable_intervals =
+    math.min(intervals_passed, payment_datum.num_intervals)
+  let withdrawable = claimable_intervals * payment_datum.interval_amount
+  withdrawable
 }

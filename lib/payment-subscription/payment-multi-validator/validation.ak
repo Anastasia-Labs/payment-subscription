@@ -11,11 +11,11 @@ use payment_subscription/common/types.{
   ServiceDatum,
 }
 use payment_subscription/common/utils.{
-  get_input_by_token, get_minimum_current_time_estimate,
-  must_be_after_start_date, validate_single_nft_input, validate_token_output,
+  get_input_by_token, get_minimum_current_time_estimate, must_be_after_date,
+  validate_single_nft_input, validate_token_output,
 } as common_utils
 use payment_subscription/payment_multi_validator/utils.{
-  calculate_locked_amount, validate_extension_datum,
+  calculate_withdrawable_amount, validate_extension_datum,
   validate_payment_against_service, validate_payment_datum_internal,
 }
 
@@ -78,7 +78,7 @@ pub fn validate_initial_subscription(
     validate_single_nft_input(
       subscriber_input,
       account_policy_id,
-      payment_datum.account_nft_tn,
+      payment_datum.subscriber_nft_tn,
     )
 
   // Verify the correct amount is locked
@@ -97,7 +97,7 @@ pub fn validate_initial_subscription(
     validate_token_output(
       user_output,
       account_policy_id,
-      payment_datum.account_nft_tn,
+      payment_datum.subscriber_nft_tn,
       payment_payment_credential,
       False,
     )
@@ -361,17 +361,6 @@ pub fn validate_merchant_withdraw(
       // Get the current time
       let current_time = get_minimum_current_time_estimate(tx.validity_range)
 
-      // Update the last_claimed field in the new datum
-      expect Payment(new_datum): PaymentValidatorDatum =
-        data.output_datum(payment_output)
-
-      let last_claimed_updated =
-        new_datum.last_claimed >= payment_datum.subscription_start
-      trace @"payment_datum.subscription_start:"
-      trace cbor.diagnostic(payment_datum.subscription_start)
-      trace @"new_datum.last_claimed:"
-      trace cbor.diagnostic(new_datum.last_claimed)
-
       // Verify that the Service NFT is preserved
       let merchant_nft_preserved =
         value.quantity_of(
@@ -380,36 +369,62 @@ pub fn validate_merchant_withdraw(
           merchant_asset_name,
         ) == 1
 
-      let locked_amount =
-        calculate_locked_amount(
-          payment_datum.num_intervals,
-          current_time,
-          payment_datum.subscription_start,
-          payment_datum.interval_length,
-          payment_datum.interval_amount,
+      // Calculate withdrawable amount
+      let withdrawable_amount =
+        calculate_withdrawable_amount(payment_datum, current_time) + payment_datum.minimum_ada
+
+      // Amount being withdrawn
+      let withdrawn_amount =
+        value.quantity_of(
+          merchant_output.value,
+          payment_datum.subscription_fee.policy_id,
+          payment_datum.subscription_fee.asset_name,
         )
+
       // Verify that any remaining funds are returned to the payment validator
       // This is the amount of funds that should be left in the payment script after the withdrawal.
-      let actual_remaining_amount =
+      let remaining_amount =
         value.quantity_of(
           payment_output.value,
           payment_datum.subscription_fee.policy_id,
           payment_datum.subscription_fee.asset_name,
         )
-      let remaining_funds_valid = actual_remaining_amount >= locked_amount
+
+      // Update the last_claimed field in the new datum
+      expect Payment(new_datum): PaymentValidatorDatum =
+        data.output_datum(payment_output)
+
+      let last_claimed_updated =
+        new_datum.last_claimed >= payment_datum.subscription_start
+
+      trace @"withdrawable_amount:"
+      trace cbor.diagnostic(withdrawable_amount)
+      trace @"withdrawn_amount:"
+      trace cbor.diagnostic(withdrawn_amount)
+      trace @"remaining_amount:"
+      trace cbor.diagnostic(remaining_amount)
+      trace @"new_datum.last_claimed:"
+      trace cbor.diagnostic(new_datum.last_claimed)
+      trace @"payment_datum.subscription_start:"
+      trace cbor.diagnostic(payment_datum.subscription_start)
+
+      // let remaining_funds_valid = remaining_amount >= locked_amount
       let payment_addr = payment_input.output.address
 
       and {
+        // NFT validations
         merchant_has_service_nft?,
         payment_input_has_payment_nft?,
         ref_has_service_nft?,
+        // Time validations
+        must_be_after_date(tx.validity_range, payment_datum.subscription_start)?,
+        must_be_after_date(tx.validity_range, payment_datum.last_claimed)?,
         payment_datum_valid?,
-        must_be_after_start_date(
-          tx.validity_range,
-          payment_datum.subscription_start,
-        )?,
+        // Withdrawal amount validations
+        (withdrawn_amount <= withdrawable_amount)?,
+        (remaining_amount <= payment_datum.total_subscription_fee)?,
         merchant_nft_preserved?,
-        remaining_funds_valid?,
+        // remaining_funds_valid?,
         last_claimed_updated?,
         has_minimum_ada?,
         (payment_output.address == payment_addr)?,
@@ -500,7 +515,7 @@ pub fn validate_unsubscribe(
         validate_single_nft_input(
           subscriber_input,
           account_policy_id,
-          payment_datum.account_nft_tn,
+          payment_datum.subscriber_nft_tn,
         )
       let payment_nft = payment_input.output.value |> value.without_lovelace()
       expect [(policy_id, asset_name, 1)] = value.flatten(payment_nft)
@@ -548,7 +563,7 @@ pub fn validate_unsubscribe(
         data.output_datum(penalty_output)
 
       let penalty_output_valid =
-        penalty_datum.service_nft_tn == payment_datum.service_nft_tn && penalty_datum.account_nft_tn == payment_datum.account_nft_tn && payment_datum.penalty_fee_qty == penalty_datum.penalty_fee_qty && penalty_datum.penalty_fee_qty == service_datum.penalty_fee_qty
+        penalty_datum.service_nft_tn == payment_datum.service_nft_tn && penalty_datum.subscriber_nft_tn == payment_datum.subscriber_nft_tn && payment_datum.penalty_fee_qty == penalty_datum.penalty_fee_qty && penalty_datum.penalty_fee_qty == service_datum.penalty_fee_qty
 
       // Ensure token output goes back to the script
       let payment_token_to_script =
@@ -626,7 +641,7 @@ pub fn validate_subscriber_withdraw(
         data.output_datum(payment_output)
 
       let penalty_output_valid =
-        payment_datum.service_nft_tn == payment_datum.service_nft_tn && payment_datum.account_nft_tn == payment_datum.account_nft_tn && payment_datum.penalty_fee_qty == payment_datum.penalty_fee_qty && payment_datum.penalty_fee_qty == service_datum.penalty_fee_qty
+        payment_datum.service_nft_tn == payment_datum.service_nft_tn && payment_datum.subscriber_nft_tn == payment_datum.subscriber_nft_tn && payment_datum.penalty_fee_qty == payment_datum.penalty_fee_qty && payment_datum.penalty_fee_qty == service_datum.penalty_fee_qty
 
       let payment_nft = payment_input.output.value |> value.without_lovelace()
       expect [(payment_policy_id, payment_asset_name, 1)] =
@@ -653,7 +668,7 @@ pub fn validate_subscriber_withdraw(
         value.quantity_of(
           user_output.value,
           account_policy_id,
-          payment_datum.account_nft_tn,
+          payment_datum.subscriber_nft_tn,
         ) == 1
 
       let payment_nft_in_penalty_output =

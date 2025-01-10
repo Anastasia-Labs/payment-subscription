@@ -227,7 +227,7 @@ test succeed_terminate_subscription() {
   let penalty_datum =
     PenaltyDatum {
       service_nft_tn: service_tkn,
-      account_nft_tn: user_account_tkn,
+      subscriber_nft_tn: user_account_tkn,
       penalty_fee: AssetClass {
         policy_id: value.ada_policy_id,
         asset_name: value.ada_asset_name,
@@ -650,14 +650,14 @@ test succeed_merchant_withdraw() {
 
   // Calculate withdrawable amount using stepped vesting
   // let time_elapsed = current_time - last_claimed
-  let withdrawable_amount = 2 * interval_amount
+  let withdrawable_amount = interval_amount * num_intervals
   let minimum_ada = 2_000_000
 
   // Calculate withdrawable amount (assuming half of the subscription period has passed)
-  let actual_withdrawal = withdrawable_amount
+  let actual_withdrawal = withdrawable_amount + minimum_ada
   let merchant_output_value =
     value.add(
-      value.from_lovelace(actual_withdrawal + minimum_ada),
+      value.from_lovelace(actual_withdrawal),
       service_cs,
       service_user_tkn,
       1,
@@ -714,47 +714,6 @@ test succeed_merchant_withdraw() {
       tx_hash,
     )
 
-  // trace @"Test: Withdrawing Subscription Fees"
-  // trace @"-------------------------------------"
-  // trace @"Step 1: Current Contract State"
-  // trace @"-------------------------------------"
-  // trace @"Service Currency Symbol:"
-  // trace cbor.diagnostic(service_cs)
-  // trace @"Payment Currency Symbol:"
-  // trace cbor.diagnostic(own_cs)
-  // trace @"Subscription Start:"
-  // trace cbor.diagnostic(subscription_start)
-  // trace @"Subscription End:"
-  // trace cbor.diagnostic(subscription_end)
-  // trace @"Total Subscription Fee: (lovelace)"
-  // trace cbor.diagnostic(total_subscription_fee)
-  // trace @"Last Claimed:"
-  // trace cbor.diagnostic(last_claimed)
-  // trace @"Current Time:"
-  // trace cbor.diagnostic(current_time)
-  // trace @"Step 2: Withdrawal Calculation"
-  // trace @"-------------------------------------"
-  // trace @"Time Elapsed: (days)"
-  // trace cbor.diagnostic(time_elapsed / ( 24 * 60 * 60 * 1000 ))
-  // trace @"Actual Withdrawal: (lovelace)"
-  // trace cbor.diagnostic(actual_withdrawal)
-  // trace @"Step 3: Verifying Outputs"
-  // trace @"-------------------------------------"
-  // trace @"Merchant Output:"
-  // trace cbor.diagnostic(merchant_output)
-  // trace @"Remaining Payment Output:"
-  // trace cbor.diagnostic(payment_output)
-  // trace @"Step 4: Updating Payment Datum"
-  // trace @"-------------------------------------"
-  // trace @"Original Last Claimed:"
-  // trace cbor.diagnostic(last_claimed)
-  // trace @"Updated Last Claimed:"
-  // trace cbor.diagnostic(current_time)
-  // trace @"Step 5: Execution Result"
-  // trace @"-------------------------------------"
-  // trace @"Withdrawal Successfully Processed!"
-  // trace @"-------------------------------------"
-  // trace @"Test Completed!"
   validate_merchant_withdraw(
     service_cs,
     Payment(payment_datum),

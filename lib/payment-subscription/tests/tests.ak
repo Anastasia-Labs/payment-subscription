@@ -200,7 +200,7 @@ pub fn test_datum_03(
 ) {
   PaymentDatum {
     service_nft_tn: service_tn,
-    account_nft_tn: account_tn,
+    subscriber_nft_tn: account_tn,
     subscription_fee: AssetClass {
       policy_id: value.ada_policy_id,
       asset_name: value.ada_asset_name,
@@ -241,7 +241,7 @@ pub fn test_penalty_datum(
 ) {
   PenaltyDatum {
     service_nft_tn: service_tn,
-    account_nft_tn: account_tn,
+    subscriber_nft_tn: account_tn,
     penalty_fee: AssetClass {
       policy_id: value.ada_policy_id,
       asset_name: value.ada_asset_name,

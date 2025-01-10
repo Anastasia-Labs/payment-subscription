@@ -66,7 +66,7 @@ pub type SpendPayment {
 // Datum type 
 pub type PaymentDatum {
   service_nft_tn: AssetName,
-  account_nft_tn: AssetName,
+  subscriber_nft_tn: AssetName,
   subscription_fee: AssetClass,
   total_subscription_fee: Int,
   subscription_start: Int,
@@ -83,7 +83,7 @@ pub type PaymentDatum {
 // penalty_datum
 pub type PenaltyDatum {
   service_nft_tn: AssetName,
-  account_nft_tn: AssetName,
+  subscriber_nft_tn: AssetName,
   penalty_fee: AssetClass,
   penalty_fee_qty: Int,
 }
