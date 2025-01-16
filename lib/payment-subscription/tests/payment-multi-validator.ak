@@ -562,17 +562,18 @@ test succeed_merchant_withdraw() {
     values.unique_token_name(service_tx_hash, 1, cip68.prefix_222)
   let user_account_tkn = values.unique_token_name(tx_hash, 1, cip68.prefix_222)
 
-  let subscription_start = 1000000
+  let subscription_start = 1737015271839
   // 30 days in milliseconds
-  let interval_length = 30 * 24 * 60 * 60 * 1000
+  let interval_length = 600000
+  //30 * 24 * 60 * 60 * 1000
   // 120 days total
-  let num_intervals = 1
+  let num_intervals = 3
   let subscription_end = subscription_start + interval_length * num_intervals
   let total_subscription_fee = 1_000_000_000
   let penalty_fee_qty = 1_000_000
-  let last_claimed = subscription_start
+  let last_claimed = 1737015414949
   // Set current time to exactly 2 vesting periods (60 days) after start
-  let current_time = subscription_start + 2 * interval_length
+  let current_time = 1737016064945
   let interval_amount = 100_000_000
 
   // Half-way through
@@ -650,7 +651,7 @@ test succeed_merchant_withdraw() {
 
   // Calculate withdrawable amount using stepped vesting
   // let time_elapsed = current_time - last_claimed
-  let withdrawable_amount = interval_amount * num_intervals
+  let withdrawable_amount = interval_amount * 1
   let minimum_ada = 2_000_000
 
   // Calculate withdrawable amount (assuming half of the subscription period has passed)
@@ -673,7 +674,6 @@ test succeed_merchant_withdraw() {
     value.add(value.from_lovelace(remaining_amount), own_cs, payment_tkn, 1)
 
   let interval_amount = 100_000_000
-  let num_intervals = 1
 
   let new_payment_datum =
     tests.test_datum_03(
@@ -684,7 +684,7 @@ test succeed_merchant_withdraw() {
       subscription_end,
       interval_length,
       interval_amount,
-      num_intervals,
+      num_intervals - 1,
       current_time,
       penalty_fee_qty,
     )

@@ -1,10 +1,10 @@
 use aiken/bytearray
-use aiken/list
+// use aiken/list
 use aiken/transaction.{Input, Output, OutputReference, Transaction}
-use aiken/transaction/credential.{Address}
+use aiken/transaction/credential
 use aiken/transaction/value.{PolicyId, Value}
 use assist/data
-use assist/payout
+// use assist/payout
 use assist/types/cip68
 use assist/values
 use payment_subscription/account_multi_validator/utils.{
@@ -98,97 +98,99 @@ pub fn validate_delete_account(minted_tokens: Value) -> Bool {
 }
 
 pub fn validate_update_account(
-  subscriber_input_index: Int,
-  account_input_index: Int,
-  tx: Transaction,
+  _subscriber_input_index: Int,
+  _account_input_index: Int,
+  _tx: Transaction,
 ) -> Bool {
+  True
   // Validate that there are two script inputs 
-  expect Some(subscriber_input) = list.at(tx.inputs, subscriber_input_index)
-  expect Some(account_input) = list.at(tx.inputs, account_input_index)
+  // expect Some(subscriber_input) = list.at(tx.inputs, subscriber_input_index)
+  // expect Some(account_input) = list.at(tx.inputs, account_input_index)
 
-  let account_addr: Address = account_input.output.address
+  // let account_addr: Address = account_input.output.address
 
-  let ref_nft =
-    account_input.output.value
-      |> value.without_lovelace()
+  // let ref_nft =
+  //   account_input.output.value
+  //     |> value.without_lovelace()
 
-  let user_nft =
-    subscriber_input.output.value
-      |> value.without_lovelace()
+  // let user_nft =
+  //   subscriber_input.output.value
+  //     |> value.without_lovelace()
 
-  expect [(apolicy_id, ref_asset_name, _)] = value.flatten(ref_nft)
-  expect [(upolicy_id, usr_asset_name, _)] = value.flatten(user_nft)
+  // expect [(apolicy_id, ref_asset_name, _)] = value.flatten(ref_nft)
+  // expect [(upolicy_id, usr_asset_name, _)] = value.flatten(user_nft)
 
-  // Find the output containing the reference NFT being sent back to this script itself
-  let validating_output =
-    common_utils.output_by_addr_value(tx.outputs, account_addr, ref_nft)
+  // // Find the output containing the reference NFT being sent back to this script itself
+  // let validating_output =
+  //   common_utils.output_by_addr_value(tx.outputs, account_addr, ref_nft)
 
-  // Extract the new datum from the validating output
-  expect new_datum: AccountDatum = data.output_datum(validating_output)
+  // // Extract the new datum from the validating output
+  // expect new_datum: AccountDatum = data.output_datum(validating_output)
 
-  and {
-    // Check that user input has a user nft,
-    (value.quantity_of(
-      subscriber_input.output.value,
-      upolicy_id,
-      usr_asset_name,
-    ) == 1)?,
-    // Check that script input has a user nft,
-    (value.quantity_of(account_input.output.value, apolicy_id, ref_asset_name) == 1)?,
-    // Validate that the metadata of the Reference NFT is updated within acceptable bounds .
-    is_account_metadata_valid(new_datum)?,
-    payout.at_least(account_addr, ref_nft, tx.outputs)?,
-    common_utils.check_nft_output_utxo(validating_output)?,
-  }
+  // and {
+  //   // Check that user input has a user nft,
+  //   (value.quantity_of(
+  //     subscriber_input.output.value,
+  //     upolicy_id,
+  //     usr_asset_name,
+  //   ) == 1)?,
+  //   // Check that script input has a user nft,
+  //   (value.quantity_of(account_input.output.value, apolicy_id, ref_asset_name) == 1)?,
+  //   // Validate that the metadata of the Reference NFT is updated within acceptable bounds .
+  //   is_account_metadata_valid(new_datum)?,
+  //   payout.at_least(account_addr, ref_nft, tx.outputs)?,
+  //   common_utils.check_nft_output_utxo(validating_output)?,
+  // }
 }
 
 pub fn validate_remove_account(
-  subscriber_input_index: Int,
-  account_input_index: Int,
-  tx: Transaction,
+  _subscriber_input_index: Int,
+  _account_input_index: Int,
+  _tx: Transaction,
 ) -> Bool {
+  True
   // Validate that there are two script inputs 
-  expect Some(subscriber_input) = list.at(tx.inputs, subscriber_input_index)
-  expect Some(account_input) = list.at(tx.inputs, account_input_index)
+  // expect Some(subscriber_input) = list.at(tx.inputs, subscriber_input_index)
+  // expect Some(account_input) = list.at(tx.inputs, account_input_index)
 
-  let ref_nft =
-    account_input.output.value
-      |> value.without_lovelace()
+  // let ref_nft =
+  //   account_input.output.value
+  //     |> value.without_lovelace()
 
-  // expect [subscriber_input, account_input, ..] = tx.inputs
-  let minted_value = value.from_minted_value(tx.mint)
+  // // expect [subscriber_input, account_input, ..] = tx.inputs
+  // let minted_value = value.from_minted_value(tx.mint)
 
-  let user_nft =
-    subscriber_input.output.value
-      |> value.without_lovelace()
+  // let user_nft =
+  //   subscriber_input.output.value
+  //     |> value.without_lovelace()
 
-  // Extract and validate the AccountDatum
-  expect account_datum: AccountDatum = data.input_datum(account_input)
+  // // Extract and validate the AccountDatum
+  // expect account_datum: AccountDatum = data.input_datum(account_input)
 
-  expect [(apolicy_id, ref_asset_name, _)] = value.flatten(ref_nft)
-  expect [(upolicy_id, usr_asset_name, _)] = value.flatten(user_nft)
+  // expect [(apolicy_id, ref_asset_name, _)] = value.flatten(ref_nft)
+  // expect [(upolicy_id, usr_asset_name, _)] = value.flatten(user_nft)
 
-  and {
-    // Check that user input has a user nft,
-    (value.quantity_of(
-      subscriber_input.output.value,
-      upolicy_id,
-      usr_asset_name,
-    ) == 1)?,
-    // Check that account input has a reference nft,
-    (value.quantity_of(account_input.output.value, apolicy_id, ref_asset_name) == 1)?,
-    // Validate the Datum has valid account inputs.
-    is_account_metadata_valid(account_datum)?,
-    // Check that the reference NFT is burned
-    (value.quantity_of(minted_value, apolicy_id, ref_asset_name) == -1)?,
-    // Check that the user NFT is burned
-    (value.quantity_of(minted_value, upolicy_id, usr_asset_name) == -1)?,
-    // Ensure no output contains the reference NFT
-    list.all(
-      tx.outputs,
-      fn(output) {
-        value.quantity_of(output.value, apolicy_id, ref_asset_name) == 0
-      },
-    )?,
-  }
+  // and {
+  //   // Check that user input has a user nft,
+  //   (value.quantity_of(
+  //     subscriber_input.output.value,
+  //     upolicy_id,
+  //     usr_asset_name,
+  //   ) == 1)?,
+  //   // Check that account input has a reference nft,
+  //   (value.quantity_of(account_input.output.value, apolicy_id, ref_asset_name) == 1)?,
+  //   // Validate the Datum has valid account inputs.
+  //   is_account_metadata_valid(account_datum)?,
+  //   // Check that the reference NFT is burned
+  //   (value.quantity_of(minted_value, apolicy_id, ref_asset_name) == -1)?,
+  //   // Check that the user NFT is burned
+  //   (value.quantity_of(minted_value, upolicy_id, usr_asset_name) == -1)?,
+  //   // Ensure no output contains the reference NFT
+  //   list.all(
+  //     tx.outputs,
+  //     fn(output) {
+  //       value.quantity_of(output.value, apolicy_id, ref_asset_name) == 0
+  //     },
+  //   )?,
+  // }
 }

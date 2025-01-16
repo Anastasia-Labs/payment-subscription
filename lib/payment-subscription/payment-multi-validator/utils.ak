@@ -89,19 +89,6 @@ pub fn validate_extension_datum(
   }
 }
 
-// pub fn calculate_locked_amount(
-//   num_intervals: Int,
-//   current_time: Int,
-//   subscription_start: Int,
-//   interval_length: Int,
-//   interval_amount: Int,
-// ) -> Int {
-//   let elapsed = math.max(current_time - subscription_start, 0)
-//   let intervals_passed = elapsed / interval_length
-//   let remaining_intervals = math.max(num_intervals - intervals_passed, 0)
-//   remaining_intervals * interval_amount
-// }
-
 pub fn calculate_withdrawable_amount(
   payment_datum: PaymentDatum,
   current_time: Int,
