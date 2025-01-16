@@ -1,6 +1,8 @@
+use aiken/cbor
 // use aiken/cbor
 use aiken/dict
 use aiken/interval.{Finite, Interval, IntervalBound}
+use aiken/math
 use aiken/transaction.{
   Mint, NoDatum, ScriptContext, Spend, Transaction, TransactionId,
 }
@@ -557,19 +559,20 @@ test succeed_merchant_withdraw() {
     values.unique_token_name(service_tx_hash, 1, cip68.prefix_222)
   let user_account_tkn = values.unique_token_name(tx_hash, 1, cip68.prefix_222)
 
-  let subscription_start = 1737015271839
+  let subscription_start = 1737043736747
   // 30 days in milliseconds
-  let interval_length = 600000
+  let interval_length = 120000
   //30 * 24 * 60 * 60 * 1000
   // 120 days total
-  let num_intervals = 3
-  let subscription_end = subscription_start + interval_length * num_intervals
-  let subscription_fee_qty = 1_000_000_000
+  let num_intervals = 12
+  let subscription_end = 1737045176747
+  let subscription_fee_qty = 10_000_000
   let penalty_fee_qty = 1_000_000
-  let last_claimed = 1737015414949
+  let last_claimed = 1737043736747
   // Set current time to exactly 2 vesting periods (60 days) after start
-  let current_time = 1737016064945
-  let interval_amount = 100_000_000
+  let current_time = 1737043903924
+
+  let interval_amount = subscription_fee_qty
 
   // Half-way through
   let payment_datum =
@@ -586,6 +589,16 @@ test succeed_merchant_withdraw() {
       penalty_fee_qty,
     )
 
+  // Calculate withdrawable amount using stepped vesting
+  let time_since_last_claim =
+    math.max(current_time - payment_datum.last_claimed, 0)
+
+  let intervals_passed = time_since_last_claim / payment_datum.interval_length
+  let claimable_intervals =
+    math.min(intervals_passed, payment_datum.num_intervals)
+  let withdrawable_amount = interval_amount * claimable_intervals
+
+  let minimum_ada = 2_000_000
   let is_active = True
   let service_datum =
     tests.test_service_datum(
@@ -596,7 +609,12 @@ test succeed_merchant_withdraw() {
     )
 
   let payment_value =
-    value.add(value.from_lovelace(subscription_fee_qty), own_cs, payment_tkn, 1)
+    value.add(
+      value.from_lovelace(subscription_fee_qty * claimable_intervals),
+      own_cs,
+      payment_tkn,
+      1,
+    )
   let service_value =
     value.add(
       value.from_lovelace(subscription_fee_qty),
@@ -639,11 +657,6 @@ test succeed_merchant_withdraw() {
       service_datum,
     )
 
-  // Calculate withdrawable amount using stepped vesting
-  // let time_elapsed = current_time - last_claimed
-  let withdrawable_amount = interval_amount * 1
-  let minimum_ada = 2_000_000
-
   // Calculate withdrawable amount (assuming half of the subscription period has passed)
   let actual_withdrawal = withdrawable_amount + minimum_ada
   let merchant_output_value =
@@ -659,7 +672,14 @@ test succeed_merchant_withdraw() {
     tests.test_utxo_exact(service_cs, merchant_output_value, NoDatum)
 
   // Create remaining funds output (if any)
-  let remaining_amount = subscription_fee_qty - actual_withdrawal
+  let remaining_amount =
+    subscription_fee_qty * num_intervals - actual_withdrawal
+
+  trace @"subscription_fee_qty:"
+  trace cbor.diagnostic(subscription_fee_qty)
+  trace @"remaining_amount:"
+  trace cbor.diagnostic(remaining_amount)
+
   let payment_output_value =
     value.add(value.from_lovelace(remaining_amount), own_cs, payment_tkn, 1)
 
