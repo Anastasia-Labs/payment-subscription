@@ -7,7 +7,7 @@ pub fn validate_payment_datum_internal(datum: PaymentDatum) -> Bool {
     datum.subscription_start < datum.subscription_end && datum.last_claimed <= datum.subscription_start
 
   let amounts_valid =
-    datum.total_subscription_fee > 0 && datum.interval_amount > 0 && datum.penalty_fee_qty >= 0
+    datum.subscription_fee_qty > 0 && datum.interval_amount > 0 && datum.penalty_fee_qty >= 0
 
   let intervals_valid = datum.interval_length > 0 && datum.num_intervals > 0
 
@@ -15,7 +15,7 @@ pub fn validate_payment_datum_internal(datum: PaymentDatum) -> Bool {
     datum.subscription_end - datum.subscription_start == datum.interval_length * datum.num_intervals
 
   let total_fee_valid =
-    datum.total_subscription_fee == datum.interval_amount * datum.num_intervals
+    datum.subscription_fee_qty == datum.interval_amount * datum.num_intervals
 
   let sane_values =
     datum.subscription_start >= 0 && datum.subscription_end > datum.subscription_start && datum.interval_length > 0 && datum.interval_amount > 0 && datum.num_intervals > 0 && datum.minimum_ada > 0
@@ -64,7 +64,7 @@ pub fn validate_extension_datum(
   let valid_end_date = new_datum.subscription_end > new_datum.subscription_start
 
   let updated_fields_valid =
-    new_datum.num_intervals == old_datum.num_intervals + extension_intervals && new_datum.total_subscription_fee == old_datum.total_subscription_fee + expected_fee_increase
+    new_datum.num_intervals == old_datum.num_intervals + extension_intervals && new_datum.subscription_fee_qty == old_datum.subscription_fee_qty + expected_fee_increase
 
   // Validate that the extension follows the Service provider rules
   let follows_service_rules =

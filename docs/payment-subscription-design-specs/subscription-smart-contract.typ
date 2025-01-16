@@ -222,7 +222,7 @@ This is a Sum type datum where one represents the payment datum and the other on
 
 - *`account_nft_tn`:* Account token name encoding UTxO to be consumed when minting the NFT.
 - *`subscription_fee`:* AssetClass type for the subscription fee.
-- *`total_subscription_fee`:* Total amount of the subscription fee for the entire subscription period.
+- *`subscription_fee_qty`:* Total amount of the subscription fee for the entire subscription period.
 - *`subscription_start`:* Starting time of the withdrawal period.
 - *`subscription_end`:* Expiry time of the subscription.
 
@@ -521,7 +521,7 @@ This transaction creates a new service by minting a Merchant NFT. This transacti
 
       - *`service_nft_tn`:* Service NFT token name encoding UTxO to be consumed when minting the NFT.
       - *`subscription_fee`:* AssetClass type for the subscription fee.
-      - *`total_subscription_fee`:* Amount of the subscription fee.
+      - *`subscription_fee_qty`:* Amount of the subscription fee.
       - *`penalty_fee`*: AssetClass type for the amount of funds to be deducted when subscriber cancels the subscription.
       - *`penalty_fee_qty`*: Amount of the penalty fees.
 
@@ -1111,7 +1111,7 @@ This transaction allows anyone with a Service NFT to unlock subscription funds f
 + *Merchant Wallet UTxO*
 
   - Address: Merchant’s wallet address
-total_subscription_fee
+subscription_fee_qty
   - Value:
 
     - Minimum ADA

@@ -343,13 +343,14 @@ pub fn validate_merchant_withdraw(
       let current_time = get_minimum_current_time_estimate(tx.validity_range)
 
       // Calculate withdrawable amount inline
-      let time_since_last_claim = current_time - payment_datum.last_claimed
+      let time_since_last_claim =
+        math.max(current_time - payment_datum.last_claimed, 0)
       let intervals_passed =
         time_since_last_claim / payment_datum.interval_length
       let claimable_intervals =
         math.min(intervals_passed, payment_datum.num_intervals)
       let withdrawable_amount =
-        claimable_intervals * payment_datum.interval_amount + payment_datum.minimum_ada
+        service_datum.service_fee_qty * claimable_intervals
 
       let ref_has_service_nft =
         validate_single_nft_input(
@@ -374,21 +375,22 @@ pub fn validate_merchant_withdraw(
         ) == 1
 
       // Amount being withdrawn
-      let withdrawn_amount =
+      let payment_input_value =
         value.quantity_of(
-          merchant_output.value,
+          payment_input.output.value,
           payment_datum.subscription_fee.policy_id,
           payment_datum.subscription_fee.asset_name,
         )
 
       // Verify that any remaining funds are returned to the payment validator
       // This is the amount of funds that should be left in the payment script after the withdrawal.
-      let remaining_amount =
+      let payment_output_value =
         value.quantity_of(
           payment_output.value,
           payment_datum.subscription_fee.policy_id,
           payment_datum.subscription_fee.asset_name,
         )
+      let withdrawn_amount = payment_input_value - payment_output_value
 
       // Update the last_claimed field in the new datum
       let last_claimed_updated =
@@ -401,7 +403,7 @@ pub fn validate_merchant_withdraw(
       trace @"withdrawn_amount:"
       trace cbor.diagnostic(withdrawn_amount)
       trace @"remaining_amount:"
-      trace cbor.diagnostic(remaining_amount)
+      trace cbor.diagnostic(payment_output_value)
       trace @"new_datum.last_claimed:"
       trace cbor.diagnostic(new_datum.last_claimed)
       trace @"payment_datum.subscription_start:"
@@ -418,8 +420,8 @@ pub fn validate_merchant_withdraw(
         must_be_after_date(tx.validity_range, payment_datum.subscription_start)?,
         payment_datum_valid?,
         // Withdrawal amount validations
-        (withdrawn_amount >= service_datum.service_fee_qty)?,
-        (remaining_amount <= payment_datum.total_subscription_fee)?,
+        (withdrawn_amount <= withdrawable_amount)?,
+        (payment_output_value <= payment_datum.subscription_fee_qty)?,
         merchant_nft_preserved?,
         // remaining_funds_valid?,
         last_claimed_updated?,
@@ -532,7 +534,7 @@ pub fn validate_unsubscribe(
   //       )
 
   //     let refund_amount =
-  //       payment_datum.total_subscription_fee * (
+  //       payment_datum.subscription_fee_qty * (
   //         total_subscription_time - time_elapsed
   //       ) / total_subscription_time
 

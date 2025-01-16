@@ -205,7 +205,7 @@ pub fn test_datum_03(
       policy_id: value.ada_policy_id,
       asset_name: value.ada_asset_name,
     },
-    total_subscription_fee: fee_qty,
+    subscription_fee_qty: fee_qty,
     subscription_start: subsc_start,
     subscription_end: subsc_end,
     interval_length: subsc_period,
