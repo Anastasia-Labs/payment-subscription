@@ -222,7 +222,7 @@ This is a Sum type datum where one represents the payment datum and the other on
 
 - *`account_nft_tn`:* Account token name encoding UTxO to be consumed when minting the NFT.
 - *`subscription_fee`:* AssetClass type for the subscription fee.
-- *`subscription_fee_qty`:* Total amount of the subscription fee for the entire subscription period.
+- *`total_subscription_fee_qty`:* Total amount of the subscription fee for the entire subscription period.
 - *`subscription_start`:* Starting time of the withdrawal period.
 - *`subscription_end`:* Expiry time of the subscription.
 

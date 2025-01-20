@@ -41,12 +41,6 @@ validator {
   ) -> Bool {
     let ScriptContext { transaction: tx, .. } = ctx
 
-    // expect Spend(output_reference) = purpose
-    // Validate that Service UTxO with a Service NFT is being spent.
-    // expect Some(own_input) = transaction.find_input(tx.inputs, output_reference)
-    // let ref_nft =
-    //   own_input.output.value
-    //     |> value.without_lovelace()
     when rdmr is {
       UpdateService { merchant_input_index, service_input_index } ->
         validate_update_service(
