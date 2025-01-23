@@ -1,6 +1,6 @@
 use aiken/cbor
 use aiken/list
-use aiken/transaction.{Mint, ScriptContext, Transaction}
+use aiken/transaction.{Mint, ScriptContext, Spend, Transaction}
 use aiken/transaction/value.{from_minted_value}
 use payment_subscription/account_multi_validator/validation.{
   validate_create_account, validate_delete_account, validate_remove_account,
@@ -38,7 +38,7 @@ validator {
         )
       }
 
-      DeleteAccount -> validate_delete_account(minted_tokens)
+      DeleteAccount -> validate_delete_account(own_policy, minted_tokens)
     }
   }
 
@@ -47,15 +47,26 @@ validator {
     rdmr: SpendAccount,
     ctx: ScriptContext,
   ) -> Bool {
-    let ScriptContext { transaction: tx, .. } = ctx
+    let ScriptContext { transaction: tx, purpose } = ctx
+    expect Spend(own_reference) = purpose
 
     when rdmr is {
       UpdateAccount { subscriber_input_index, account_input_index } ->
-        validate_update_account(subscriber_input_index, account_input_index, tx)
+        validate_update_account(
+          own_reference,
+          subscriber_input_index,
+          account_input_index,
+          tx,
+        )
 
       // Removes the utxo entirely from the script address.
       RemoveAccount { subscriber_input_index, account_input_index } ->
-        validate_remove_account(subscriber_input_index, account_input_index, tx)
+        validate_remove_account(
+          own_reference,
+          subscriber_input_index,
+          account_input_index,
+          tx,
+        )
     }
   }
 }

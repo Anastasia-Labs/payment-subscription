@@ -151,7 +151,6 @@ test succeed_initiate_subscription() {
 
 test succeed_terminate_subscription() {
   let own_cs = tests.test_payment_cs()
-  let account_cs = tests.test_account_cs()
   let service_cs = tests.test_service_cs()
 
   let tx_hash = tests.test_224_01()
@@ -241,7 +240,7 @@ test succeed_terminate_subscription() {
       },
     }
 
-  validate_terminate_subscription(own_cs, account_cs, 0, 1, context.transaction)
+  validate_terminate_subscription(own_cs, context.transaction)
 }
 
 test succeed_extend_subscription() {
@@ -408,10 +407,9 @@ test succeed_extend_subscription() {
     }
 
   validate_extend_subscription(
+    extend_output_ref,
     service_cs,
-    account_cs,
     Payment(initial_payment_datum),
-    0,
     1,
     context.transaction,
   )
@@ -440,14 +438,13 @@ test succeed_merchant_withdraw() {
   //30 * 24 * 60 * 60 * 1000
   // 120 days total
   let num_intervals = 12
-  let subscription_end = 1737045176747
-  let total_total_subscription_fee_qty = 10_000_000
+  let interval_amount = 100_000_000
+  let total_total_subscription_fee_qty = 1_200_000_000
   let penalty_fee_qty = 1_000_000
+  let subscription_end = 1737045176747
   let last_claimed = 1737043736747
   // Set current time to exactly 2 vesting periods (60 days) after start
   let current_time = 1737043903924
-
-  let interval_amount = total_total_subscription_fee_qty
 
   // Half-way through
   let payment_datum =
@@ -473,7 +470,6 @@ test succeed_merchant_withdraw() {
     math.min(intervals_passed, payment_datum.num_intervals)
   let withdrawable_amount = interval_amount * claimable_intervals
 
-  let minimum_ada = 2_000_000
   let is_active = True
   let service_datum =
     tests.test_service_datum(
@@ -485,9 +481,7 @@ test succeed_merchant_withdraw() {
 
   let payment_value =
     value.add(
-      value.from_lovelace(
-        total_total_subscription_fee_qty * claimable_intervals,
-      ),
+      value.from_lovelace(total_total_subscription_fee_qty),
       own_cs,
       payment_tkn,
       1,
@@ -535,7 +529,7 @@ test succeed_merchant_withdraw() {
     )
 
   // Calculate withdrawable amount (assuming half of the subscription period has passed)
-  let actual_withdrawal = withdrawable_amount + minimum_ada
+  let actual_withdrawal = withdrawable_amount
   let merchant_output_value =
     value.add(
       value.from_lovelace(actual_withdrawal),
@@ -549,13 +543,10 @@ test succeed_merchant_withdraw() {
     tests.test_utxo_exact(service_cs, merchant_output_value, NoDatum)
 
   // Create remaining funds output (if any)
-  let remaining_amount =
-    total_total_subscription_fee_qty * num_intervals - actual_withdrawal
+  let remaining_amount = total_total_subscription_fee_qty - actual_withdrawal
 
   let payment_output_value =
     value.add(value.from_lovelace(remaining_amount), own_cs, payment_tkn, 1)
-
-  let interval_amount = 100_000_000
 
   let new_payment_datum =
     tests.test_datum_03(
@@ -575,7 +566,7 @@ test succeed_merchant_withdraw() {
     tests.test_utxo_02(
       own_cs,
       payment_output_value,
-      100_000_000,
+      0,
       Payment(new_payment_datum),
     )
 
@@ -597,11 +588,10 @@ test succeed_merchant_withdraw() {
     )
 
   validate_merchant_withdraw(
+    script_output_ref,
     service_cs,
     Payment(payment_datum),
-    // merchant input_index
     0,
-    // payment input_index
     1,
     context.transaction,
   )
@@ -753,7 +743,7 @@ test succeed_unsubscribe() {
     )
 
   validate_unsubscribe(
-    service_cs,
+    script_output_ref,
     account_cs,
     Payment(payment_datum),
     0,
@@ -893,6 +883,7 @@ test succeed_subscriber_withdraw() {
     )
 
   validate_subscriber_withdraw(
+    script_output_ref,
     service_cs,
     account_cs,
     Payment(payment_datum),

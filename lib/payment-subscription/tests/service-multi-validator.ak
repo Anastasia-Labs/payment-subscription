@@ -63,41 +63,6 @@ test success_create_service() {
       },
     }
 
-  // trace @"Test: Creating a New Service"
-  // trace @"-------------------------------------"
-  // trace @"Step 1: Service Details"
-  // trace @"-------------------------------------"
-  // trace @"Service Fee:"
-  // trace cbor.diagnostic(datum.service_fee_qty)
-  // trace @"Penalty Fee:"
-  // trace cbor.diagnostic(datum.penalty_fee_qty)
-  // trace @"Subscription Period: (days)"
-  // trace cbor.diagnostic(datum.num_intervals / ( 24 * 60 * 60 * 1000 ))
-  // trace @"Step 2: Minting Service Tokens"
-  // trace @"-------------------------------------"
-  // trace @"Reference Token:"
-  // trace cbor.diagnostic(ref_tkn)
-  // trace @"User Token:"
-  // trace cbor.diagnostic(user_tkn)
-  // trace @"Step 3: Preparing Outputs"
-  // trace @"-------------------------------------"
-  // trace @"User Output:"
-  // trace cbor.diagnostic(user_output)
-  // trace @"Service Output:"
-  // trace cbor.diagnostic(service_output)
-  // trace @"Step 4: Validating Transaction"
-  // trace @"-------------------------------------"
-  // trace @"Transaction Inputs:"
-  // trace cbor.diagnostic(context.transaction.inputs)
-  // trace @"Transaction Outputs:"
-  // trace cbor.diagnostic(context.transaction.outputs)
-  // trace @"Minted Tokens:"
-  // trace cbor.diagnostic(context.transaction.mint)
-  // trace @"Step 5: Execution Result"
-  // trace @"-------------------------------------"
-  // trace @"Service Successfully Created!"
-  // trace @"-------------------------------------"
-  // trace @"Test Completed!"
   let minted_tokens = context.transaction.mint |> from_minted_value()
 
   validate_create_service(
@@ -171,46 +136,7 @@ test succeed_update_service() {
       },
     }
 
-  // trace @"Test: Updating an Existing Service"
-  // trace @"-------------------------------------"
-  // trace @"Step 1: Current Service Details"
-  // trace @"-------------------------------------"
-  // trace @"Current Service Fee:"
-  // trace cbor.diagnostic(datum.service_fee_qty)
-  // trace @"Current Penalty Fee:"
-  // trace cbor.diagnostic(datum.penalty_fee_qty)
-  // trace @"Current Subscription Period: (days)"
-  // trace cbor.diagnostic(datum.num_intervals / ( 24 * 60 * 60 * 1000 ))
-  // trace @"Step 2: Updated Service Details"
-  // trace @"-------------------------------------"
-  // trace @"New Service Fee:"
-  // trace cbor.diagnostic(new_datum.service_fee_qty)
-  // trace @"New Penalty Fee:"
-  // trace cbor.diagnostic(new_datum.penalty_fee_qty)
-  // trace @"New Subscription Period: (days)"
-  // trace cbor.diagnostic(new_datum.num_intervals / ( 24 * 60 * 60 * 1000 ))
-  // trace @"Step 3: Preparing Inputs and Outputs"
-  // trace @"-------------------------------------"
-  // trace @"User Input:"
-  // trace cbor.diagnostic(user_input)
-  // trace @"Service Input:"
-  // trace cbor.diagnostic(service_input)
-  // trace @"User Output:"
-  // trace cbor.diagnostic(user_output)
-  // trace @"Service Output:"
-  // trace cbor.diagnostic(service_output)
-  // trace @"Step 4: Validating Transaction"
-  // trace @"-------------------------------------"
-  // trace @"Transaction Inputs:"
-  // trace cbor.diagnostic(context.transaction.inputs)
-  // trace @"Transaction Outputs:"
-  // trace cbor.diagnostic(context.transaction.outputs)
-  // trace @"Step 5: Execution Result"
-  // trace @"-------------------------------------"
-  // trace @"Service Successfully Updated!"
-  // trace @"-------------------------------------"
-  // trace @"Test Completed!"
-  validate_update_service(datum, 0, 1, context.transaction)
+  validate_update_service(datum, 0, 1, context.transaction, script_output_ref)
 }
 
 test succeed_remove_service() {
@@ -288,46 +214,5 @@ test succeed_remove_service() {
       },
     }
 
-  // trace @"Test: Removing an Existing Service"
-  // trace @"-------------------------------------"
-  // trace @"Step 1: Service Details"
-  // trace @"-------------------------------------"
-  // trace @"Service Fee:"
-  // trace cbor.diagnostic(datum.service_fee_qty)
-  // trace @"Penalty Fee:"
-  // trace cbor.diagnostic(datum.penalty_fee_qty)
-  // trace @"Subscription Period: (days)"
-  // trace cbor.diagnostic(datum.num_intervals / ( 24 * 60 * 60 * 1000 ))
-  // trace @"Step 2: Tokens to Remove"
-  // trace @"-------------------------------------"
-  // trace @"Reference Token:"
-  // trace cbor.diagnostic(ref_tkn)
-  // trace @"User Token:"
-  // trace cbor.diagnostic(user_tkn)
-  // trace @"Step 3: Preparing Inputs and Outputs"
-  // trace @"-------------------------------------"
-  // trace @"User Input:"
-  // trace cbor.diagnostic(user_input)
-  // trace @"Service Input:"
-  // trace cbor.diagnostic(service_input)
-  // trace @"User Output:"
-  // trace cbor.diagnostic(user_output)
-  // trace @"Step 4: Validating Transaction"
-  // trace @"-------------------------------------"
-  // trace @"Transaction Inputs:"
-  // trace cbor.diagnostic(context.transaction.inputs)
-  // trace @"Transaction Outputs:"
-  // trace cbor.diagnostic(context.transaction.outputs)
-  // trace @"Burned Tokens:"
-  // trace cbor.diagnostic(context.transaction.mint)
-  // trace @"Step 5: Execution Result"
-  // trace @"-------------------------------------"
-  // trace @"Service Successfully Removed!"
-  // trace @"-------------------------------------"
-  // trace @"Test Completed!"
-  // let service_addr = service_input.output.address
-  // let ref_nft =
-  //   service_input.output.value
-  //     |> value.without_lovelace()
-  validate_remove_service(datum, 0, 1, context.transaction)
+  validate_remove_service(datum, 0, 1, context.transaction, script_output_ref)
 }

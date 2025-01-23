@@ -1,4 +1,3 @@
-use aiken/cbor
 use aiken/transaction.{Mint, ScriptContext, Spend, Transaction}
 use payment_subscription/common/types.{
   Extend, InitSubscripton, MerchantWithdraw, MintPayment, PaymentValidatorDatum,
@@ -29,14 +28,8 @@ validator(service_policy_id: ByteArray, account_policy_id: ByteArray) {
           tx,
         )?
 
-      TerminateSubscription { merchant_input_index, payment_input_index } ->
-        validate_terminate_subscription(
-          own_policy,
-          service_policy_id,
-          merchant_input_index,
-          payment_input_index,
-          tx,
-        )
+      TerminateSubscription { .. } ->
+        validate_terminate_subscription(own_policy, tx)
     }
   }
 
@@ -46,20 +39,20 @@ validator(service_policy_id: ByteArray, account_policy_id: ByteArray) {
     ctx: ScriptContext,
   ) -> Bool {
     let ScriptContext { transaction: tx, purpose } = ctx
-    expect Spend(_output_reference) = purpose
+    expect Spend(output_reference) = purpose
 
     when redeemer is {
-      Extend { subscriber_input_index, payment_input_index } ->
+      Extend { payment_input_index, .. } ->
         validate_extend_subscription(
+          output_reference,
           service_policy_id,
-          account_policy_id,
           datum,
-          subscriber_input_index,
           payment_input_index,
           tx,
         )
       MerchantWithdraw { merchant_input_index, payment_input_index } ->
         validate_merchant_withdraw(
+          output_reference,
           service_policy_id,
           datum,
           merchant_input_index,
@@ -68,24 +61,16 @@ validator(service_policy_id: ByteArray, account_policy_id: ByteArray) {
         )
       Unsubscribe { subscriber_input_index, payment_input_index } ->
         validate_unsubscribe(
-          service_policy_id,
+          output_reference,
           account_policy_id,
           datum,
           subscriber_input_index,
           payment_input_index,
           tx,
         )
-      SubscriberWithdraw { subscriber_input_index, payment_input_index } -> {
-        trace @" SubscriberWithdraw service_policy_id:"
-        trace cbor.diagnostic(service_policy_id)
-        trace @" SubscriberWithdraw account_policy_id: "
-        trace cbor.diagnostic(account_policy_id)
-        trace @" SubscriberWithdraw datum:"
-        trace cbor.diagnostic(datum)
-        trace @" SubscriberWithdraw subscriber_input_index:"
-        trace cbor.diagnostic(subscriber_input_index)
-
+      SubscriberWithdraw { subscriber_input_index, payment_input_index } ->
         validate_subscriber_withdraw(
+          output_reference,
           service_policy_id,
           account_policy_id,
           datum,
@@ -93,7 +78,6 @@ validator(service_policy_id: ByteArray, account_policy_id: ByteArray) {
           payment_input_index,
           tx,
         )
-      }
     }
   }
 }

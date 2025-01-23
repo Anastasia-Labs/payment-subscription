@@ -1,6 +1,5 @@
-use aiken/cbor
 use aiken/list
-use aiken/transaction.{Mint, ScriptContext, Transaction}
+use aiken/transaction.{Mint, ScriptContext, Spend, Transaction}
 use aiken/transaction/value.{from_minted_value}
 use payment_subscription/common/types.{
   CreateService, RemoveService, ServiceDatum, SpendService, UpdateService,
@@ -21,10 +20,7 @@ validator {
 
     let CreateService { output_reference, input_index } = r
     expect Some(input) = list.at(inputs, input_index)
-    trace @" CreateService output_reference:"
-    trace cbor.diagnostic(output_reference)
 
-    // let OutputReference { transaction_id, output_index } = output_reference
     validate_create_service(
       own_policy,
       input,
@@ -39,7 +35,8 @@ validator {
     rdmr: SpendService,
     ctx: ScriptContext,
   ) -> Bool {
-    let ScriptContext { transaction: tx, .. } = ctx
+    let ScriptContext { transaction: tx, purpose } = ctx
+    expect Spend(own_reference) = purpose
 
     when rdmr is {
       UpdateService { merchant_input_index, service_input_index } ->
@@ -48,6 +45,7 @@ validator {
           merchant_input_index,
           service_input_index,
           tx,
+          own_reference,
         )?
 
       // Convert the Service from active to inactive.
@@ -57,6 +55,7 @@ validator {
           merchant_input_index,
           service_input_index,
           tx,
+          own_reference,
         )?
     }
   }

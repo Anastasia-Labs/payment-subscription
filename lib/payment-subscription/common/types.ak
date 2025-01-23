@@ -11,7 +11,6 @@ pub type AssetClass {
 pub type ServiceDatum {
   service_fee: AssetClass,
   service_fee_qty: Int,
-  // non-negative
   penalty_fee: AssetClass,
   penalty_fee_qty: Int,
   interval_length: Int,
