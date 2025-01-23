@@ -1,4 +1,3 @@
-use aiken/cbor
 use aiken/dict
 use aiken/interval.{Finite, Interval, IntervalBound}
 use aiken/math
@@ -103,7 +102,7 @@ test succeed_initiate_subscription() {
     tests.test_utxo_02(
       own_cs,
       payment_value,
-      interval_amount,
+      total_total_subscription_fee_qty,
       Payment(payment_datum),
     )
 
@@ -636,17 +635,8 @@ test succeed_unsubscribe() {
   let remaining_intervals = num_intervals - claimed_intervals
   let refundable_amount = remaining_intervals * interval_amount
 
-  trace @"intervals_passed:"
-  trace cbor.diagnostic(intervals_passed)
-  trace @"remaining_intervals:"
-  trace cbor.diagnostic(remaining_intervals)
-  trace @"refundable_amount:"
-  trace cbor.diagnostic(refundable_amount)
-
   // Subscriber should get refundable amount minus penalty
   let subscriber_refund = refundable_amount - penalty_fee_qty - 2_000_000
-  trace @"subscriber_refund:"
-  trace cbor.diagnostic(subscriber_refund)
 
   let account_value = value.add(value.zero(), account_cs, user_account_tkn, 1)
   let service_value = value.add(value.zero(), service_cs, service_tkn, 1)

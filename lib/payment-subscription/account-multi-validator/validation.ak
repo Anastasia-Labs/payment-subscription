@@ -14,6 +14,7 @@ use payment_subscription/account_multi_validator/utils.{
 use payment_subscription/common/types.{AccountDatum}
 use payment_subscription/common/utils as common_utils
 
+// minting policy validator
 pub fn validate_create_account(
   own_policy: PolicyId,
   input: Input,
@@ -69,6 +70,7 @@ pub fn validate_create_account(
   }
 }
 
+// minting policy validator
 pub fn validate_delete_account(
   own_policy: PolicyId,
   minted_tokens: Value,
@@ -83,6 +85,7 @@ pub fn validate_delete_account(
   }
 }
 
+// spending validator
 pub fn validate_update_account(
   own_reference: OutputReference,
   subscriber_input_index: Int,
@@ -128,13 +131,13 @@ pub fn validate_update_account(
 
   and {
     reference_correct?,
-    // Validate that the metadata of the Reference NFT is updated within acceptable bounds .
     is_account_metadata_valid(new_datum)?,
-    (value.quantity_of(validating_output.value, own_policy, ref_asset_name) > 0)?,
+    (value.quantity_of(validating_output.value, own_policy, ref_asset_name) == 1)?,
     user_token_at_subscriber_input?,
   }
 }
 
+// spending validator
 pub fn validate_remove_account(
   own_reference: OutputReference,
   subscriber_input_index: Int,

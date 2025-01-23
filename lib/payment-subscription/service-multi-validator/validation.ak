@@ -12,6 +12,7 @@ use payment_subscription/service_multi_validator/utils.{
   is_service_metadata_valid,
 }
 
+// minting policy validator
 pub fn validate_create_service(
   own_policy: PolicyId,
   input: Input,
@@ -50,15 +51,15 @@ pub fn validate_create_service(
   let ref_token_to_script =
     value.quantity_of(ref_output.value, own_policy, ref_tkn) == 1
   expect datum: ServiceDatum = data.output_datum(ref_output)
-  let metadata_valid = is_service_metadata_valid(datum)
   and {
     is_outref_spent?,
-    metadata_valid?,
+    is_service_metadata_valid(datum)?,
     (merged_mint == minted_tokens)?,
     ref_token_to_script?,
   }
 }
 
+// spending validator
 pub fn validate_update_service(
   datum: ServiceDatum,
   merchant_input_index: Int,
@@ -107,6 +108,7 @@ pub fn validate_update_service(
   }
 }
 
+// spending validator
 pub fn validate_remove_service(
   datum: ServiceDatum,
   merchant_input_index: Int,

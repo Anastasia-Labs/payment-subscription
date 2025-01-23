@@ -6,10 +6,7 @@ pub fn validate_initial_payment_datum_internal(datum: PaymentDatum) -> Bool {
   let time_valid =
     0 <= datum.subscription_start && datum.subscription_start < datum.subscription_end && 0 <= datum.last_claimed && datum.last_claimed <= datum.subscription_start
 
-  let amounts_valid =
-    datum.total_subscription_fee_qty > 0 && datum.interval_amount > 0 && datum.penalty_fee_qty >= 0
-
-  let intervals_valid = datum.interval_length > 0 && datum.num_intervals > 0
+  let amounts_valid = datum.total_subscription_fee_qty > 0
 
   let subscription_period_valid =
     datum.subscription_end - datum.subscription_start == datum.interval_length * datum.num_intervals
@@ -17,8 +14,12 @@ pub fn validate_initial_payment_datum_internal(datum: PaymentDatum) -> Bool {
   let total_fee_valid =
     datum.total_subscription_fee_qty == datum.interval_amount * datum.num_intervals
 
-  let sane_values = datum.minimum_ada > 0
-  time_valid? && amounts_valid? && intervals_valid? && subscription_period_valid? && total_fee_valid? && sane_values?
+  and {
+    time_valid?,
+    amounts_valid?,
+    subscription_period_valid?,
+    total_fee_valid?,
+  }
 }
 
 // Helper function to validate payment datum against Service contract
@@ -26,15 +27,20 @@ pub fn validate_initial_payment_against_service(
   payment: PaymentDatum,
   service: ServiceDatum,
 ) -> Bool {
-  service == ServiceDatum {
-    service_fee: payment.subscription_fee,
-    service_fee_qty: payment.interval_amount,
-    penalty_fee: payment.penalty_fee,
-    penalty_fee_qty: payment.penalty_fee_qty,
-    interval_length: payment.interval_length,
-    num_intervals: payment.num_intervals,
-    minimum_ada: payment.minimum_ada,
-    is_active: True,
+  let datum_correct =
+    service == ServiceDatum {
+      service_fee: payment.subscription_fee,
+      service_fee_qty: payment.interval_amount,
+      penalty_fee: payment.penalty_fee,
+      penalty_fee_qty: payment.penalty_fee_qty,
+      interval_length: payment.interval_length,
+      num_intervals: payment.num_intervals,
+      minimum_ada: payment.minimum_ada,
+      is_active: True,
+    }
+  and {
+    datum_correct?,
+    (payment.total_subscription_fee_qty == payment.interval_amount * payment.num_intervals)?,
   }
 }
 

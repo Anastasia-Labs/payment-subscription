@@ -19,6 +19,7 @@ use payment_subscription/payment_multi_validator/utils.{
   validate_initial_payment_datum_internal,
 }
 
+// minting policy validator
 pub fn validate_initial_subscription(
   own_policy: PolicyId,
   account_policy_id: PolicyId,
@@ -69,9 +70,6 @@ pub fn validate_initial_subscription(
   let datum_against_service_valid =
     validate_initial_payment_against_service(payment_datum, service_datum)
 
-  // Check to ensure the subscription period matches the service's requirements
-  let interval_length_valid =
-    payment_datum.interval_length == service_datum.interval_length
   // Verify the inputs contain 1 Service NFT Asset
   let input_has_service_nft =
     validate_single_nft_input(
@@ -95,18 +93,13 @@ pub fn validate_initial_subscription(
       payment_datum.subscription_fee.policy_id,
       payment_datum.subscription_fee.asset_name,
     )
-  let expected_amount = payment_datum.interval_amount
+  let expected_amount = payment_datum.total_subscription_fee_qty
 
   let locked_amount_valid = locked_amount >= expected_amount
 
   // Ensure token output goes back to the script
   let payment_token_to_script =
-    validate_token_output(
-      payment_output,
-      own_policy,
-      payment_tkn,
-      payment_payment_credential,
-    )
+    value.quantity_of(payment_output.value, own_policy, payment_tkn) == 1
 
   and {
     // Validate that out_ref must be present in the Transaction Inputs.
@@ -117,22 +110,20 @@ pub fn validate_initial_subscription(
     (payment_value == minted_tokens)?,
     locked_amount_valid?,
     payment_token_to_script?,
-    interval_length_valid?,
   }
 }
 
+// minting policy validator
 pub fn validate_terminate_subscription(
   own_policy: PolicyId,
   tx: Transaction,
 ) -> Bool {
   let minted_tokens = tx.mint |> from_minted_value()
-  // Get the tokens being minted (or burned) in this transaction
   expect [(pid, _tkn, -1)] = value.flatten(minted_tokens)
-
-  // Verify all conditions are met
   (pid == own_policy)?
 }
 
+// spending validation
 pub fn validate_extend_subscription(
   own_reference: OutputReference,
   service_policy_id: ByteArray,
@@ -224,6 +215,7 @@ pub fn validate_extend_subscription(
   }
 }
 
+// spending validator
 pub fn validate_merchant_withdraw(
   own_reference: OutputReference,
   service_policy_id: ByteArray,
@@ -361,6 +353,7 @@ pub fn validate_merchant_withdraw(
 
 // Validate that the logic follows the Service provider rules / datum as a refernce input to ensure the
 // penalty goes to the merchant when paying the penalty fees.
+// spending validator
 pub fn validate_unsubscribe(
   own_reference: OutputReference,
   account_policy_id: ByteArray,
@@ -453,6 +446,7 @@ pub fn validate_unsubscribe(
   }
 }
 
+// spending validator
 pub fn validate_subscriber_withdraw(
   own_reference: OutputReference,
   service_policy_id: ByteArray,
@@ -513,10 +507,11 @@ pub fn validate_subscriber_withdraw(
       let payment_nft_in_output =
         value.quantity_of(payment_output.value, own_policy, payment_asset_name) == 1
 
+      let service_is_inactive = !service_datum.is_active
       and {
         reference_correct?,
         subscriber_nft_valid?,
-        !service_datum.is_active?,
+        service_is_inactive?,
         payment_output_valid?,
         payment_nft_in_output?,
       }
