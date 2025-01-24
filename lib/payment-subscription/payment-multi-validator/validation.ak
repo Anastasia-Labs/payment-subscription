@@ -414,12 +414,10 @@ pub fn validate_unsubscribe(
       let is_penalty_fee_in_ada =
         penalty_fee_asset.policy_id == value.ada_policy_id && penalty_fee_asset.asset_name == value.ada_asset_name
       let penalty_amount_valid =
-        penalty_output_value >= payment_datum.penalty_fee_qty + if
-        is_penalty_fee_in_ada{
-        
-          payment_datum.minimum_ada
+        penalty_output_value >= if is_penalty_fee_in_ada {
+          math.max(payment_datum.penalty_fee_qty, payment_datum.minimum_ada)
         } else {
-          0
+          payment_datum.penalty_fee_qty
         }
 
       let penalty_output_valid =
