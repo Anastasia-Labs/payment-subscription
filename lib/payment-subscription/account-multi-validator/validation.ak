@@ -1,19 +1,20 @@
+use aiken/builtin
 use aiken/bytearray
+use aiken/dict
 use aiken/list
 use aiken/transaction.{Input, Output, OutputReference, Transaction}
-use aiken/transaction/credential.{Address}
+use aiken/transaction/credential.{Address, ScriptCredential}
 use aiken/transaction/value.{PolicyId, Value}
-use assist/count
 use assist/data
-use assist/payout
 use assist/types/cip68
 use assist/values
 use payment_subscription/account_multi_validator/utils.{
   is_account_metadata_valid,
 }
 use payment_subscription/common/types.{AccountDatum}
-use payment_subscription/common/utils.{validate_token_output} as common_utils
+use payment_subscription/common/utils as common_utils
 
+// minting policy validator
 pub fn validate_create_account(
   own_policy: PolicyId,
   input: Input,
@@ -46,27 +47,15 @@ pub fn validate_create_account(
   let merged_mint = value.merge(ref_value, user_value)
 
   // Find the output UTxO containing the reference token
-  expect [user_output, ref_output, ..] = outputs
-
-  // Validate user token
-  let user_token_not_to_script =
-    validate_token_output(
-      user_output,
-      own_policy,
-      user_tkn,
-      account_payment_credential,
-      False,
+  expect Some(ref_output) =
+    list.find(
+      outputs,
+      fn(x) { x.address.payment_credential == account_payment_credential },
     )
 
-  // Validate reference token
+  // Validate reference token goes to the script
   let ref_token_to_script =
-    validate_token_output(
-      ref_output,
-      own_policy,
-      ref_tkn,
-      account_payment_credential,
-      True,
-    )
+    value.quantity_of(ref_output.value, own_policy, ref_tkn) == 1
   // Extract and validate the AccountDatum
   expect datum: AccountDatum = data.output_datum(ref_output)
 
@@ -76,20 +65,18 @@ pub fn validate_create_account(
     is_account_metadata_valid(datum)?,
     // Validate that the redeemer only mints a single CIP68 compliant
     (merged_mint == minted_tokens)?,
-    // Ensure that the User NFT doesn't go to the Script 
-    user_token_not_to_script?,
     // Ensure ref_nft goes back to the script.
     ref_token_to_script?,
   }
 }
 
-pub fn validate_delete_account(minted_tokens: Value) -> Bool {
-  let mint_flat =
-    minted_tokens
-      |> value.flatten()
-
-  when mint_flat is {
-    [(_pid1, tkn1, amt1), (_pid2, tkn2, amt2)] -> and {
+// minting policy validator
+pub fn validate_delete_account(
+  own_policy: PolicyId,
+  minted_tokens: Value,
+) -> Bool {
+  when value.tokens(minted_tokens, own_policy) |> dict.to_pairs is {
+    [Pair(tkn1, amt1), Pair(tkn2, amt2)] -> and {
         amt1 == -1,
         amt2 == -1,
         bytearray.compare(bytearray.drop(tkn1, 4), bytearray.drop(tkn2, 4)) == Equal,
@@ -98,51 +85,99 @@ pub fn validate_delete_account(minted_tokens: Value) -> Bool {
   }
 }
 
+// spending validator
 pub fn validate_update_account(
-  // datum: AccountDatum,
-  account_addr: Address,
-  ref_nft: Value,
+  own_reference: OutputReference,
+  subscriber_input_index: Int,
+  account_input_index: Int,
   tx: Transaction,
 ) -> Bool {
+  // Validate that there are two script inputs 
+  expect Some(subscriber_input) = list.at(tx.inputs, subscriber_input_index)
+  expect Some(account_input) = list.at(tx.inputs, account_input_index)
+  let reference_correct = account_input.output_reference == own_reference
+
+  let account_input_utxo = account_input.output
+  let account_addr = account_input_utxo.address
+  expect ScriptCredential(own_policy) = account_addr.payment_credential
+
+  let ref_asset_name =
+    when
+      value.tokens(account_input_utxo.value, own_policy) |> dict.to_pairs
+    is {
+      [Pair(ref_tn, 1)] -> ref_tn
+      _ -> fail @"reference token not found"
+    }
+  let user_token_name = common_utils.convert_ref_tn_to_user(ref_asset_name)
+  let user_token_at_subscriber_input =
+    value.tokens(subscriber_input.output.value, own_policy)
+      |> dict.to_pairs
+      |> list.any(fn(x) { and {
+              builtin.snd_pair(x) == 1,
+              builtin.fst_pair(x) == user_token_name,
+            } })
+
   // Find the output containing the reference NFT being sent back to this script itself
   let validating_output =
-    common_utils.output_by_addr_value(tx.outputs, account_addr, ref_nft)
+    common_utils.output_by_addr_value(
+      tx.outputs,
+      account_addr,
+      own_policy,
+      ref_asset_name,
+    )
 
   // Extract the new datum from the validating output
   expect new_datum: AccountDatum = data.output_datum(validating_output)
 
   and {
-    // Validate that the metadata of the Reference NFT is updated within acceptable bounds .
+    reference_correct?,
     is_account_metadata_valid(new_datum)?,
-    payout.at_least(account_addr, ref_nft, tx.outputs)?,
-    common_utils.check_nft_output_utxo(validating_output)?,
+    (value.quantity_of(validating_output.value, own_policy, ref_asset_name) == 1)?,
+    user_token_at_subscriber_input?,
   }
 }
 
+// spending validator
 pub fn validate_remove_account(
-  account_addr: Address,
-  ref_nft: Value,
+  own_reference: OutputReference,
+  subscriber_input_index: Int,
+  account_input_index: Int,
   tx: Transaction,
 ) -> Bool {
-  expect [(policy_id, asset_name, _)] = value.flatten(ref_nft)
+  // Validate that there are two script inputs 
+  expect Some(subscriber_input) = list.at(tx.inputs, subscriber_input_index)
+  expect Some(account_input) = list.at(tx.inputs, account_input_index)
+  let reference_correct = account_input.output_reference == own_reference
 
-  // Check that the reference NFT is burned
-  let minted_value = value.from_minted_value(tx.mint)
-  let burn_quantity = value.quantity_of(minted_value, policy_id, asset_name)
-  let is_ref_nft_burned = burn_quantity == -1
+  let account_input_utxo = account_input.output
+  let account_addr = account_input_utxo.address
+  expect ScriptCredential(own_policy) = account_addr.payment_credential
+
+  let ref_asset_name =
+    when
+      value.tokens(account_input_utxo.value, own_policy) |> dict.to_pairs
+    is {
+      [Pair(ref_tn, 1)] -> ref_tn
+      _ -> fail @"reference token not found"
+    }
+  let user_token_name = common_utils.convert_ref_tn_to_user(ref_asset_name)
+  let user_token_at_subscriber_input =
+    value.tokens(subscriber_input.output.value, own_policy)
+      |> dict.to_pairs
+      |> list.any(fn(x) { and {
+              builtin.snd_pair(x) == 1,
+              builtin.fst_pair(x) == user_token_name,
+            } })
 
   and {
-    // Validate that there are two script input and one Script output back to the script address.
-    // two script input
-    count.inputs_by_addr(tx.inputs, account_addr, 2)?,
-    // one script output
-    count.outputs_by_addr(tx.outputs, account_addr, 1)?,
+    reference_correct?,
     // Check that the reference NFT is burned
-    is_ref_nft_burned?,
-    // Ensure no output contains the reference NFT
-    list.all(
-      tx.outputs,
-      fn(output) { value.quantity_of(output.value, policy_id, asset_name) == 0 },
-    )?,
+    (value.quantity_of(
+      tx.mint |> value.from_minted_value(),
+      own_policy,
+      ref_asset_name,
+    ) == -1)?,
+    // Check that the user NFT is burned
+    user_token_at_subscriber_input?,
   }
 }
