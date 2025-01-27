@@ -280,7 +280,6 @@ pub fn validate_merchant_withdraw(
         payment_datum.interval_amount * claimable_intervals
 
       let ada_amount = value.lovelace_of(merchant_input_utxo.value)
-      let has_minimum_ada = ada_amount >= payment_datum.minimum_ada
 
       let payment_nft_preserved =
         value.quantity_of(payment_output.value, own_policy, payment_asset_name) == 1
@@ -330,7 +329,6 @@ pub fn validate_merchant_withdraw(
         must_be_after_date(tx.validity_range, payment_datum.subscription_start)?,
         payment_datum_valid?,
         last_claimed_updated?,
-        has_minimum_ada?,
       }
     }
 
