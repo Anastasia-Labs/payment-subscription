@@ -1,6 +1,6 @@
-#let image-background = image("./images/background-1.jpg", height: 100%, fit: "cover")
-#let image-foreground = image("./images/Logo-Anastasia-Labs-V-Color02.png", width: 100%, fit: "contain")
-#let image-header = image("./images/Logo-Anastasia-Labs-V-Color01.png", height: 75%, fit: "contain")
+#let image-background = image("../images/background-1.jpg", height: 100%, fit: "cover")
+#let image-foreground = image("../images/Logo-Anastasia-Labs-V-Color02.png", width: 100%, fit: "contain")
+#let image-header = image("../images/Logo-Anastasia-Labs-V-Color01.png", height: 75%, fit: "contain")
 #let fund-link = link("https://projectcatalyst.io/funds/10/f10-osde-open-source-dev-ecosystem/anastasia-labs-the-trifecta-of-data-structures-merkle-trees-tries-and-linked-lists-for-cutting-edge-contracts")[Catalyst Proposal]
 #let git-link = link("https://github.com/Anastasia-Labs/data-structures")[Main Github Repo]
 
@@ -53,7 +53,7 @@
   background: none,
   header: [
     #align(right)[
-      #image("./images/Logo-Anastasia-Labs-V-Color01.png", width: 25%, fit: "contain")
+      #image("../images/Logo-Anastasia-Labs-V-Color01.png", width: 25%, fit: "contain")
     ]
     #v(-0.5cm)
     #line(length: 100%, stroke: 0.5pt)
@@ -222,7 +222,7 @@ This is a Sum type datum where one represents the payment datum and the other on
 
 - *`account_nft_tn`:* Account token name encoding UTxO to be consumed when minting the NFT.
 - *`subscription_fee`:* AssetClass type for the subscription fee.
-- *`total_subscription_fee`:* Total amount of the subscription fee for the entire subscription period.
+- *`total_subscription_fee_qty`:* Total amount of the subscription fee for the entire subscription period.
 - *`subscription_start`:* Starting time of the withdrawal period.
 - *`subscription_end`:* Expiry time of the subscription.
 
@@ -521,7 +521,7 @@ This transaction creates a new service by minting a Merchant NFT. This transacti
 
       - *`service_nft_tn`:* Service NFT token name encoding UTxO to be consumed when minting the NFT.
       - *`subscription_fee`:* AssetClass type for the subscription fee.
-      - *`total_subscription_fee`:* Amount of the subscription fee.
+      - *`subscription_fee_qty`:* Amount of the subscription fee.
       - *`penalty_fee`*: AssetClass type for the amount of funds to be deducted when subscriber cancels the subscription.
       - *`penalty_fee_qty`*: Amount of the penalty fees.
 
@@ -1111,7 +1111,7 @@ This transaction allows anyone with a Service NFT to unlock subscription funds f
 + *Merchant Wallet UTxO*
 
   - Address: Merchant’s wallet address
-total_subscription_fee
+subscription_fee_qty
   - Value:
 
     - Minimum ADA

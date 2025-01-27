@@ -1,13 +1,15 @@
-use aiken/cbor
 use aiken/dict
 use aiken/interval.{Finite, Interval, IntervalBound}
+use aiken/math
 use aiken/transaction.{
   Mint, NoDatum, ScriptContext, Spend, Transaction, TransactionId,
 }
 use aiken/transaction/value
 use assist/types/cip68
 use assist/values
-use payment_subscription/common/types.{AssetClass, Payment, PenaltyDatum}
+use payment_subscription/common/types.{
+  AssetClass, Payment, PaymentDatum, Penalty, PenaltyDatum,
+}
 use payment_subscription/payment_multi_validator/validation.{
   validate_extend_subscription, validate_initial_subscription,
   validate_merchant_withdraw, validate_subscriber_withdraw,
@@ -41,21 +43,25 @@ test succeed_initiate_subscription() {
   let interval_amount = 100_000_000
   let num_intervals = 10
 
-  // let service_fee_qty = 10_000_000
   let penalty_qty = 1_000_000
   // 30 days in milliseconds
   let is_active = True
   let service_datum =
-    tests.test_service_datum(is_active, interval_length, num_intervals)
+    tests.test_service_datum(
+      is_active,
+      interval_length,
+      num_intervals,
+      interval_amount,
+    )
 
-  let total_subscription_fee = 1_000_000_000
+  let total_total_subscription_fee_qty = 1_000_000_000
   let subscription_end = current_time + interval_length * num_intervals
 
   let payment_datum =
     tests.test_datum_03(
       service_tkn,
       user_account_tkn,
-      total_subscription_fee,
+      total_total_subscription_fee_qty,
       current_time,
       subscription_end,
       interval_length,
@@ -93,7 +99,12 @@ test succeed_initiate_subscription() {
       NoDatum,
     )
   let payment_output =
-    tests.test_utxo_02(own_cs, payment_value, interval_amount, payment_datum)
+    tests.test_utxo_02(
+      own_cs,
+      payment_value,
+      total_total_subscription_fee_qty,
+      Payment(payment_datum),
+    )
 
   let insert_timerange =
     Interval {
@@ -127,53 +138,6 @@ test succeed_initiate_subscription() {
       },
     }
 
-  trace @"Test: Initiating a New Subscription"
-  trace @"-------------------------------------"
-
-  trace @"Step 1: Setting up the subscription"
-  trace @"-------------------------------------"
-  trace @"Service Currency Symbol:"
-  trace cbor.diagnostic(service_cs)
-  trace @"Account Currency Symbol:"
-  trace cbor.diagnostic(account_cs)
-  trace @"Subscription Fee: (lovelace)"
-  trace cbor.diagnostic(total_subscription_fee)
-  trace @"Subscription Period: (days)"
-  trace cbor.diagnostic(interval_length / ( 24 * 60 * 60 * 1000 ))
-  trace @"Penalty Fee: (lovelace)"
-  trace cbor.diagnostic(penalty_qty)
-
-  trace @"Step 2: Creating Payment Datum"
-  trace @"-------------------------------------"
-  trace @"Service NFT:"
-  trace cbor.diagnostic(service_tkn)
-  trace @"Account NFT:"
-  trace cbor.diagnostic(user_account_tkn)
-  trace @"Subscription Start:"
-  trace cbor.diagnostic(current_time)
-  trace @"Subscription End:"
-  trace cbor.diagnostic(current_time + interval_length)
-
-  trace @"Step 3: Preparing Inputs"
-  trace @"-------------------------------------"
-  trace @"Account Input:"
-  trace cbor.diagnostic(account_input)
-  trace @"Service Input:"
-  trace cbor.diagnostic(service_input)
-
-  trace @"Step 4: Preparing Outputs"
-  trace @"-------------------------------------"
-  trace @"User Output:"
-  trace cbor.diagnostic(user_output)
-  trace @"Payment Output:"
-  trace cbor.diagnostic(payment_output)
-
-  trace @"Step 5: Execution Result"
-  trace @"-------------------------------------"
-  trace @"Subscription Successfully Initiated!"
-  trace @"-------------------------------------"
-  trace @"Test Completed!"
-
   validate_initial_subscription(
     own_cs,
     account_cs,
@@ -186,78 +150,61 @@ test succeed_initiate_subscription() {
 
 test succeed_terminate_subscription() {
   let own_cs = tests.test_payment_cs()
-  let account_cs = tests.test_account_cs()
   let service_cs = tests.test_service_cs()
 
   let tx_hash = tests.test_224_01()
   let payment_tx_hash = tests.test_224_02()
+  let service_tx_hash = tests.test_224_03()
 
   let init_output_ref = tests.test_input_utxo_02(tx_hash)
   let script_output_ref = tests.test_input_utxo_02(payment_tx_hash)
 
   let current_time = 1000000
-  let last_claimed = 500000
   // 30 days in milliseconds
   let interval_length = 30 * 24 * 60 * 60 * 1000
-  let total_subscription_fee = 1_000_000_000
-  let penalty_fee_qty = 1_000_000
-  let interval_amount = 100_000_000
-  let num_intervals = 1
 
+  // let total_subscription_fee_qty = 1_000_000_000
   let user_account_tkn = values.unique_token_name(tx_hash, 1, cip68.prefix_222)
-  let service_tkn = values.unique_token_name(service_cs, 1, cip68.prefix_222)
+  let user_service_tkn =
+    values.unique_token_name(service_cs, 1, cip68.prefix_222)
   let payment_tkn = values.unique_token_name(payment_tx_hash, 1, #"")
+  let service_tkn =
+    values.unique_token_name(service_tx_hash, 1, cip68.prefix_100)
 
-  let payment_datum =
-    tests.test_datum_03(
-      service_tkn,
-      user_account_tkn,
-      total_subscription_fee,
-      current_time,
-      current_time + interval_length,
-      interval_length,
-      interval_amount,
-      num_intervals,
-      last_claimed,
-      penalty_fee_qty,
-    )
-
-  let payment_value = value.add(value.zero(), own_cs, payment_tkn, 1)
-  let account_value = value.add(value.zero(), account_cs, user_account_tkn, 1)
+  let service_value = value.add(value.zero(), service_cs, user_service_tkn, 1)
 
   // Create the payment input (the one being spent)
-  let user_input =
-    tests.test_context_input_02(init_output_ref, own_cs, account_value, NoDatum)
-  let payment_input =
-    tests.test_context_input_02(
-      script_output_ref,
-      own_cs,
-      payment_value,
-      payment_datum,
-    )
+  let merchant_input =
+    tests.test_context_input_02(init_output_ref, own_cs, service_value, NoDatum)
 
   // Calculate refund amount (assuming half of the subscription period has passed)
   let time_elapsed = interval_length / 2
-  let refund_amount = total_subscription_fee / 2
-
-  // Create refund output
-  let refund_output =
-    tests.test_utxo_02(account_cs, value.zero(), refund_amount, NoDatum)
 
   // Create penalty output
   let penalty_fee_qty = 1_000_000
   let penalty_datum =
     PenaltyDatum {
       service_nft_tn: service_tkn,
-      account_nft_tn: user_account_tkn,
+      subscriber_nft_tn: user_account_tkn,
       penalty_fee: AssetClass {
         policy_id: value.ada_policy_id,
         asset_name: value.ada_asset_name,
       },
       penalty_fee_qty,
     }
-  let penalty_output =
-    tests.test_utxo_02(service_cs, value.zero(), penalty_fee_qty, penalty_datum)
+  let penalty_value =
+    value.add(value.from_lovelace(penalty_fee_qty), own_cs, payment_tkn, 1)
+
+  let merchant_output =
+    tests.test_utxo_02(service_cs, value.zero(), penalty_fee_qty, NoDatum)
+
+  let penalty_input =
+    tests.test_context_input_02(
+      script_output_ref,
+      own_cs,
+      penalty_value,
+      penalty_datum,
+    )
 
   let insert_timerange =
     Interval {
@@ -275,9 +222,9 @@ test succeed_terminate_subscription() {
     ScriptContext {
       purpose: Mint(own_cs),
       transaction: Transaction {
-        inputs: [user_input, payment_input],
+        inputs: [merchant_input, penalty_input],
         reference_inputs: [],
-        outputs: [refund_output, penalty_output],
+        outputs: [merchant_output],
         fee: value.zero(),
         mint: value.to_minted_value(
           value.add(value.zero(), own_cs, payment_tkn, -1),
@@ -292,63 +239,7 @@ test succeed_terminate_subscription() {
       },
     }
 
-  trace @"Test: Terminating a Subscription"
-  trace @"-------------------------------------"
-
-  trace @"Step 1: Subscription Details"
-  trace @"-------------------------------------"
-  trace @"Service Currency Symbol:"
-  trace cbor.diagnostic(service_cs)
-  trace @"Account Currency Symbol:"
-  trace cbor.diagnostic(account_cs)
-  trace @"Payment Currency Symbol:"
-  trace cbor.diagnostic(own_cs)
-  trace @"Original Subscription Start:"
-  trace cbor.diagnostic(current_time)
-  trace @"Original Subscription End:"
-  trace cbor.diagnostic(current_time + interval_length)
-  trace @"Termination Time (mid-subscription):"
-  trace cbor.diagnostic(current_time + time_elapsed)
-
-  trace @"Step 2: Calculating Refund and Penalty"
-  trace @"-------------------------------------"
-  trace @"Total Subscription Time:"
-  trace cbor.diagnostic(interval_length)
-  trace @"Time Elapsed:"
-  trace cbor.diagnostic(time_elapsed)
-  trace @"Original Payment Amount:"
-  trace cbor.diagnostic(total_subscription_fee)
-  trace @"Refund Amount:"
-  trace cbor.diagnostic(refund_amount)
-  trace @"Penalty Applied:"
-  trace cbor.diagnostic(penalty_fee_qty)
-
-  trace @"Step 3: Processing Termination"
-  trace @"-------------------------------------"
-  trace @"Payment NFT to be burned:"
-  trace cbor.diagnostic(payment_tkn)
-  trace @"Refund Output:"
-  trace cbor.diagnostic(refund_output)
-  trace @"Penalty Output:"
-  trace cbor.diagnostic(penalty_output)
-
-  trace @"Step 4: Verifying Transaction"
-  trace @"-------------------------------------"
-  trace @"Transaction Inputs:"
-  trace cbor.diagnostic(context.transaction.inputs)
-  trace @"Transaction Outputs:"
-  trace cbor.diagnostic(context.transaction.outputs)
-  trace @"Burned Tokens:"
-  trace cbor.diagnostic(context.transaction.mint)
-
-  trace @"Step 5: Execution Result"
-  trace @"-------------------------------------"
-  trace @"Subscription Successfully Terminated"
-
-  trace @"-------------------------------------"
-  trace @"Test Completed!"
-
-  validate_terminate_subscription(own_cs, account_cs, context.transaction)
+  validate_terminate_subscription(own_cs, context.transaction)
 }
 
 test succeed_extend_subscription() {
@@ -373,18 +264,18 @@ test succeed_extend_subscription() {
   let current_time = 1000000
   let last_claimed = 500000
   // 30 days in milliseconds
-  let interval_length = 30 * 24 * 60 * 60 * 1000
-  let total_subscription_fee = 1_000_000_000
-  let penalty_fee_qty = 1_000_000
-  let interval_amount = 100_000_000
+  let interval_amount = 10_000_000
   let num_intervals = 1
+  let interval_length = 30 * 24 * 60 * 60 * 1000
+  let total_total_subscription_fee_qty = interval_amount * num_intervals
+  let penalty_fee_qty = 1_000_000
 
   // Create the initial payment datum
   let initial_payment_datum =
     tests.test_datum_03(
       service_tkn,
       user_account_tkn,
-      total_subscription_fee,
+      total_total_subscription_fee_qty,
       current_time,
       current_time + interval_length,
       interval_length,
@@ -396,7 +287,7 @@ test succeed_extend_subscription() {
   // Create the payment input (the one being spent)
   let initial_payment_value =
     value.add(
-      value.from_lovelace(total_subscription_fee),
+      value.from_lovelace(total_total_subscription_fee_qty),
       own_cs,
       payment_tkn,
       1,
@@ -406,21 +297,22 @@ test succeed_extend_subscription() {
       extend_output_ref,
       own_cs,
       initial_payment_value,
-      initial_payment_datum,
+      Payment(initial_payment_datum),
     )
+
   // Define extension parameters
   // 30 more days
   let extension_period = interval_length
-  let extension_fee = interval_amount
   let extension_intervals = 1
+  let extension_fee = interval_amount * extension_intervals
 
   // Same as initial fee for simplicity
   // Create the new payment datum with extended period and increased fee
-  let new_payment_datum =
+  let new_payment_datum: PaymentDatum =
     tests.test_datum_03(
       service_tkn,
       user_account_tkn,
-      total_subscription_fee + extension_fee,
+      total_total_subscription_fee_qty + extension_fee,
       current_time,
       initial_payment_datum.subscription_end + extension_period,
       interval_length,
@@ -429,10 +321,11 @@ test succeed_extend_subscription() {
       last_claimed,
       penalty_fee_qty,
     )
+
   // Create the new payment output
   let new_payment_value =
     value.add(
-      value.from_lovelace(total_subscription_fee + extension_fee),
+      value.from_lovelace(total_total_subscription_fee_qty + extension_fee),
       own_cs,
       payment_tkn,
       1,
@@ -442,12 +335,12 @@ test succeed_extend_subscription() {
       own_cs,
       new_payment_value,
       100_000_000,
-      new_payment_datum,
+      Payment(new_payment_datum),
     )
   // Create a mock subscriber input (to pay for the extension)
   let subscriber_pkh = tests.test_224_04()
   // Assuming this function exists to generate a different hash
-  let account_input =
+  let subscriber_input =
     tests.test_context_input_02(
       tests.test_input_utxo_02(tx_hash),
       account_cs,
@@ -458,7 +351,12 @@ test succeed_extend_subscription() {
   // Create the service datum and input
   let is_active = True
   let service_datum =
-    tests.test_service_datum(is_active, interval_length, num_intervals)
+    tests.test_service_datum(
+      is_active,
+      interval_length,
+      num_intervals,
+      interval_amount,
+    )
   let service_input =
     tests.test_context_input_02(
       tests.test_input_utxo_02(service_cs),
@@ -492,7 +390,7 @@ test succeed_extend_subscription() {
     ScriptContext {
       purpose: Spend(extend_output_ref),
       transaction: Transaction {
-        inputs: [account_input, payment_input],
+        inputs: [subscriber_input, payment_input],
         reference_inputs: [service_input],
         outputs: [user_change_output, payment_output],
         fee: value.zero(),
@@ -507,59 +405,193 @@ test succeed_extend_subscription() {
       },
     }
 
-  trace @"Test: Extending an Existing Subscription"
-  trace @"-------------------------------------"
-
-  trace @"Step 1: Current Subscription Details"
-  trace @"-------------------------------------"
-  trace @"Service Currency Symbol:"
-  trace cbor.diagnostic(service_cs)
-  trace @"Account Currency Symbol:"
-  trace cbor.diagnostic(account_cs)
-  trace @"Current Subscription Start:"
-  trace cbor.diagnostic(current_time)
-  trace @"Current Subscription End:"
-  trace cbor.diagnostic(current_time + interval_length)
-  trace @"Current Subscription Fee: (lovelace)"
-  trace cbor.diagnostic(total_subscription_fee)
-
-  trace @"Step 2: Extension Details"
-  trace @"-------------------------------------"
-  trace @"Extension Period: (days)"
-  trace cbor.diagnostic(extension_period / ( 24 * 60 * 60 * 1000 ))
-  trace @"New Subscription End:"
-  trace cbor.diagnostic(
-    initial_payment_datum.subscription_end + extension_period,
-  )
-  trace @"Additional Fee for Extension: (lovelace)"
-  trace cbor.diagnostic(extension_fee)
-
-  trace @"Step 3: Updating Payment Datum"
-  trace @"-------------------------------------"
-  trace @"Original Payment Datum:"
-  trace cbor.diagnostic(initial_payment_datum)
-  trace @"Updated Payment Datum:"
-  trace cbor.diagnostic(new_payment_datum)
-
-  trace @"Step 4: Verifying Transaction"
-  trace @"-------------------------------------"
-  trace @"Transaction Inputs:"
-  trace cbor.diagnostic(context.transaction.inputs)
-  trace @"Transaction Outputs:"
-  trace cbor.diagnostic(context.transaction.outputs)
-  trace @"Reference Inputs:"
-  trace cbor.diagnostic(context.transaction.reference_inputs)
-
-  trace @"Step 5: Execution Result"
-  trace @"-------------------------------------"
-  trace @"Subscription Successfully Extended!"
-  trace @"-------------------------------------"
-  trace @"Test Completed!"
-
   validate_extend_subscription(
+    extend_output_ref,
     service_cs,
-    account_cs,
     Payment(initial_payment_datum),
+    1,
+    context.transaction,
+  )
+}
+
+test succeed_merchant_withdraw() {
+  let own_cs = tests.test_payment_cs()
+  let service_cs = tests.test_service_cs()
+
+  let tx_hash = tests.test_224_01()
+  let payment_tx_hash = tests.test_224_02()
+  let service_tx_hash = tests.test_224_03()
+
+  let script_output_ref = tests.test_input_utxo_02(payment_tx_hash)
+
+  let payment_tkn = values.unique_token_name(payment_tx_hash, 1, #"")
+  let service_tkn =
+    values.unique_token_name(service_tx_hash, 1, cip68.prefix_100)
+  let service_user_tkn =
+    values.unique_token_name(service_tx_hash, 1, cip68.prefix_222)
+  let user_account_tkn = values.unique_token_name(tx_hash, 1, cip68.prefix_222)
+
+  let subscription_start = 1737043736747
+  // 30 days in milliseconds
+  let interval_length = 120000
+  //30 * 24 * 60 * 60 * 1000
+  // 120 days total
+  let num_intervals = 12
+  let interval_amount = 100_000_000
+  let total_total_subscription_fee_qty = 1_200_000_000
+  let penalty_fee_qty = 1_000_000
+  let subscription_end = 1737045176747
+  let last_claimed = 1737043736747
+  // Set current time to exactly 2 vesting periods (60 days) after start
+  let current_time = 1737043903924
+
+  // Half-way through
+  let payment_datum =
+    tests.test_datum_03(
+      service_tkn,
+      user_account_tkn,
+      total_total_subscription_fee_qty,
+      subscription_start,
+      subscription_end,
+      interval_length,
+      interval_amount,
+      num_intervals,
+      last_claimed,
+      penalty_fee_qty,
+    )
+
+  // Calculate withdrawable amount using stepped vesting
+  let time_since_last_claim =
+    math.max(current_time - payment_datum.last_claimed, 0)
+
+  let intervals_passed = time_since_last_claim / payment_datum.interval_length
+  let claimable_intervals =
+    math.min(intervals_passed, payment_datum.num_intervals)
+  let withdrawable_amount = interval_amount * claimable_intervals
+
+  let is_active = True
+  let service_datum =
+    tests.test_service_datum(
+      is_active,
+      interval_length,
+      num_intervals,
+      interval_amount,
+    )
+
+  let payment_value =
+    value.add(
+      value.from_lovelace(total_total_subscription_fee_qty),
+      own_cs,
+      payment_tkn,
+      1,
+    )
+  let service_value =
+    value.add(
+      value.from_lovelace(total_total_subscription_fee_qty),
+      service_cs,
+      service_tkn,
+      1,
+    )
+
+  let merchant_value =
+    value.add(
+      value.from_lovelace(total_total_subscription_fee_qty),
+      service_cs,
+      service_user_tkn,
+      1,
+    )
+
+  // Create the merchant input (to prove service ownership)
+  let merchant_input =
+    tests.test_context_input_02(
+      tests.test_input_utxo_02(service_tx_hash),
+      service_cs,
+      merchant_value,
+      NoDatum,
+    )
+  // Create the payment input (the one being spent)
+  let payment_input =
+    tests.test_context_input_02(
+      script_output_ref,
+      own_cs,
+      payment_value,
+      Payment(payment_datum),
+    )
+
+  // Create the service input (to prove service ownership)
+  let service_input =
+    tests.test_context_input_02(
+      tests.test_input_utxo_02(service_tx_hash),
+      service_cs,
+      service_value,
+      service_datum,
+    )
+
+  // Calculate withdrawable amount (assuming half of the subscription period has passed)
+  let actual_withdrawal = withdrawable_amount
+  let merchant_output_value =
+    value.add(
+      value.from_lovelace(actual_withdrawal),
+      service_cs,
+      service_user_tkn,
+      1,
+    )
+
+  // Create withdrawal output
+  let merchant_output =
+    tests.test_utxo_exact(service_cs, merchant_output_value, NoDatum)
+
+  // Create remaining funds output (if any)
+  let remaining_amount = total_total_subscription_fee_qty - actual_withdrawal
+
+  let payment_output_value =
+    value.add(value.from_lovelace(remaining_amount), own_cs, payment_tkn, 1)
+
+  let new_payment_datum =
+    tests.test_datum_03(
+      service_tkn,
+      user_account_tkn,
+      remaining_amount,
+      subscription_start,
+      subscription_end,
+      interval_length,
+      interval_amount,
+      num_intervals - 1,
+      current_time,
+      penalty_fee_qty,
+    )
+
+  let payment_output =
+    tests.test_utxo_02(
+      own_cs,
+      payment_output_value,
+      0,
+      Payment(new_payment_datum),
+    )
+
+  let lower_bound = current_time
+  let upper_bound = lower_bound + 1
+
+  let insert_timerange = tests.test_time_range(lower_bound, upper_bound)
+
+  // Create the transaction
+  let context =
+    tests.test_spend_script_context(
+      script_output_ref,
+      [merchant_input, payment_input],
+      [service_input],
+      [merchant_output, payment_output],
+      value.zero(),
+      insert_timerange,
+      tx_hash,
+    )
+
+  validate_merchant_withdraw(
+    script_output_ref,
+    service_cs,
+    Payment(payment_datum),
+    0,
+    1,
     context.transaction,
   )
 }
@@ -582,43 +614,58 @@ test succeed_unsubscribe() {
   let user_account_tkn =
     values.unique_token_name(account_tx_hash, 1, cip68.prefix_222)
 
-  let current_time = 1000000
-  let last_claimed = 500000
+  let subscription_start = 1737043736747
   // 30 days in milliseconds
-  let interval_length = 30 * 24 * 60 * 60 * 1000
-  let total_subscription_fee = 1_000_000_000
+  let interval_length = 120000
+  let interval_amount = 10_000_000
+  //30 * 24 * 60 * 60 * 1000
+  // 120 days total
+  let num_intervals = 12
+  let subscription_end = 1737045176747
+  let total_subscription_fee_qty = interval_amount * num_intervals
   let penalty_fee_qty = 1_000_000
-  let interval_amount = 100_000_000
-  let num_intervals = 1
+  let last_claimed = 1737043736747
+  // Set current time to exactly 2 vesting periods (60 days) after start
+  let current_time = 1737043903924
 
-  let payment_datum =
-    tests.test_datum_03(
-      service_tkn,
-      user_account_tkn,
-      total_subscription_fee,
-      current_time,
-      current_time + interval_length,
-      interval_length,
-      interval_amount,
-      num_intervals,
-      last_claimed,
-      penalty_fee_qty,
-    )
+  // Calculate refund based on unclaimed intervals (matching validator logic)
+  let time_since_start = math.max(current_time - subscription_start, 0)
+  let intervals_passed = time_since_start / interval_length
+  let claimed_intervals = math.min(intervals_passed, num_intervals)
+  let remaining_intervals = num_intervals - claimed_intervals
+  let refundable_amount = remaining_intervals * interval_amount
 
-  let payment_value =
-    value.add(
-      value.from_lovelace(total_subscription_fee),
-      own_cs,
-      payment_tkn,
-      1,
-    )
+  // Subscriber should get refundable amount minus penalty
+  let subscriber_refund = refundable_amount - penalty_fee_qty - 2_000_000
+
   let account_value = value.add(value.zero(), account_cs, user_account_tkn, 1)
   let service_value = value.add(value.zero(), service_cs, service_tkn, 1)
 
   let is_active = True
   let service_datum =
-    tests.test_service_datum(is_active, interval_length, num_intervals)
+    tests.test_service_datum(
+      is_active,
+      interval_length,
+      num_intervals,
+      interval_amount,
+    )
 
+  let payment_datum =
+    tests.test_datum_03(
+      service_tkn,
+      user_account_tkn,
+      total_subscription_fee_qty,
+      subscription_start,
+      subscription_end,
+      interval_length,
+      interval_amount,
+      remaining_intervals,
+      last_claimed,
+      penalty_fee_qty,
+    )
+
+  let payment_value =
+    value.add(value.from_lovelace(refundable_amount), own_cs, payment_tkn, 1)
   // Create the payment input (the one being spent)
   let payment_input =
     tests.test_context_input_02(
@@ -644,29 +691,31 @@ test succeed_unsubscribe() {
       service_value,
       service_datum,
     )
-  // Calculate refund amount (assuming half of the subscription period has passed)
-  let time_elapsed = interval_length / 2
-  let refund_amount = total_subscription_fee / 2
 
   // Create refund output
   let refund_output =
     tests.test_utxo_02(
       account_cs,
-      value.from_lovelace(refund_amount),
-      100_000_000,
+      value.from_lovelace(subscriber_refund),
+      0,
       NoDatum,
     )
 
   let penalty_value =
-    value.add(value.from_lovelace(penalty_fee_qty), own_cs, payment_tkn, 1)
+    value.add(
+      value.from_lovelace(penalty_fee_qty + 2_000_000),
+      own_cs,
+      payment_tkn,
+      1,
+    )
 
   // Create penalty output
   let penalty_datum =
     tests.test_penalty_datum(service_tkn, user_account_tkn, penalty_fee_qty)
   let penalty_output =
-    tests.test_utxo_02(own_cs, penalty_value, 100_000_000, penalty_datum)
+    tests.test_utxo_02(own_cs, penalty_value, 0, Penalty(penalty_datum))
 
-  let lower_bound = current_time + time_elapsed
+  let lower_bound = current_time - 1
   let upper_bound = lower_bound + 1
 
   let insert_timerange = tests.test_time_range(lower_bound, upper_bound)
@@ -683,276 +732,12 @@ test succeed_unsubscribe() {
       tx_hash,
     )
 
-  trace @"Test: Unsubscribing from a Service"
-  trace @"-------------------------------------"
-
-  trace @"Step 1: Current Subscription Details"
-  trace @"-------------------------------------"
-  trace @"Original Subscription Fee: (lovelace)"
-  trace cbor.diagnostic(total_subscription_fee)
-  trace @"Subscription period: (days)"
-  trace cbor.diagnostic(interval_length / ( 24 * 60 * 60 * 1000 ))
-
-  trace @"Unsubscribe Details:"
-  trace @"Time elapsed: (days)"
-  trace cbor.diagnostic(time_elapsed / ( 24 * 60 * 60 * 1000 ))
-  trace @"Refund Amount: (lovelace)"
-  trace cbor.diagnostic(refund_amount)
-  trace @"Penalty Fee: (lovelace)"
-  trace cbor.diagnostic(penalty_fee_qty)
-
-  trace @"Refunded to user:"
-  trace cbor.diagnostic(refund_amount)
-  trace @"Penalty retained:"
-  trace cbor.diagnostic(penalty_fee_qty)
-
-  trace @"Step 2: Unsubscribe Process"
-  trace @"-------------------------------------"
-  trace @"Time of Unsubscription:"
-  trace cbor.diagnostic(current_time)
-  trace @"Refund Amount:"
-  trace cbor.diagnostic(refund_amount)
-  trace @"Penalty Amount:"
-  trace cbor.diagnostic(penalty_fee_qty)
-
-  trace @"Step 3: Verifying Outputs"
-  trace @"-------------------------------------"
-  trace @"Refund Output:"
-  trace cbor.diagnostic(refund_output)
-  trace @"Penalty Output:"
-  trace cbor.diagnostic(penalty_output)
-
-  trace @"Step 4: Validating Transaction"
-  trace @"-------------------------------------"
-  trace @"Transaction Inputs:"
-  trace cbor.diagnostic(context.transaction.inputs)
-  trace @"Transaction Outputs:"
-  trace cbor.diagnostic(context.transaction.outputs)
-  trace @"Minted Tokens:"
-  trace cbor.diagnostic(context.transaction.mint)
-  trace @"Step 5: Execution Result"
-  trace @"-------------------------------------"
-  trace @"Unsubscription Successfully Processed!"
-  trace @"-------------------------------------"
-  trace @"Test Completed!"
-
   validate_unsubscribe(
-    service_cs,
+    script_output_ref,
     account_cs,
     Payment(payment_datum),
-    context.transaction,
-  )
-}
-
-test succeed_merchant_withdraw() {
-  let own_cs = tests.test_payment_cs()
-  let service_cs = tests.test_service_cs()
-
-  let tx_hash = tests.test_224_01()
-  let payment_tx_hash = tests.test_224_02()
-  let service_tx_hash = tests.test_224_03()
-
-  let script_output_ref = tests.test_input_utxo_02(payment_tx_hash)
-
-  let payment_tkn = values.unique_token_name(payment_tx_hash, 1, #"")
-  let service_tkn =
-    values.unique_token_name(service_tx_hash, 1, cip68.prefix_222)
-  let user_account_tkn = values.unique_token_name(tx_hash, 1, cip68.prefix_222)
-
-  let subscription_start = 1000000
-  // 30 days in milliseconds
-  let interval_length = 30 * 24 * 60 * 60 * 1000
-  // 120 days total
-  let num_intervals = 1
-  let subscription_end = subscription_start + interval_length * num_intervals
-  let total_subscription_fee = 1_000_000_000
-  let penalty_fee_qty = 1_000_000
-  let last_claimed = subscription_start
-  // Set current time to exactly 2 vesting periods (60 days) after start
-  let current_time = subscription_start + 2 * interval_length
-  let interval_amount = 100_000_000
-
-  // Half-way through
-  let payment_datum =
-    tests.test_datum_03(
-      service_tkn,
-      user_account_tkn,
-      total_subscription_fee,
-      subscription_start,
-      subscription_end,
-      interval_length,
-      interval_amount,
-      num_intervals,
-      last_claimed,
-      penalty_fee_qty,
-    )
-
-  let is_active = True
-  let service_datum =
-    tests.test_service_datum(is_active, interval_length, num_intervals)
-
-  let payment_value =
-    value.add(
-      value.from_lovelace(total_subscription_fee),
-      own_cs,
-      payment_tkn,
-      1,
-    )
-  let service_value =
-    value.add(
-      value.from_lovelace(total_subscription_fee),
-      service_cs,
-      service_tkn,
-      1,
-    )
-
-  // Create the merchant input (to prove service ownership)
-  let merchant_input =
-    tests.test_context_input_02(
-      tests.test_input_utxo_02(service_tx_hash),
-      service_cs,
-      service_value,
-      NoDatum,
-    )
-  // Create the payment input (the one being spent)
-  let payment_input =
-    tests.test_context_input_02(
-      script_output_ref,
-      own_cs,
-      payment_value,
-      payment_datum,
-    )
-
-  // Create the service input (to prove service ownership)
-  let service_input =
-    tests.test_context_input_02(
-      tests.test_input_utxo_02(service_tx_hash),
-      service_cs,
-      service_value,
-      service_datum,
-    )
-
-  // Calculate withdrawable amount using stepped vesting
-  let time_elapsed = current_time - last_claimed
-  let withdrawable_amount = 2 * interval_amount
-  let minimum_ada = 2_000_000
-
-  // Calculate withdrawable amount (assuming half of the subscription period has passed)
-  // let time_elapsed = math.min(current_time - last_claimed, interval_length)
-  // let withdrawable_amount = total_subscription_fee * time_elapsed / interval_length
-  // Let's withdraw half of the withdrawable amount for this test
-  let actual_withdrawal = withdrawable_amount
-  let merchant_output_value =
-    value.add(
-      value.from_lovelace(actual_withdrawal + minimum_ada),
-      service_cs,
-      service_tkn,
-      1,
-    )
-
-  // Create withdrawal output
-  let merchant_output =
-    tests.test_utxo_exact(service_cs, merchant_output_value, NoDatum)
-
-  // Create remaining funds output (if any)
-  let remaining_amount = total_subscription_fee - actual_withdrawal
-  let payment_output_value =
-    value.add(value.from_lovelace(remaining_amount), own_cs, payment_tkn, 1)
-
-  let interval_amount = 100_000_000
-  let num_intervals = 1
-
-  let new_payment_datum =
-    tests.test_datum_03(
-      service_tkn,
-      user_account_tkn,
-      remaining_amount,
-      subscription_start,
-      subscription_end,
-      interval_length,
-      interval_amount,
-      num_intervals,
-      current_time,
-      penalty_fee_qty,
-    )
-
-  let payment_output =
-    tests.test_utxo_02(
-      own_cs,
-      payment_output_value,
-      100_000_000,
-      new_payment_datum,
-    )
-
-  let lower_bound = current_time
-  let upper_bound = lower_bound + 1
-
-  let insert_timerange = tests.test_time_range(lower_bound, upper_bound)
-
-  // Create the transaction
-  let context =
-    tests.test_spend_script_context(
-      script_output_ref,
-      [merchant_input, payment_input],
-      [service_input],
-      [merchant_output, payment_output],
-      value.zero(),
-      insert_timerange,
-      tx_hash,
-    )
-
-  trace @"Test: Withdrawing Subscription Fees"
-  trace @"-------------------------------------"
-
-  trace @"Step 1: Current Contract State"
-  trace @"-------------------------------------"
-  trace @"Service Currency Symbol:"
-  trace cbor.diagnostic(service_cs)
-  trace @"Payment Currency Symbol:"
-  trace cbor.diagnostic(own_cs)
-  trace @"Subscription Start:"
-  trace cbor.diagnostic(subscription_start)
-  trace @"Subscription End:"
-  trace cbor.diagnostic(subscription_end)
-  trace @"Total Subscription Fee: (lovelace)"
-  trace cbor.diagnostic(total_subscription_fee)
-  trace @"Last Claimed:"
-  trace cbor.diagnostic(last_claimed)
-  trace @"Current Time:"
-  trace cbor.diagnostic(current_time)
-
-  trace @"Step 2: Withdrawal Calculation"
-  trace @"-------------------------------------"
-  trace @"Time Elapsed: (days)"
-  trace cbor.diagnostic(time_elapsed / ( 24 * 60 * 60 * 1000 ))
-  trace @"Withdrawable Amount: (lovelace)"
-  trace cbor.diagnostic(withdrawable_amount)
-  trace @"Actual Withdrawal: (lovelace)"
-  trace cbor.diagnostic(actual_withdrawal)
-
-  trace @"Step 3: Verifying Outputs"
-  trace @"-------------------------------------"
-  trace @"Merchant Output:"
-  trace cbor.diagnostic(merchant_output)
-  trace @"Remaining Payment Output:"
-  trace cbor.diagnostic(payment_output)
-
-  trace @"Step 4: Updating Payment Datum"
-  trace @"-------------------------------------"
-  trace @"Original Last Claimed:"
-  trace cbor.diagnostic(last_claimed)
-  trace @"Updated Last Claimed:"
-  trace cbor.diagnostic(current_time)
-
-  trace @"Step 5: Execution Result"
-  trace @"-------------------------------------"
-  trace @"Withdrawal Successfully Processed!"
-  trace @"-------------------------------------"
-  trace @"Test Completed!"
-
-  validate_merchant_withdraw(
-    service_cs,
-    Payment(payment_datum),
+    0,
+    1,
     context.transaction,
   )
 }
@@ -976,7 +761,7 @@ test succeed_subscriber_withdraw() {
   let subscription_start = 1000000
   let interval_length = 30 * 24 * 60 * 60 * 1000
   let subscription_end = subscription_start + interval_length
-  let total_subscription_fee = 1_000_000_000
+  let total_subscription_fee_qty = 1_000_000_000
   let penalty_fee_qty = 1_000_000
   let last_claimed = subscription_start
   let current_time = subscription_end + 1
@@ -988,7 +773,7 @@ test succeed_subscriber_withdraw() {
     tests.test_datum_03(
       service_tkn,
       user_account_tkn,
-      total_subscription_fee,
+      total_subscription_fee_qty,
       subscription_start,
       subscription_end,
       interval_length,
@@ -1001,19 +786,24 @@ test succeed_subscriber_withdraw() {
   let is_active = False
   // Service is inactive
   let service_datum =
-    tests.test_service_datum(is_active, interval_length, num_intervals)
+    tests.test_service_datum(
+      is_active,
+      interval_length,
+      num_intervals,
+      interval_amount,
+    )
 
   let account_value = value.add(value.zero(), account_cs, user_account_tkn, 1)
   let payment_value =
     value.add(
-      value.from_lovelace(total_subscription_fee),
+      value.from_lovelace(total_subscription_fee_qty),
       own_cs,
       payment_tkn,
       1,
     )
   let service_value =
     value.add(
-      value.from_lovelace(total_subscription_fee),
+      value.from_lovelace(total_subscription_fee_qty),
       service_cs,
       service_tkn,
       1,
@@ -1045,7 +835,7 @@ test succeed_subscriber_withdraw() {
     )
   let account_output_value =
     value.add(
-      value.from_lovelace(total_subscription_fee),
+      value.from_lovelace(total_subscription_fee_qty),
       account_cs,
       user_account_tkn,
       1,
@@ -1055,13 +845,18 @@ test succeed_subscriber_withdraw() {
     tests.test_utxo_02(account_cs, account_output_value, 100_000_000, NoDatum)
 
   // Create remaining funds output (if any)
-  let remaining_amount = total_subscription_fee - total_subscription_fee
-
-  let payment_output_value =
-    value.add(value.from_lovelace(remaining_amount), own_cs, payment_tkn, 1)
-
-  let payment_output =
-    tests.test_utxo_02(own_cs, payment_output_value, 100_000_000, payment_datum)
+  // let penalty_value =
+  //   value.add(value.from_lovelace(penalty_fee_qty), own_cs, payment_tkn, 1)
+  // Create penalty output
+  // let penalty_datum =
+  //   tests.test_penalty_datum(service_tkn, user_account_tkn, penalty_fee_qty)
+  let penalty_output =
+    tests.test_utxo_02(
+      own_cs,
+      payment_value,
+      100_000_000,
+      Payment(payment_datum),
+    )
 
   let insert_timerange = tests.test_time_range(current_time, current_time + 1)
 
@@ -1070,55 +865,20 @@ test succeed_subscriber_withdraw() {
       script_output_ref,
       [account_input, payment_input],
       [service_input],
-      [user_output, payment_output],
+      [user_output, penalty_output],
       value.add(value.zero(), own_cs, payment_tkn, -1),
       // Burning payment NFT
       insert_timerange,
       tx_hash,
     )
 
-  trace @"Test: Withdrawing from Inactive Service"
-  trace @"-------------------------------------"
-
-  trace @"Step 1: Current Contract State"
-  trace @"-------------------------------------"
-  trace @"Service Active Status:"
-  trace cbor.diagnostic(service_datum.is_active)
-  trace @"Payment Amount:"
-  trace cbor.diagnostic(total_subscription_fee)
-
-  trace @"Step 2: Withdrawal Process"
-  trace @"-------------------------------------"
-  trace @"Refund Amount:"
-  trace cbor.diagnostic(total_subscription_fee)
-
-  trace @"Step 3: Verifying Outputs"
-  trace @"-------------------------------------"
-  trace @"User Output:"
-  trace cbor.diagnostic(user_output)
-  trace @"Payment Output:"
-  trace cbor.diagnostic(payment_output)
-
-  trace @"Step 4: Validating Transaction"
-  trace @"-------------------------------------"
-  trace @"Transaction Inputs:"
-  trace cbor.diagnostic(context.transaction.inputs)
-  trace @"Transaction Outputs:"
-  trace cbor.diagnostic(context.transaction.outputs)
-  trace @"Tokens:"
-  trace cbor.diagnostic(context.transaction.mint)
-
-  trace @"Step 5: Execution Result"
-  trace @"-------------------------------------"
-  trace @"Withdrawal from Inactive Service Successfully Processed!"
-
-  trace @"-------------------------------------"
-  trace @"Test Completed!"
-
   validate_subscriber_withdraw(
+    script_output_ref,
     service_cs,
     account_cs,
     Payment(payment_datum),
+    0,
+    1,
     context.transaction,
   )
 }

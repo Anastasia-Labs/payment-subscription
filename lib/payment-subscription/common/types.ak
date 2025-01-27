@@ -11,7 +11,6 @@ pub type AssetClass {
 pub type ServiceDatum {
   service_fee: AssetClass,
   service_fee_qty: Int,
-  // non-negative
   penalty_fee: AssetClass,
   penalty_fee_qty: Int,
   interval_length: Int,
@@ -28,8 +27,8 @@ pub type CreateService {
 
 // Service Spend Purpose Redeemer
 pub type SpendService {
-  UpdateService
-  RemoveService
+  UpdateService { merchant_input_index: Int, service_input_index: Int }
+  RemoveService { merchant_input_index: Int, service_input_index: Int }
 }
 
 // Account Mint Purpose Redeemer
@@ -39,8 +38,8 @@ pub type MintAccount {
 }
 
 pub type SpendAccount {
-  UpdateAccount
-  RemoveAccount
+  UpdateAccount { subscriber_input_index: Int, account_input_index: Int }
+  RemoveAccount { subscriber_input_index: Int, account_input_index: Int }
 }
 
 pub type AccountDatum {
@@ -52,23 +51,23 @@ pub type AccountDatum {
 // Payment Mint Purpose Redeemer
 pub type MintPayment {
   InitSubscripton { output_reference: OutputReference, input_index: Int }
-  TerminateSubscription
+  TerminateSubscription { merchant_input_index: Int, payment_input_index: Int }
 }
 
 // Payment Spend Purpose Redeemer
 pub type SpendPayment {
-  Extend
-  Unsubscribe
-  MerchantWithdraw
-  SubscriberWithdraw
+  Extend { subscriber_input_index: Int, payment_input_index: Int }
+  MerchantWithdraw { merchant_input_index: Int, payment_input_index: Int }
+  Unsubscribe { subscriber_input_index: Int, payment_input_index: Int }
+  SubscriberWithdraw { subscriber_input_index: Int, payment_input_index: Int }
 }
 
 // Datum type 
 pub type PaymentDatum {
   service_nft_tn: AssetName,
-  account_nft_tn: AssetName,
+  subscriber_nft_tn: AssetName,
   subscription_fee: AssetClass,
-  total_subscription_fee: Int,
+  total_subscription_fee_qty: Int,
   subscription_start: Int,
   subscription_end: Int,
   interval_length: Int,
@@ -83,7 +82,7 @@ pub type PaymentDatum {
 // penalty_datum
 pub type PenaltyDatum {
   service_nft_tn: AssetName,
-  account_nft_tn: AssetName,
+  subscriber_nft_tn: AssetName,
   penalty_fee: AssetClass,
   penalty_fee_qty: Int,
 }

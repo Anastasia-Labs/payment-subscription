@@ -44,6 +44,10 @@ pub fn test_payment_cs() {
   bytearray.take(blake2b_256(#"07"), 28)
 }
 
+pub fn test_wallet_addr() {
+  bytearray.take(blake2b_256(#"08"), 28)
+}
+
 // Create a UTxO
 pub fn test_utxo_01() {
   Output {
@@ -118,8 +122,13 @@ pub fn test_input_utxo_02(utxo_hash) {
   }
 }
 
-pub fn test_service_datum(status: Bool, subsc_period: Int, intervals: Int) {
-  let fee_qty = 100_000_000
+pub fn test_service_datum(
+  status: Bool,
+  subsc_period: Int,
+  intervals: Int,
+  interval_amount: Int,
+) {
+  // let fee_qty = 100_000_000
   let penalty_qty = 1_000_000
   let min_ada = 2_000_000
 
@@ -131,7 +140,7 @@ pub fn test_service_datum(status: Bool, subsc_period: Int, intervals: Int) {
       asset_name: value.ada_asset_name,
     },
     // Replace with actual AssetName
-    service_fee_qty: fee_qty,
+    service_fee_qty: interval_amount,
     penalty_fee: AssetClass {
       policy_id: value.ada_policy_id,
       asset_name: value.ada_asset_name,
@@ -165,7 +174,7 @@ pub fn test_context_input_02(output_ref, own_cs, minted_value, datum) {
         minted_value,
         value.ada_policy_id,
         value.ada_asset_name,
-        4_000_000,
+        0,
       ),
       datum: InlineDatum(datum),
       reference_script: None,
@@ -191,12 +200,12 @@ pub fn test_datum_03(
 ) {
   PaymentDatum {
     service_nft_tn: service_tn,
-    account_nft_tn: account_tn,
+    subscriber_nft_tn: account_tn,
     subscription_fee: AssetClass {
       policy_id: value.ada_policy_id,
       asset_name: value.ada_asset_name,
     },
-    total_subscription_fee: fee_qty,
+    total_subscription_fee_qty: fee_qty,
     subscription_start: subsc_start,
     subscription_end: subsc_end,
     interval_length: subsc_period,
@@ -232,7 +241,7 @@ pub fn test_penalty_datum(
 ) {
   PenaltyDatum {
     service_nft_tn: service_tn,
-    account_nft_tn: account_tn,
+    subscriber_nft_tn: account_tn,
     penalty_fee: AssetClass {
       policy_id: value.ada_policy_id,
       asset_name: value.ada_asset_name,

@@ -28,8 +28,8 @@ validator(service_policy_id: ByteArray, account_policy_id: ByteArray) {
           tx,
         )?
 
-      TerminateSubscription ->
-        validate_terminate_subscription(own_policy, account_policy_id, tx)
+      TerminateSubscription { .. } ->
+        validate_terminate_subscription(own_policy, tx)
     }
   }
 
@@ -39,25 +39,43 @@ validator(service_policy_id: ByteArray, account_policy_id: ByteArray) {
     ctx: ScriptContext,
   ) -> Bool {
     let ScriptContext { transaction: tx, purpose } = ctx
-    expect Spend(_output_reference) = purpose
+    expect Spend(output_reference) = purpose
 
     when redeemer is {
-      Extend ->
+      Extend { payment_input_index, .. } ->
         validate_extend_subscription(
+          output_reference,
           service_policy_id,
-          account_policy_id,
           datum,
+          payment_input_index,
           tx,
         )
-      Unsubscribe ->
-        validate_unsubscribe(service_policy_id, account_policy_id, datum, tx)
-      MerchantWithdraw ->
-        validate_merchant_withdraw(service_policy_id, datum, tx)
-      SubscriberWithdraw ->
+      MerchantWithdraw { merchant_input_index, payment_input_index } ->
+        validate_merchant_withdraw(
+          output_reference,
+          service_policy_id,
+          datum,
+          merchant_input_index,
+          payment_input_index,
+          tx,
+        )
+      Unsubscribe { subscriber_input_index, payment_input_index } ->
+        validate_unsubscribe(
+          output_reference,
+          account_policy_id,
+          datum,
+          subscriber_input_index,
+          payment_input_index,
+          tx,
+        )
+      SubscriberWithdraw { subscriber_input_index, payment_input_index } ->
         validate_subscriber_withdraw(
+          output_reference,
           service_policy_id,
           account_policy_id,
           datum,
+          subscriber_input_index,
+          payment_input_index,
           tx,
         )
     }
