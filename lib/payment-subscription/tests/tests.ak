@@ -176,12 +176,8 @@ pub fn test_context_input_02(output_ref, own_cs, minted_value, datum) {
   }
 }
 
-pub fn test_datum_02(
-  email_hash: ByteArray,
-  phone_hash: ByteArray,
-  account_created: Int,
-) {
-  AccountDatum { email_hash, phone_hash, account_created }
+pub fn test_datum_02(email_hash: ByteArray, phone_hash: ByteArray) {
+  AccountDatum { email_hash, phone_hash }
 }
 
 pub fn test_datum_03(

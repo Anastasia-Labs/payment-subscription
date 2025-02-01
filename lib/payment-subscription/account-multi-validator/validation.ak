@@ -10,8 +10,6 @@ use assist/values
 use payment_subscription/common/types.{AccountDatum}
 use payment_subscription/common/utils as common_utils
 
-// !!! TODO: validate account creation time
-
 pub fn is_account_metadata_valid(datum: AccountDatum) -> Bool {
   let email_valid = bytearray.length(datum.email_hash) > 0
   let phone_valid = bytearray.length(datum.phone_hash) > 0

@@ -12,7 +12,7 @@ test success_create_account() {
   let own_cs = tests.test_224_01()
   let tx_hash = tests.test_224_02()
   let init_output_ref = tests.test_input_utxo_02(tx_hash)
-  let datum = tests.test_datum_02("you@mail.com", "(717) 550-1675", 1)
+  let datum = tests.test_datum_02("you@mail.com", "(717) 550-1675")
 
   let ref_tkn = values.unique_token_name(tx_hash, 1, cip68.prefix_100)
   let user_tkn = values.unique_token_name(tx_hash, 1, cip68.prefix_222)
@@ -66,8 +66,8 @@ test succeed_update_account() {
   let init_output_ref = tests.test_input_utxo_02(tx_hash)
   let account_output_ref = tests.test_input_utxo_02(tests.test_224_01())
 
-  let datum = tests.test_datum_02("you@mail.com", "(717) 550-1675", 1)
-  let new_datum = tests.test_datum_02("me@mail.com", "(717) 550-1675", 1)
+  let datum = tests.test_datum_02("you@mail.com", "(717) 550-1675")
+  let new_datum = tests.test_datum_02("me@mail.com", "(717) 550-1675")
 
   //   let redeemer = UpdateAccount
   let ref_tkn = values.unique_token_name(tx_hash, 1, cip68.prefix_100)
@@ -99,7 +99,7 @@ test succeed_remove_account() {
   let init_output_ref = tests.test_input_utxo_02(tx_hash)
   let account_output_ref = tests.test_input_utxo_02(tests.test_224_01())
 
-  let datum = tests.test_datum_02("you@mail.com", "(717) 550-1675", 1)
+  let datum = tests.test_datum_02("you@mail.com", "(717) 550-1675")
 
   //   let redeemer = RemoveAccount
   let ref_tkn = values.unique_token_name(tx_hash, 1, cip68.prefix_100)

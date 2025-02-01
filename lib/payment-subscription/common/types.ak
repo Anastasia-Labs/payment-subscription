@@ -6,7 +6,6 @@ use aiken/transaction/value.{AssetName, PolicyId}
 pub type AccountDatum {
   email_hash: ByteArray,
   phone_hash: ByteArray,
-  account_created: Int,
 }
 
 pub type MintAccount {
