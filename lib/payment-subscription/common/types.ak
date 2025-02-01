@@ -1,93 +1,130 @@
 use aiken/transaction.{OutputReference}
 use aiken/transaction/value.{AssetName, PolicyId}
 
-/// There's got to be some functional way to do efficient checks on this.
-/// Consider experimenting after testnet.
-pub type AssetClass {
-  policy_id: PolicyId,
-  asset_name: AssetName,
-}
-
-pub type ServiceDatum {
-  service_fee: AssetClass,
-  service_fee_qty: Int,
-  penalty_fee: AssetClass,
-  penalty_fee_qty: Int,
-  interval_length: Int,
-  num_intervals: Int,
-  minimum_ada: Int,
-  is_active: Bool,
-}
-
-// Service Mint Purpose Redeemer
-pub type CreateService {
-  output_reference: OutputReference,
-  input_index: Int,
-}
-
-// Service Spend Purpose Redeemer
-pub type SpendService {
-  UpdateService { merchant_input_index: Int, service_input_index: Int }
-  RemoveService { merchant_input_index: Int, service_input_index: Int }
-}
-
-// Account Mint Purpose Redeemer
-pub type MintAccount {
-  CreateAccount { output_reference: OutputReference, input_index: Int }
-  DeleteAccount
-}
-
-pub type SpendAccount {
-  UpdateAccount { subscriber_input_index: Int, account_input_index: Int }
-  RemoveAccount { subscriber_input_index: Int, account_input_index: Int }
-}
+// Account
 
 pub type AccountDatum {
-  email: ByteArray,
-  phone: ByteArray,
+  email_hash: ByteArray,
+  phone_hash: ByteArray,
   account_created: Int,
 }
 
-// Payment Mint Purpose Redeemer
-pub type MintPayment {
-  InitSubscripton { output_reference: OutputReference, input_index: Int }
-  TerminateSubscription { merchant_input_index: Int, payment_input_index: Int }
+pub type MintAccount {
+  CreateAccount {
+    output_reference: OutputReference,
+    input_index: Int,
+    output_index: Int,
+  }
+  DeleteAccount { reference_token_name: AssetName }
 }
 
-// Payment Spend Purpose Redeemer
-pub type SpendPayment {
-  Extend { subscriber_input_index: Int, payment_input_index: Int }
-  MerchantWithdraw { merchant_input_index: Int, payment_input_index: Int }
-  Unsubscribe { subscriber_input_index: Int, payment_input_index: Int }
-  SubscriberWithdraw { subscriber_input_index: Int, payment_input_index: Int }
+pub type SpendAccount {
+  UpdateAccount {
+    reference_token_name: AssetName,
+    user_input_index: Int,
+    account_input_index: Int,
+    account_output_index: Int,
+  }
+  RemoveAccount {
+    reference_token_name: AssetName,
+    user_input_index: Int,
+    account_input_index: Int,
+  }
 }
 
-// Datum type 
+// Payment
+
+pub type Installment {
+  claimable_at: Int,
+  claimable_amount: Int,
+}
+
 pub type PaymentDatum {
-  service_nft_tn: AssetName,
-  subscriber_nft_tn: AssetName,
-  subscription_fee: AssetClass,
-  total_subscription_fee_qty: Int,
+  service_reference_tokenname: AssetName,
+  subscriber_reference_tokenname: AssetName,
   subscription_start: Int,
   subscription_end: Int,
-  interval_length: Int,
-  interval_amount: Int,
-  num_intervals: Int,
-  last_claimed: Int,
-  penalty_fee: AssetClass,
-  penalty_fee_qty: Int,
-  minimum_ada: Int,
+  original_subscription_end: Int,
+  installments: List<Installment>,
 }
 
-// penalty_datum
 pub type PenaltyDatum {
-  service_nft_tn: AssetName,
-  subscriber_nft_tn: AssetName,
-  penalty_fee: AssetClass,
-  penalty_fee_qty: Int,
+  service_reference_tokenname: AssetName,
+  subscriber_reference_tokenname: AssetName,
 }
 
 pub type PaymentValidatorDatum {
   Payment(PaymentDatum)
   Penalty(PenaltyDatum)
+}
+
+pub type MintPayment {
+  InitSubscripton {
+    service_ref_input_index: Int,
+    subscriber_input_index: Int,
+    payment_output_index: Int,
+  }
+  TerminateSubscription
+}
+
+pub type SpendPayment {
+  Extend {
+    service_ref_input_index: Int,
+    payment_input_index: Int,
+    payment_output_index: Int,
+    additional_intervals: Int,
+  }
+  MerchantWithdraw {
+    service_ref_input_index: Int,
+    merchant_input_index: Int,
+    payment_input_index: Int,
+    payment_output_index: Int,
+    installments_withdrawn: Int,
+  }
+  Unsubscribe {
+    service_ref_input_index: Int,
+    subscriber_input_index: Int,
+    payment_input_index: Int,
+    penalty_output_index: Int,
+  }
+  SubscriberWithdraw {
+    service_ref_input_index: Int,
+    subscriber_input_index: Int,
+    payment_input_index: Int,
+  }
+}
+
+// Service
+
+pub type ServiceDatum {
+  service_fee_policyid: PolicyId,
+  service_fee_assetname: AssetName,
+  service_fee: Int,
+  penalty_fee_policyid: PolicyId,
+  penalty_fee_assetname: AssetName,
+  penalty_fee: Int,
+  interval_length: Int,
+  num_intervals: Int,
+  is_active: Bool,
+}
+
+pub type CreateService {
+  output_reference: OutputReference,
+  input_index: Int,
+  service_output_index: Int,
+}
+
+pub type SpendService {
+  UpdateService {
+    service_ref_token_name: AssetName,
+    merchant_input_index: Int,
+    service_input_index: Int,
+    service_output_index: Int,
+  }
+  RemoveService {
+    service_ref_token_name: AssetName,
+    merchant_input_index: Int,
+    service_input_index: Int,
+    service_output_index: Int,
+  }
 }

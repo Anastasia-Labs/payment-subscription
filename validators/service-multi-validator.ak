@@ -1,6 +1,5 @@
-use aiken/list
 use aiken/transaction.{Mint, ScriptContext, Spend, Transaction}
-use aiken/transaction/value.{from_minted_value}
+use aiken/transaction/value
 use payment_subscription/common/types.{
   CreateService, RemoveService, ServiceDatum, SpendService, UpdateService,
 }
@@ -14,18 +13,18 @@ validator {
   fn mint_service(r: CreateService, ctx: ScriptContext) -> Bool {
     let ScriptContext { transaction: tx, purpose } = ctx
     expect Mint(own_policy) = purpose
-    let Transaction { inputs, mint, outputs, .. } = tx
+    let Transaction { inputs, outputs, mint, .. } = tx
 
-    let minted_tokens = mint |> from_minted_value()
-
-    let CreateService { output_reference, input_index } = r
-    expect Some(input) = list.at(inputs, input_index)
+    let CreateService { output_reference, input_index, service_output_index } =
+      r
 
     validate_create_service(
       own_policy,
-      input,
-      minted_tokens,
       output_reference,
+      input_index,
+      service_output_index,
+      mint |> value.from_minted_value(),
+      inputs,
       outputs,
     )
   }
@@ -37,25 +36,41 @@ validator {
   ) -> Bool {
     let ScriptContext { transaction: tx, purpose } = ctx
     expect Spend(own_reference) = purpose
+    let Transaction { inputs, outputs, .. } = tx
 
     when rdmr is {
-      UpdateService { merchant_input_index, service_input_index } ->
+      UpdateService {
+        service_ref_token_name,
+        merchant_input_index,
+        service_input_index,
+        service_output_index,
+      } ->
         validate_update_service(
+          own_reference,
           datum,
+          service_ref_token_name,
           merchant_input_index,
           service_input_index,
-          tx,
-          own_reference,
+          service_output_index,
+          inputs,
+          outputs,
         )?
 
-      // Convert the Service from active to inactive.
-      RemoveService { merchant_input_index, service_input_index } ->
+      RemoveService {
+        service_ref_token_name,
+        merchant_input_index,
+        service_input_index,
+        service_output_index,
+      } ->
         validate_remove_service(
+          own_reference,
           datum,
+          service_ref_token_name,
           merchant_input_index,
           service_input_index,
-          tx,
-          own_reference,
+          service_output_index,
+          inputs,
+          outputs,
         )?
     }
   }

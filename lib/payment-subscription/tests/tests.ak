@@ -2,6 +2,7 @@ use aiken/bytearray
 use aiken/dict
 use aiken/hash.{blake2b_256}
 use aiken/interval.{Finite, Interval, IntervalBound}
+use aiken/list
 use aiken/transaction.{
   InlineDatum, Input, Output, OutputReference, ScriptContext, Spend, Transaction,
   TransactionId,
@@ -9,7 +10,7 @@ use aiken/transaction.{
 use aiken/transaction/credential.{Address, ScriptCredential}
 use aiken/transaction/value
 use payment_subscription/common/types.{
-  AccountDatum, AssetClass, PaymentDatum, PenaltyDatum, ServiceDatum,
+  AccountDatum, Installment, PaymentDatum, PenaltyDatum, ServiceDatum,
 }
 
 // Generate a bytearray with blake2b_256
@@ -130,25 +131,18 @@ pub fn test_service_datum(
 ) {
   // let fee_qty = 100_000_000
   let penalty_qty = 1_000_000
-  let min_ada = 2_000_000
 
   // 120 days in milliseconds
   // let subsc_period = 30 * 24 * 60 * 60 * 1000 * 4
   ServiceDatum {
-    service_fee: AssetClass {
-      policy_id: value.ada_policy_id,
-      asset_name: value.ada_asset_name,
-    },
-    // Replace with actual AssetName
-    service_fee_qty: interval_amount,
-    penalty_fee: AssetClass {
-      policy_id: value.ada_policy_id,
-      asset_name: value.ada_asset_name,
-    },
-    penalty_fee_qty: penalty_qty,
+    service_fee_policyid: value.ada_policy_id,
+    service_fee_assetname: value.ada_asset_name,
+    service_fee: interval_amount,
+    penalty_fee_policyid: value.ada_policy_id,
+    penalty_fee_assetname: value.ada_asset_name,
+    penalty_fee: penalty_qty,
     interval_length: subsc_period,
     num_intervals: intervals,
-    minimum_ada: min_ada,
     is_active: status,
   }
 }
@@ -182,42 +176,42 @@ pub fn test_context_input_02(output_ref, own_cs, minted_value, datum) {
   }
 }
 
-pub fn test_datum_02(email: ByteArray, phone: ByteArray, account_created: Int) {
-  AccountDatum { email, phone, account_created }
+pub fn test_datum_02(
+  email_hash: ByteArray,
+  phone_hash: ByteArray,
+  account_created: Int,
+) {
+  AccountDatum { email_hash, phone_hash, account_created }
 }
 
 pub fn test_datum_03(
   service_tn: ByteArray,
   account_tn: ByteArray,
-  fee_qty: Int,
   subsc_start: Int,
   subsc_end: Int,
+  original_subsc_end: Int,
   subsc_period: Int,
   interval_amount: Int,
   num_intervals: Int,
-  last_claimed: Int,
-  penalty_fee: Int,
+  start_at_interval: Int,
 ) {
+  let installments =
+    list.range(start_at_interval, num_intervals)
+      |> list.map(
+          fn(i) {
+            Installment {
+              claimable_at: subsc_start + i * subsc_period,
+              claimable_amount: interval_amount,
+            }
+          },
+        )
   PaymentDatum {
-    service_nft_tn: service_tn,
-    subscriber_nft_tn: account_tn,
-    subscription_fee: AssetClass {
-      policy_id: value.ada_policy_id,
-      asset_name: value.ada_asset_name,
-    },
-    total_subscription_fee_qty: fee_qty,
+    service_reference_tokenname: service_tn,
+    subscriber_reference_tokenname: account_tn,
     subscription_start: subsc_start,
     subscription_end: subsc_end,
-    interval_length: subsc_period,
-    interval_amount,
-    num_intervals,
-    last_claimed,
-    penalty_fee: AssetClass {
-      policy_id: value.ada_policy_id,
-      asset_name: value.ada_asset_name,
-    },
-    penalty_fee_qty: penalty_fee,
-    minimum_ada: 2_000_000,
+    original_subscription_end: original_subsc_end,
+    installments,
   }
 }
 
@@ -234,19 +228,10 @@ pub fn test_time_range(lower_bound: Int, upper_bound: Int) {
   }
 }
 
-pub fn test_penalty_datum(
-  service_tn: ByteArray,
-  account_tn: ByteArray,
-  fee_qty: Int,
-) {
+pub fn test_penalty_datum(service_tn: ByteArray, account_tn: ByteArray) {
   PenaltyDatum {
-    service_nft_tn: service_tn,
-    subscriber_nft_tn: account_tn,
-    penalty_fee: AssetClass {
-      policy_id: value.ada_policy_id,
-      asset_name: value.ada_asset_name,
-    },
-    penalty_fee_qty: fee_qty,
+    service_reference_tokenname: service_tn,
+    subscriber_reference_tokenname: account_tn,
   }
 }
 

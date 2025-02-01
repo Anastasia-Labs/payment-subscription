@@ -1,4 +1,5 @@
 use aiken/transaction.{Mint, ScriptContext, Spend, Transaction}
+use aiken/transaction/value
 use payment_subscription/common/types.{
   Extend, InitSubscripton, MerchantWithdraw, MintPayment, PaymentValidatorDatum,
   SpendPayment, SubscriberWithdraw, TerminateSubscription, Unsubscribe,
@@ -13,23 +14,39 @@ validator(service_policy_id: ByteArray, account_policy_id: ByteArray) {
   fn mint_payment(redeemer: MintPayment, ctx: ScriptContext) -> Bool {
     let ScriptContext { transaction: tx, purpose } = ctx
     expect Mint(own_policy) = purpose
-    let Transaction { .. } = tx
+    let Transaction {
+      inputs,
+      reference_inputs,
+      outputs,
+      mint,
+      validity_range,
+      ..
+    } = tx
+
+    let minted_value = mint |> value.from_minted_value()
 
     when redeemer is {
-      InitSubscripton { output_reference, input_index } ->
-        // Ensure this outref is spent in this transaction
-
+      InitSubscripton {
+        service_ref_input_index,
+        subscriber_input_index,
+        payment_output_index,
+      } ->
         validate_initial_subscription(
           own_policy,
-          account_policy_id,
           service_policy_id,
-          output_reference,
-          input_index,
-          tx,
+          account_policy_id,
+          service_ref_input_index,
+          subscriber_input_index,
+          payment_output_index,
+          inputs,
+          reference_inputs,
+          outputs,
+          minted_value,
+          validity_range,
         )?
 
-      TerminateSubscription { .. } ->
-        validate_terminate_subscription(own_policy, tx)
+      TerminateSubscription ->
+        validate_terminate_subscription(own_policy, minted_value)
     }
   }
 
@@ -40,43 +57,94 @@ validator(service_policy_id: ByteArray, account_policy_id: ByteArray) {
   ) -> Bool {
     let ScriptContext { transaction: tx, purpose } = ctx
     expect Spend(output_reference) = purpose
+    let Transaction {
+      inputs,
+      reference_inputs,
+      outputs,
+      mint,
+      validity_range,
+      ..
+    } = tx
+    let minted_value = mint |> value.from_minted_value()
 
     when redeemer is {
-      Extend { payment_input_index, .. } ->
+      Extend {
+        service_ref_input_index,
+        payment_input_index,
+        payment_output_index,
+        additional_intervals,
+      } ->
         validate_extend_subscription(
           output_reference,
           service_policy_id,
-          datum,
+          service_ref_input_index,
           payment_input_index,
-          tx,
+          payment_output_index,
+          additional_intervals,
+          datum,
+          inputs,
+          reference_inputs,
+          outputs,
         )
-      MerchantWithdraw { merchant_input_index, payment_input_index } ->
+      MerchantWithdraw {
+        service_ref_input_index,
+        merchant_input_index,
+        payment_input_index,
+        payment_output_index,
+        installments_withdrawn,
+      } ->
         validate_merchant_withdraw(
           output_reference,
           service_policy_id,
-          datum,
+          service_ref_input_index,
           merchant_input_index,
           payment_input_index,
-          tx,
+          payment_output_index,
+          installments_withdrawn,
+          datum,
+          inputs,
+          reference_inputs,
+          outputs,
+          validity_range,
+          minted_value,
         )
-      Unsubscribe { subscriber_input_index, payment_input_index } ->
+      Unsubscribe {
+        service_ref_input_index,
+        subscriber_input_index,
+        payment_input_index,
+        penalty_output_index,
+      } ->
         validate_unsubscribe(
           output_reference,
           account_policy_id,
-          datum,
+          service_policy_id,
+          service_ref_input_index,
           subscriber_input_index,
           payment_input_index,
-          tx,
+          penalty_output_index,
+          datum,
+          inputs,
+          reference_inputs,
+          outputs,
+          validity_range,
+          minted_value,
         )
-      SubscriberWithdraw { subscriber_input_index, payment_input_index } ->
+      SubscriberWithdraw {
+        service_ref_input_index,
+        subscriber_input_index,
+        payment_input_index,
+      } ->
         validate_subscriber_withdraw(
           output_reference,
           service_policy_id,
           account_policy_id,
-          datum,
+          service_ref_input_index,
           subscriber_input_index,
           payment_input_index,
-          tx,
+          datum,
+          inputs,
+          reference_inputs,
+          minted_value,
         )
     }
   }

@@ -1,7 +1,5 @@
-use aiken/cbor
-use aiken/list
 use aiken/transaction.{Mint, ScriptContext, Spend, Transaction}
-use aiken/transaction/value.{from_minted_value}
+use aiken/transaction/value
 use payment_subscription/account_multi_validator/validation.{
   validate_create_account, validate_delete_account, validate_remove_account,
   validate_update_account,
@@ -18,27 +16,23 @@ validator {
     let ScriptContext { transaction: tx, purpose } = ctx
     expect Mint(own_policy) = purpose
 
-    let Transaction { inputs, mint, outputs, .. } = tx
-
-    let minted_tokens = mint |> from_minted_value()
+    let Transaction { inputs, outputs, mint, .. } = tx
+    let minted_value = mint |> value.from_minted_value()
 
     when r is {
-      CreateAccount { output_reference, input_index } -> {
-        // Ensure this outref is spent in this transaction 
-        trace @" CreateAccount output_reference:"
-        trace cbor.diagnostic(output_reference)
-
-        expect Some(input) = list.at(inputs, input_index)
+      CreateAccount { output_reference, input_index, output_index } ->
         validate_create_account(
           own_policy,
-          input,
-          minted_tokens,
           output_reference,
+          input_index,
+          output_index,
+          minted_value,
+          inputs,
           outputs,
         )
-      }
 
-      DeleteAccount -> validate_delete_account(own_policy, minted_tokens)
+      DeleteAccount { reference_token_name } ->
+        validate_delete_account(own_policy, minted_value, reference_token_name)
     }
   }
 
@@ -49,23 +43,38 @@ validator {
   ) -> Bool {
     let ScriptContext { transaction: tx, purpose } = ctx
     expect Spend(own_reference) = purpose
+    let Transaction { inputs, outputs, mint, .. } = tx
 
     when rdmr is {
-      UpdateAccount { subscriber_input_index, account_input_index } ->
+      UpdateAccount {
+        reference_token_name,
+        user_input_index,
+        account_input_index,
+        account_output_index,
+      } ->
         validate_update_account(
           own_reference,
-          subscriber_input_index,
+          reference_token_name,
+          user_input_index,
           account_input_index,
-          tx,
+          account_output_index,
+          inputs,
+          outputs,
         )
 
       // Removes the utxo entirely from the script address.
-      RemoveAccount { subscriber_input_index, account_input_index } ->
+      RemoveAccount {
+        reference_token_name,
+        user_input_index,
+        account_input_index,
+      } ->
         validate_remove_account(
           own_reference,
-          subscriber_input_index,
+          reference_token_name,
+          user_input_index,
           account_input_index,
-          tx,
+          inputs,
+          mint |> value.from_minted_value(),
         )
     }
   }

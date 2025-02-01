@@ -1,10 +1,5 @@
-// use aiken/cbor
-use aiken/dict
-use aiken/interval
-use aiken/transaction.{
-  Mint, NoDatum, ScriptContext, Spend, Transaction, TransactionId,
-}
-use aiken/transaction/value.{from_minted_value}
+use aiken/transaction.{NoDatum}
+use aiken/transaction/value
 use assist/types/cip68
 use assist/values
 use payment_subscription/service_multi_validator/validation.{
@@ -43,35 +38,13 @@ test success_create_service() {
 
   let user_input = tests.test_context_input_01(init_output_ref, own_cs, NoDatum)
 
-  let context =
-    ScriptContext {
-      purpose: Mint(own_cs),
-      transaction: Transaction {
-        inputs: [user_input],
-        reference_inputs: [],
-        // There should be two outputs.
-        outputs: [user_output, service_output],
-        fee: value.zero(),
-        mint: value.to_minted_value(minted_value),
-        certificates: [],
-        withdrawals: [],
-        validity_range: interval.everything(),
-        extra_signatories: [],
-        redeemers: [],
-        datums: dict.new(),
-        id: TransactionId { hash: tx_hash },
-      },
-    }
+  let inputs =
+    [user_input]
+  let outputs =
+    [user_output, service_output]
+  let mint = minted_value
 
-  let minted_tokens = context.transaction.mint |> from_minted_value()
-
-  validate_create_service(
-    own_cs,
-    user_input,
-    minted_tokens,
-    init_output_ref,
-    context.transaction.outputs,
-  )
+  validate_create_service(own_cs, init_output_ref, 0, 1, mint, inputs, outputs)
 }
 
 test succeed_update_service() {
@@ -105,7 +78,6 @@ test succeed_update_service() {
 
   let ref_value = value.add(value.zero(), own_cs, ref_tkn, 1)
   let user_value = value.add(value.zero(), own_cs, user_tkn, 1)
-  let minted_value = value.merge(ref_value, user_value)
 
   let user_input =
     tests.test_context_input_02(init_output_ref, own_cs, user_value, NoDatum)
@@ -116,27 +88,21 @@ test succeed_update_service() {
   let service_output =
     tests.test_utxo_02(own_cs, ref_value, 100_000_000, new_datum)
 
-  let context =
-    ScriptContext {
-      purpose: Spend(script_output_ref),
-      transaction: Transaction {
-        inputs: [user_input, service_input],
-        // Should have two inputs.
-        reference_inputs: [],
-        outputs: [user_output, service_output],
-        fee: value.zero(),
-        mint: value.to_minted_value(minted_value),
-        certificates: [],
-        withdrawals: [],
-        validity_range: interval.everything(),
-        extra_signatories: [],
-        redeemers: [],
-        datums: dict.new(),
-        id: TransactionId { hash: tx_hash },
-      },
-    }
+  let inputs =
+    [user_input, service_input]
+  let outputs =
+    [user_output, service_output]
 
-  validate_update_service(datum, 0, 1, context.transaction, script_output_ref)
+  validate_update_service(
+    script_output_ref,
+    datum,
+    ref_tkn,
+    0,
+    1,
+    1,
+    inputs,
+    outputs,
+  )
 }
 
 test succeed_remove_service() {
@@ -163,8 +129,6 @@ test succeed_remove_service() {
 
   let ref_value = value.add(value.zero(), own_cs, ref_tkn, 1)
   let user_value = value.add(value.zero(), own_cs, user_tkn, 1)
-
-  let minted_value = value.merge(ref_value, user_value)
 
   let user_input =
     tests.test_context_input_02(
@@ -194,25 +158,19 @@ test succeed_remove_service() {
   let service_output =
     tests.test_utxo_02(own_cs, ref_value, 100_000_000, new_datum)
 
-  let context =
-    ScriptContext {
-      purpose: Spend(script_output_ref),
-      transaction: Transaction {
-        inputs: [user_input, service_input],
-        // Should have two inputs.
-        reference_inputs: [],
-        outputs: [user_output, service_output],
-        fee: value.zero(),
-        mint: value.to_minted_value(minted_value),
-        certificates: [],
-        withdrawals: [],
-        validity_range: interval.everything(),
-        extra_signatories: [],
-        redeemers: [],
-        datums: dict.new(),
-        id: TransactionId { hash: tx_hash },
-      },
-    }
+  let inputs =
+    [user_input, service_input]
+  let outputs =
+    [user_output, service_output]
 
-  validate_remove_service(datum, 0, 1, context.transaction, script_output_ref)
+  validate_remove_service(
+    script_output_ref,
+    datum,
+    ref_tkn,
+    0,
+    1,
+    1,
+    inputs,
+    outputs,
+  )
 }
