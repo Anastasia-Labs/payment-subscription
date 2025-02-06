@@ -280,8 +280,8 @@ test succeed_extend_subscription() {
     1,
     extension_intervals,
     Payment(initial_payment_datum),
-    inputs,
     reference_inputs,
+    inputs,
     outputs,
   )
 }
@@ -461,8 +461,8 @@ test succeed_merchant_withdraw() {
     1,
     1,
     Payment(payment_datum),
-    inputs,
     reference_inputs,
+    inputs,
     outputs,
     insert_timerange,
     value.zero(),
@@ -609,8 +609,8 @@ test succeed_unsubscribe() {
     1,
     1,
     Payment(payment_datum),
-    inputs,
     reference_inputs,
+    inputs,
     outputs,
     insert_timerange,
     value.zero(),
@@ -717,8 +717,8 @@ test succeed_subscriber_withdraw() {
     0,
     1,
     Payment(payment_datum),
-    inputs,
     reference_inputs,
+    inputs,
     value.add(value.zero(), own_cs, payment_tokenname, -1),
   )
 }

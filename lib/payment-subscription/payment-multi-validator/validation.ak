@@ -232,8 +232,8 @@ pub fn validate_extend_subscription(
   payment_output_index: Int,
   additional_intervals: Int,
   datum: PaymentValidatorDatum,
-  inputs: List<Input>,
   reference_inputs: List<Input>,
+  inputs: List<Input>,
   outputs: List<Output>,
 ) -> Bool {
   when datum is {
@@ -316,8 +316,8 @@ pub fn validate_merchant_withdraw(
   payment_output_index: Int,
   installments_withdrawn: Int,
   datum: PaymentValidatorDatum,
-  inputs: List<Input>,
   reference_inputs: List<Input>,
+  inputs: List<Input>,
   outputs: List<Output>,
   validity_range: ValidityRange,
   mint: Value,
@@ -471,8 +471,8 @@ pub fn validate_unsubscribe(
   payment_input_index: Int,
   penalty_output_index: Int,
   datum: PaymentValidatorDatum,
-  inputs: List<Input>,
   reference_inputs: List<Input>,
+  inputs: List<Input>,
   outputs: List<Output>,
   validity_range: ValidityRange,
   mint: Value,
@@ -586,8 +586,8 @@ pub fn validate_subscriber_withdraw(
   subscriber_input_index: Int,
   payment_input_index: Int,
   datum: PaymentValidatorDatum,
-  inputs: List<Input>,
   reference_inputs: List<Input>,
+  inputs: List<Input>,
   mint: Value,
 ) -> Bool {
   when datum is {
