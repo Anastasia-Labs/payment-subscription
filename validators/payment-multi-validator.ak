@@ -1,5 +1,5 @@
-use aiken/transaction.{Mint, ScriptContext, Spend, Transaction}
-use aiken/transaction/value
+use cardano/assets.{PolicyId}
+use cardano/transaction.{OutputReference, Transaction}
 use payment_subscription/common/types.{
   Extend, InitSubscripton, MerchantWithdraw, MintPayment, PaymentValidatorDatum,
   SpendPayment, SubscriberWithdraw, TerminateSubscription, Unsubscribe,
@@ -10,10 +10,8 @@ use payment_subscription/payment_multi_validator/validation.{
   validate_terminate_subscription, validate_unsubscribe,
 }
 
-validator(service_policy_id: ByteArray, account_policy_id: ByteArray) {
-  fn mint_payment(redeemer: MintPayment, ctx: ScriptContext) -> Bool {
-    let ScriptContext { transaction: tx, purpose } = ctx
-    expect Mint(own_policy) = purpose
+validator payment(service_policy_id: ByteArray, account_policy_id: ByteArray) {
+  mint(redeemer: MintPayment, own_policy: PolicyId, tx: Transaction) {
     let Transaction {
       inputs,
       reference_inputs,
@@ -22,8 +20,6 @@ validator(service_policy_id: ByteArray, account_policy_id: ByteArray) {
       validity_range,
       ..
     } = tx
-
-    let minted_value = mint |> value.from_minted_value()
 
     when redeemer is {
       InitSubscripton {
@@ -41,22 +37,21 @@ validator(service_policy_id: ByteArray, account_policy_id: ByteArray) {
           reference_inputs,
           inputs,
           outputs,
-          minted_value,
+          mint,
           validity_range,
         )?
 
-      TerminateSubscription ->
-        validate_terminate_subscription(own_policy, minted_value)
+      TerminateSubscription -> validate_terminate_subscription(own_policy, mint)
     }
   }
 
-  fn spend_payment(
-    datum: PaymentValidatorDatum,
+  spend(
+    datum_option: Option<PaymentValidatorDatum>,
     redeemer: SpendPayment,
-    ctx: ScriptContext,
-  ) -> Bool {
-    let ScriptContext { transaction: tx, purpose } = ctx
-    expect Spend(output_reference) = purpose
+    output_reference: OutputReference,
+    tx: Transaction,
+  ) {
+    expect Some(datum) = datum_option
     let Transaction {
       inputs,
       reference_inputs,
@@ -65,7 +60,6 @@ validator(service_policy_id: ByteArray, account_policy_id: ByteArray) {
       validity_range,
       ..
     } = tx
-    let minted_value = mint |> value.from_minted_value()
 
     when redeemer is {
       Extend {
@@ -106,7 +100,7 @@ validator(service_policy_id: ByteArray, account_policy_id: ByteArray) {
           inputs,
           outputs,
           validity_range,
-          minted_value,
+          mint,
         )
       Unsubscribe {
         service_ref_input_index,
@@ -127,7 +121,7 @@ validator(service_policy_id: ByteArray, account_policy_id: ByteArray) {
           inputs,
           outputs,
           validity_range,
-          minted_value,
+          mint,
         )
       SubscriberWithdraw {
         service_ref_input_index,
@@ -144,8 +138,12 @@ validator(service_policy_id: ByteArray, account_policy_id: ByteArray) {
           datum,
           reference_inputs,
           inputs,
-          minted_value,
+          mint,
         )
     }
+  }
+
+  else(_) {
+    fail
   }
 }

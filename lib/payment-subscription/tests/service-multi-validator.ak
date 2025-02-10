@@ -1,7 +1,7 @@
-use aiken/transaction.{NoDatum}
-use aiken/transaction/value
-use assist/types/cip68
-use assist/values
+use cardano/assets.{add, merge, zero}
+use cardano/transaction.{NoDatum}
+use payment_subscription/common/cip68
+use payment_subscription/common/values
 use payment_subscription/service_multi_validator/validation.{
   validate_create_service, validate_remove_service, validate_update_service,
 }
@@ -28,9 +28,9 @@ test success_create_service() {
   let ref_tkn = values.unique_token_name(tx_hash, 1, cip68.prefix_100)
   let user_tkn = values.unique_token_name(tx_hash, 1, cip68.prefix_222)
 
-  let ref_value = value.add(value.zero(), own_cs, ref_tkn, 1)
-  let user_value = value.add(value.zero(), own_cs, user_tkn, 1)
-  let minted_value = value.merge(ref_value, user_value)
+  let ref_value = add(zero, own_cs, ref_tkn, 1)
+  let user_value = add(zero, own_cs, user_tkn, 1)
+  let minted_value = merge(ref_value, user_value)
 
   let user_pubkey_hash = tests.test_224_03()
   let user_output = tests.test_user_utxo(user_pubkey_hash, user_value, NoDatum)
@@ -38,10 +38,8 @@ test success_create_service() {
 
   let user_input = tests.test_context_input_01(init_output_ref, own_cs, NoDatum)
 
-  let inputs =
-    [user_input]
-  let outputs =
-    [user_output, service_output]
+  let inputs = [user_input]
+  let outputs = [user_output, service_output]
   let mint = minted_value
 
   validate_create_service(own_cs, init_output_ref, 0, 1, mint, inputs, outputs)
@@ -76,8 +74,8 @@ test succeed_update_service() {
   let ref_tkn = values.unique_token_name(tx_hash, 1, cip68.prefix_100)
   let user_tkn = values.unique_token_name(tx_hash, 1, cip68.prefix_222)
 
-  let ref_value = value.add(value.zero(), own_cs, ref_tkn, 1)
-  let user_value = value.add(value.zero(), own_cs, user_tkn, 1)
+  let ref_value = add(zero, own_cs, ref_tkn, 1)
+  let user_value = add(zero, own_cs, user_tkn, 1)
 
   let user_input =
     tests.test_context_input_02(init_output_ref, own_cs, user_value, NoDatum)
@@ -88,10 +86,8 @@ test succeed_update_service() {
   let service_output =
     tests.test_utxo_02(own_cs, ref_value, 100_000_000, new_datum)
 
-  let inputs =
-    [user_input, service_input]
-  let outputs =
-    [user_output, service_output]
+  let inputs = [user_input, service_input]
+  let outputs = [user_output, service_output]
 
   validate_update_service(
     script_output_ref,
@@ -127,8 +123,8 @@ test succeed_remove_service() {
   let ref_tkn = values.unique_token_name(tx_hash, 1, cip68.prefix_100)
   let user_tkn = values.unique_token_name(tx_hash, 1, cip68.prefix_222)
 
-  let ref_value = value.add(value.zero(), own_cs, ref_tkn, 1)
-  let user_value = value.add(value.zero(), own_cs, user_tkn, 1)
+  let ref_value = add(zero, own_cs, ref_tkn, 1)
+  let user_value = add(zero, own_cs, user_tkn, 1)
 
   let user_input =
     tests.test_context_input_02(
@@ -158,10 +154,8 @@ test succeed_remove_service() {
   let service_output =
     tests.test_utxo_02(own_cs, ref_value, 100_000_000, new_datum)
 
-  let inputs =
-    [user_input, service_input]
-  let outputs =
-    [user_output, service_output]
+  let inputs = [user_input, service_input]
+  let outputs = [user_output, service_output]
 
   validate_remove_service(
     script_output_ref,

@@ -1,5 +1,5 @@
-use aiken/transaction.{OutputReference}
-use aiken/transaction/value.{AssetName, PolicyId}
+use cardano/assets.{AssetName, PolicyId}
+use cardano/transaction.{OutputReference}
 
 // Account
 
@@ -9,11 +9,7 @@ pub type AccountDatum {
 }
 
 pub type MintAccount {
-  CreateAccount {
-    output_reference: OutputReference,
-    input_index: Int,
-    output_index: Int,
-  }
+  CreateAccount { input_index: Int, output_index: Int }
   DeleteAccount { reference_token_name: AssetName }
 }
 

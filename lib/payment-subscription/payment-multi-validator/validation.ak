@@ -1,14 +1,15 @@
 use aiken/builtin
-use aiken/dict
+use aiken/collection/dict
+use aiken/collection/list
+use aiken/collection/pairs
 use aiken/interval.{Finite}
-use aiken/list
-use aiken/pairs
-use aiken/transaction.{Input, Output, OutputReference, ValidityRange}
-use aiken/transaction/credential.{ScriptCredential}
-use aiken/transaction/value.{
-  AssetName, PolicyId, Value, ada_asset_name, ada_policy_id,
+use cardano/address.{Script}
+use cardano/assets.{
+  AssetName, PolicyId, Value, ada_asset_name, ada_policy_id, quantity_of,
+  to_dict, tokens,
 }
-use assist/data
+use cardano/transaction.{Input, Output, OutputReference, ValidityRange}
+use payment_subscription/common/data
 use payment_subscription/common/types.{
   Installment, Payment, PaymentDatum, PaymentValidatorDatum, Penalty,
   PenaltyDatum, ServiceDatum,
@@ -54,7 +55,7 @@ fn calculate_service_fee_in_value(
 ) -> Int {
   let fold_result =
     pairs.foldr(
-      x |> value.to_dict() |> dict.to_pairs(),
+      x |> to_dict() |> dict.to_pairs(),
       Pair(0, 0),
       fn(k, v, r) {
         let Pair(checks, service_fee_amount) = r
@@ -129,23 +130,21 @@ pub fn validate_initial_subscription(
       payment_datum.subscriber_reference_tokenname,
     )
   let subscriber_token_correct =
-    value.quantity_of(
+    quantity_of(
       subscriber_utxo_value,
       account_policy,
       subscriber_user_tokenname,
     ) == 1
 
   let service_token_correct =
-    value.quantity_of(
+    quantity_of(
       service_utxo_value,
       service_policy,
       payment_datum.service_reference_tokenname,
     ) == 1
 
   let payment_at_correct_address =
-    payment_output.address.payment_credential == credential.ScriptCredential(
-      own_policy,
-    )
+    payment_output.address.payment_credential == Script(own_policy)
   let current_time_estimate = tx_time_upperbound(validity_range)
   let payment_datum_correct =
     validate_initial_payment_against_service(
@@ -165,7 +164,7 @@ pub fn validate_initial_subscription(
 
   let payment_value_successful_checks =
     pairs.foldr(
-      payment_output.value |> value.to_dict() |> dict.to_pairs(),
+      payment_output.value |> to_dict() |> dict.to_pairs(),
       0,
       fn(k, v, acc) {
         if acc >= 0 {
@@ -198,7 +197,7 @@ pub fn validate_initial_subscription(
     }
 
   let mint_correct =
-    dict.to_pairs(value.tokens(minted_value, own_policy)) == [
+    dict.to_pairs(tokens(minted_value, own_policy)) == [
       Pair(payment_tokenname, 1),
     ]
 
@@ -218,7 +217,7 @@ pub fn validate_terminate_subscription(
   own_policy: PolicyId,
   minted_value: Value,
 ) -> Bool {
-  dict.to_pairs(value.tokens(minted_value, own_policy)) == [
+  dict.to_pairs(tokens(minted_value, own_policy)) == [
     Pair(payment_tokenname, -1),
   ]
 }
@@ -244,12 +243,12 @@ pub fn validate_extend_subscription(
       let payment_addr = payment_input.output.address
       let payment_script_credential = payment_addr.payment_credential
       let payment_input_value = payment_input_utxo.value
-      expect ScriptCredential(own_policy) = payment_script_credential
+      expect Script(own_policy) = payment_script_credential
 
       expect Some(service_ref_input) =
         list.at(reference_inputs, service_ref_input_index)
       let service_token_correct =
-        value.quantity_of(
+        quantity_of(
           service_ref_input.output.value,
           service_policy,
           payment_datum.service_reference_tokenname,
@@ -280,7 +279,7 @@ pub fn validate_extend_subscription(
           own_policy,
         )
       let additional_amount =
-        service_fee_value_new - value.quantity_of(
+        service_fee_value_new - quantity_of(
           payment_input_value,
           service_fee_policyid,
           service_fee_assetname,
@@ -330,10 +329,10 @@ pub fn validate_merchant_withdraw(
   let payment_addr = payment_input.output.address
   let payment_script_credential = payment_addr.payment_credential
   let payment_input_value = payment_input_utxo.value
-  expect ScriptCredential(own_policy) = payment_script_credential
+  expect Script(own_policy) = payment_script_credential
 
   let payment_token_correct =
-    value.quantity_of(payment_input_value, own_policy, payment_tokenname) == 1
+    quantity_of(payment_input_value, own_policy, payment_tokenname) == 1
 
   expect Some(service_ref_input) =
     list.at(reference_inputs, service_ref_input_index)
@@ -358,7 +357,7 @@ pub fn validate_merchant_withdraw(
       } = payment_datum
 
       let service_token_correct =
-        value.quantity_of(
+        quantity_of(
           service_ref_input.output.value,
           service_policy_id,
           service_reference_tokenname,
@@ -367,7 +366,7 @@ pub fn validate_merchant_withdraw(
       let service_owner_asset_name =
         common_utils.convert_ref_tn_to_user(service_reference_tokenname)
       let service_owner_token_at_input =
-        value.quantity_of(
+        quantity_of(
           merchant_input.output.value,
           service_policy_id,
           service_owner_asset_name,
@@ -382,7 +381,7 @@ pub fn validate_merchant_withdraw(
         payment_output.address.payment_credential == payment_script_credential
 
       let service_fee_value_old =
-        value.quantity_of(
+        quantity_of(
           payment_input_value,
           service_fee_policyid,
           service_fee_assetname,
@@ -433,7 +432,7 @@ pub fn validate_merchant_withdraw(
     Penalty(penalty_datum) -> {
       let PenaltyDatum { service_reference_tokenname, .. } = penalty_datum
       let service_token_correct =
-        value.quantity_of(
+        quantity_of(
           service_ref_input.output.value,
           service_policy_id,
           service_reference_tokenname,
@@ -441,13 +440,13 @@ pub fn validate_merchant_withdraw(
       let service_owner_asset_name =
         common_utils.convert_ref_tn_to_user(service_reference_tokenname)
       let service_owner_token_at_input =
-        value.quantity_of(
+        quantity_of(
           merchant_input.output.value,
           service_policy_id,
           service_owner_asset_name,
         ) == 1
       let payment_token_burnt =
-        value.quantity_of(mint, own_policy, payment_tokenname) == -1
+        quantity_of(mint, own_policy, payment_tokenname) == -1
 
       and {
         reference_correct?,
@@ -490,7 +489,7 @@ pub fn validate_unsubscribe(
       let user_token_name =
         common_utils.convert_ref_tn_to_user(subscriber_reference_tokenname)
       let user_token_at_input =
-        value.quantity_of(
+        quantity_of(
           subscriber_input.output.value,
           account_policy_id,
           user_token_name,
@@ -502,15 +501,15 @@ pub fn validate_unsubscribe(
       let payment_addr = payment_input.output.address
       let payment_script_credential = payment_addr.payment_credential
       let payment_input_value = payment_input_utxo.value
-      expect ScriptCredential(own_policy) = payment_script_credential
+      expect Script(own_policy) = payment_script_credential
 
       let payment_token_correct =
-        value.quantity_of(payment_input_value, own_policy, payment_tokenname) == 1
+        quantity_of(payment_input_value, own_policy, payment_tokenname) == 1
 
       expect Some(service_ref_input) =
         list.at(reference_inputs, service_ref_input_index)
       let service_token_correct =
-        value.quantity_of(
+        quantity_of(
           service_ref_input.output.value,
           service_policy_id,
           service_reference_tokenname,
@@ -532,7 +531,7 @@ pub fn validate_unsubscribe(
 
       if can_unsubscribe_without_penalty || !is_active {
         let token_burned =
-          dict.to_pairs(value.tokens(mint, own_policy)) == [
+          dict.to_pairs(tokens(mint, own_policy)) == [
             Pair(payment_tokenname, -1),
           ]
 
@@ -557,7 +556,7 @@ pub fn validate_unsubscribe(
             subscriber_reference_tokenname,
           }
         let penalty_value_correct =
-          value.quantity_of(
+          quantity_of(
             payment_output_value,
             penalty_fee_policyid,
             penalty_fee_assetname,
@@ -602,7 +601,7 @@ pub fn validate_subscriber_withdraw(
       let user_token_name =
         common_utils.convert_ref_tn_to_user(subscriber_reference_tokenname)
       let user_token_at_input =
-        value.quantity_of(
+        quantity_of(
           subscriber_input.output.value,
           account_policy_id,
           user_token_name,
@@ -614,15 +613,15 @@ pub fn validate_subscriber_withdraw(
       let payment_addr = payment_input.output.address
       let payment_script_credential = payment_addr.payment_credential
       let payment_input_value = payment_input_utxo.value
-      expect ScriptCredential(own_policy) = payment_script_credential
+      expect Script(own_policy) = payment_script_credential
 
       let payment_token_correct =
-        value.quantity_of(payment_input_value, own_policy, payment_tokenname) == 1
+        quantity_of(payment_input_value, own_policy, payment_tokenname) == 1
 
       expect Some(service_ref_input) =
         list.at(reference_inputs, service_ref_input_index)
       let service_token_correct =
-        value.quantity_of(
+        quantity_of(
           service_ref_input.output.value,
           service_policy_id,
           service_reference_tokenname,
@@ -632,7 +631,7 @@ pub fn validate_subscriber_withdraw(
       let service_is_inactive = !service_datum.is_active
 
       let payment_token_burnt =
-        value.quantity_of(mint, own_policy, payment_tokenname) == -1
+        quantity_of(mint, own_policy, payment_tokenname) == -1
 
       and {
         user_token_at_input?,

@@ -1,4 +1,4 @@
-use aiken/list
+use aiken/collection/list
 use payment_subscription/common/types.{Installment, PaymentDatum, ServiceDatum}
 
 pub fn validate_initial_payment_against_service(

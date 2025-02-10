@@ -1,14 +1,10 @@
-use aiken/bytearray
-use aiken/dict
-use aiken/hash.{blake2b_256}
+use aiken/collection/list
+use aiken/crypto.{blake2b_256}
 use aiken/interval.{Finite, Interval, IntervalBound}
-use aiken/list
-use aiken/transaction.{
-  InlineDatum, Input, Output, OutputReference, ScriptContext, Spend, Transaction,
-  TransactionId,
-}
-use aiken/transaction/credential.{Address, ScriptCredential}
-use aiken/transaction/value
+use aiken/primitive/bytearray
+use cardano/address.{Address, Script, VerificationKey}
+use cardano/assets.{ada_asset_name, ada_policy_id, add, from_lovelace}
+use cardano/transaction.{InlineDatum, Input, Output, OutputReference}
 use payment_subscription/common/types.{
   AccountDatum, Installment, PaymentDatum, PenaltyDatum, ServiceDatum,
 }
@@ -53,10 +49,10 @@ pub fn test_wallet_addr() {
 pub fn test_utxo_01() {
   Output {
     address: Address {
-      payment_credential: ScriptCredential(test_224_01()),
+      payment_credential: Script(test_224_01()),
       stake_credential: None,
     },
-    value: value.add(value.from_lovelace(2_000_000), test_224_01(), #"01", 1),
+    value: add(from_lovelace(2_000_000), test_224_01(), #"01", 1),
     datum: InlineDatum(1),
     reference_script: None,
   }
@@ -66,15 +62,10 @@ pub fn test_utxo_01() {
 pub fn test_utxo_02(own_cs, minted_value, lovelace, datum) {
   Output {
     address: Address {
-      payment_credential: ScriptCredential(own_cs),
+      payment_credential: Script(own_cs),
       stake_credential: None,
     },
-    value: value.add(
-      minted_value,
-      value.ada_policy_id,
-      value.ada_asset_name,
-      lovelace,
-    ),
+    value: add(minted_value, ada_policy_id, ada_asset_name, lovelace),
     datum: InlineDatum(datum),
     reference_script: None,
   }
@@ -83,7 +74,7 @@ pub fn test_utxo_02(own_cs, minted_value, lovelace, datum) {
 pub fn test_utxo_exact(own_cs, minted_value, datum) {
   Output {
     address: Address {
-      payment_credential: ScriptCredential(own_cs),
+      payment_credential: Script(own_cs),
       stake_credential: None,
     },
     value: minted_value,
@@ -95,32 +86,21 @@ pub fn test_utxo_exact(own_cs, minted_value, datum) {
 pub fn test_user_utxo(pubkey_hash: ByteArray, minted_value, datum) {
   Output {
     address: Address {
-      payment_credential: credential.VerificationKeyCredential(pubkey_hash),
+      payment_credential: VerificationKey(pubkey_hash),
       stake_credential: None,
     },
-    value: value.add(
-      minted_value,
-      value.ada_policy_id,
-      value.ada_asset_name,
-      4_000_000,
-    ),
+    value: add(minted_value, ada_policy_id, ada_asset_name, 4_000_000),
     datum: InlineDatum(datum),
     reference_script: None,
   }
 }
 
 pub fn test_input_utxo_01() {
-  OutputReference {
-    transaction_id: TransactionId { hash: test_224_01() },
-    output_index: 1,
-  }
+  OutputReference { transaction_id: test_224_01(), output_index: 1 }
 }
 
 pub fn test_input_utxo_02(utxo_hash) {
-  OutputReference {
-    transaction_id: TransactionId { hash: utxo_hash },
-    output_index: 1,
-  }
+  OutputReference { transaction_id: utxo_hash, output_index: 1 }
 }
 
 pub fn test_service_datum(
@@ -135,11 +115,11 @@ pub fn test_service_datum(
   // 120 days in milliseconds
   // let subsc_period = 30 * 24 * 60 * 60 * 1000 * 4
   ServiceDatum {
-    service_fee_policyid: value.ada_policy_id,
-    service_fee_assetname: value.ada_asset_name,
+    service_fee_policyid: ada_policy_id,
+    service_fee_assetname: ada_asset_name,
     service_fee: interval_amount,
-    penalty_fee_policyid: value.ada_policy_id,
-    penalty_fee_assetname: value.ada_asset_name,
+    penalty_fee_policyid: ada_policy_id,
+    penalty_fee_assetname: ada_asset_name,
     penalty_fee: penalty_qty,
     interval_length: subsc_period,
     num_intervals: intervals,
@@ -151,8 +131,8 @@ pub fn test_context_input_01(output_ref, own_cs, datum) {
   Input {
     output_reference: output_ref,
     output: Output {
-      address: Address(credential.ScriptCredential(own_cs), None),
-      value: value.from_lovelace(4_000_000),
+      address: Address(Script(own_cs), None),
+      value: from_lovelace(4_000_000),
       datum: InlineDatum(datum),
       reference_script: None,
     },
@@ -163,13 +143,8 @@ pub fn test_context_input_02(output_ref, own_cs, minted_value, datum) {
   Input {
     output_reference: output_ref,
     output: Output {
-      address: Address(credential.ScriptCredential(own_cs), None),
-      value: value.add(
-        minted_value,
-        value.ada_policy_id,
-        value.ada_asset_name,
-        0,
-      ),
+      address: Address(Script(own_cs), None),
+      value: add(minted_value, ada_policy_id, ada_asset_name, 0),
       datum: InlineDatum(datum),
       reference_script: None,
     },
@@ -228,38 +203,5 @@ pub fn test_penalty_datum(service_tn: ByteArray, account_tn: ByteArray) {
   PenaltyDatum {
     service_reference_tokenname: service_tn,
     subscriber_reference_tokenname: account_tn,
-  }
-}
-
-pub fn test_spend_script_context(
-  output_ref,
-  // can be one or many
-  main_inputs,
-  // can be one or many
-  ref_inputs,
-  // can be one or many
-  main_outputs,
-  // can be one or many
-  minted_value,
-  time_range,
-  tx_hash: ByteArray,
-) {
-  ScriptContext {
-    purpose: Spend(output_ref),
-    transaction: Transaction {
-      inputs: main_inputs,
-      reference_inputs: ref_inputs,
-      outputs: main_outputs,
-      // fee: value.from_lovelace(2_000_000),
-      fee: value.zero(),
-      mint: value.to_minted_value(minted_value),
-      certificates: [],
-      withdrawals: [],
-      validity_range: time_range,
-      extra_signatories: [],
-      redeemers: [],
-      datums: dict.new(),
-      id: TransactionId { hash: tx_hash },
-    },
   }
 }

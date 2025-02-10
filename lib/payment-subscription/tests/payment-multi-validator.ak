@@ -1,10 +1,10 @@
 use aiken/interval.{Finite, Interval, IntervalBound}
 use aiken/math
-use aiken/transaction.{NoDatum}
-use aiken/transaction/value
-use assist/types/cip68
-use assist/values
+use cardano/assets.{add, from_lovelace, zero}
+use cardano/transaction.{NoDatum}
+use payment_subscription/common/cip68
 use payment_subscription/common/types.{Payment, PaymentDatum, Penalty}
+use payment_subscription/common/values
 use payment_subscription/payment_multi_validator/validation.{
   payment_tokenname, validate_extend_subscription, validate_initial_subscription,
   validate_merchant_withdraw, validate_subscriber_withdraw,
@@ -61,9 +61,9 @@ test succeed_initiate_subscription() {
       1,
     )
 
-  let payment_value = value.add(value.zero(), own_cs, payment_tokenname, 1)
-  let service_value = value.add(value.zero(), service_cs, service_tkn, 1)
-  let account_value = value.add(value.zero(), account_cs, user_account_tkn, 1)
+  let payment_value = add(zero, own_cs, payment_tokenname, 1)
+  let service_value = add(zero, service_cs, service_tkn, 1)
+  let account_value = add(zero, account_cs, user_account_tkn, 1)
 
   let service_input =
     tests.test_context_input_02(
@@ -107,12 +107,9 @@ test succeed_initiate_subscription() {
         is_inclusive: False,
       },
     }
-  let reference_inputs =
-    [service_input]
-  let inputs =
-    [account_input, service_input]
-  let outputs =
-    [user_output, payment_output]
+  let reference_inputs = [service_input]
+  let inputs = [account_input, service_input]
+  let outputs = [user_output, payment_output]
   let mint = payment_value
   let validity_range = insert_timerange
 
@@ -134,7 +131,7 @@ test succeed_initiate_subscription() {
 test succeed_terminate_subscription() {
   let own_cs = tests.test_payment_cs()
 
-  let mint = value.add(value.zero(), own_cs, payment_tokenname, -1)
+  let mint = add(zero, own_cs, payment_tokenname, -1)
   validate_terminate_subscription(own_cs, mint)
 }
 
@@ -153,8 +150,8 @@ test succeed_extend_subscription() {
     values.unique_token_name(service_tx_hash, 1, cip68.prefix_100)
   let user_account_tkn = values.unique_token_name(tx_hash, 1, cip68.prefix_222)
 
-  let service_value = value.add(value.zero(), service_cs, service_tkn, 1)
-  let user_value = value.add(value.zero(), account_cs, user_account_tkn, 1)
+  let service_value = add(zero, service_cs, service_tkn, 1)
+  let user_value = add(zero, account_cs, user_account_tkn, 1)
 
   let current_time = 1000000
   // 30 days in milliseconds
@@ -178,8 +175,8 @@ test succeed_extend_subscription() {
     )
   // Create the payment input (the one being spent)
   let initial_payment_value =
-    value.add(
-      value.from_lovelace(total_total_subscription_fee_qty),
+    add(
+      from_lovelace(total_total_subscription_fee_qty),
       own_cs,
       payment_tokenname,
       1,
@@ -215,8 +212,8 @@ test succeed_extend_subscription() {
 
   // Create the new payment output
   let new_payment_value =
-    value.add(
-      value.from_lovelace(total_total_subscription_fee_qty + extension_fee),
+    add(
+      from_lovelace(total_total_subscription_fee_qty + extension_fee),
       own_cs,
       payment_tokenname,
       1,
@@ -260,17 +257,10 @@ test succeed_extend_subscription() {
   let change_amount = 3_000_000
   // Assuming 2_000_000 for fees
   let user_change_output =
-    tests.test_user_utxo(
-      subscriber_pkh,
-      value.from_lovelace(change_amount),
-      NoDatum,
-    )
-  let inputs =
-    [subscriber_input, payment_input]
-  let reference_inputs =
-    [service_input]
-  let outputs =
-    [user_change_output, payment_output]
+    tests.test_user_utxo(subscriber_pkh, from_lovelace(change_amount), NoDatum)
+  let inputs = [subscriber_input, payment_input]
+  let reference_inputs = [service_input]
+  let outputs = [user_change_output, payment_output]
 
   validate_extend_subscription(
     extend_output_ref,
@@ -346,23 +336,23 @@ test succeed_merchant_withdraw() {
     )
 
   let payment_value =
-    value.add(
-      value.from_lovelace(total_total_subscription_fee_qty),
+    add(
+      from_lovelace(total_total_subscription_fee_qty),
       own_cs,
       payment_tokenname,
       1,
     )
   let service_value =
-    value.add(
-      value.from_lovelace(total_total_subscription_fee_qty),
+    add(
+      from_lovelace(total_total_subscription_fee_qty),
       service_cs,
       service_tkn,
       1,
     )
 
   let merchant_value =
-    value.add(
-      value.from_lovelace(total_total_subscription_fee_qty),
+    add(
+      from_lovelace(total_total_subscription_fee_qty),
       service_cs,
       service_user_tkn,
       1,
@@ -397,12 +387,7 @@ test succeed_merchant_withdraw() {
   // Calculate withdrawable amount (assuming half of the subscription period has passed)
   let actual_withdrawal = withdrawable_amount
   let merchant_output_value =
-    value.add(
-      value.from_lovelace(actual_withdrawal),
-      service_cs,
-      service_user_tkn,
-      1,
-    )
+    add(from_lovelace(actual_withdrawal), service_cs, service_user_tkn, 1)
 
   // Create withdrawal output
   let merchant_output =
@@ -412,12 +397,7 @@ test succeed_merchant_withdraw() {
   let remaining_amount = total_total_subscription_fee_qty - actual_withdrawal
 
   let payment_output_value =
-    value.add(
-      value.from_lovelace(remaining_amount),
-      own_cs,
-      payment_tokenname,
-      1,
-    )
+    add(from_lovelace(remaining_amount), own_cs, payment_tokenname, 1)
 
   let new_payment_datum =
     tests.test_datum_03(
@@ -445,12 +425,9 @@ test succeed_merchant_withdraw() {
 
   let insert_timerange = tests.test_time_range(lower_bound, upper_bound)
 
-  let inputs =
-    [merchant_input, payment_input]
-  let reference_inputs =
-    [service_input]
-  let outputs =
-    [merchant_output, payment_output]
+  let inputs = [merchant_input, payment_input]
+  let reference_inputs = [service_input]
+  let outputs = [merchant_output, payment_output]
 
   validate_merchant_withdraw(
     script_output_ref,
@@ -465,7 +442,7 @@ test succeed_merchant_withdraw() {
     inputs,
     outputs,
     insert_timerange,
-    value.zero(),
+    zero,
   )
 }
 
@@ -508,8 +485,8 @@ test succeed_unsubscribe() {
   // Subscriber should get refundable amount minus penalty
   let subscriber_refund = refundable_amount - penalty_fee_qty - 2_000_000
 
-  let account_value = value.add(value.zero(), account_cs, user_account_tkn, 1)
-  let service_value = value.add(value.zero(), service_cs, service_tkn, 1)
+  let account_value = add(zero, account_cs, user_account_tkn, 1)
+  let service_value = add(zero, service_cs, service_tkn, 1)
 
   let is_active = True
   let service_datum =
@@ -534,12 +511,7 @@ test succeed_unsubscribe() {
     )
 
   let payment_value =
-    value.add(
-      value.from_lovelace(refundable_amount),
-      own_cs,
-      payment_tokenname,
-      1,
-    )
+    add(from_lovelace(refundable_amount), own_cs, payment_tokenname, 1)
   // Create the payment input (the one being spent)
   let payment_input =
     tests.test_context_input_02(
@@ -568,16 +540,11 @@ test succeed_unsubscribe() {
 
   // Create refund output
   let refund_output =
-    tests.test_utxo_02(
-      account_cs,
-      value.from_lovelace(subscriber_refund),
-      0,
-      NoDatum,
-    )
+    tests.test_utxo_02(account_cs, from_lovelace(subscriber_refund), 0, NoDatum)
 
   let penalty_value =
-    value.add(
-      value.from_lovelace(penalty_fee_qty + 2_000_000),
+    add(
+      from_lovelace(penalty_fee_qty + 2_000_000),
       own_cs,
       payment_tokenname,
       1,
@@ -593,12 +560,9 @@ test succeed_unsubscribe() {
 
   let insert_timerange = tests.test_time_range(lower_bound, upper_bound)
 
-  let inputs =
-    [account_input, payment_input]
-  let reference_inputs =
-    [service_input]
-  let outputs =
-    [refund_output, penalty_output]
+  let inputs = [account_input, payment_input]
+  let reference_inputs = [service_input]
+  let outputs = [refund_output, penalty_output]
 
   validate_unsubscribe(
     script_output_ref,
@@ -613,7 +577,7 @@ test succeed_unsubscribe() {
     inputs,
     outputs,
     insert_timerange,
-    value.zero(),
+    zero,
   )
 }
 
@@ -663,21 +627,11 @@ test succeed_subscriber_withdraw() {
       interval_amount,
     )
 
-  let account_value = value.add(value.zero(), account_cs, user_account_tkn, 1)
+  let account_value = add(zero, account_cs, user_account_tkn, 1)
   let payment_value =
-    value.add(
-      value.from_lovelace(total_subscription_fee_qty),
-      own_cs,
-      payment_tokenname,
-      1,
-    )
+    add(from_lovelace(total_subscription_fee_qty), own_cs, payment_tokenname, 1)
   let service_value =
-    value.add(
-      value.from_lovelace(total_subscription_fee_qty),
-      service_cs,
-      service_tkn,
-      1,
-    )
+    add(from_lovelace(total_subscription_fee_qty), service_cs, service_tkn, 1)
 
   // Create the account input
   let account_input =
@@ -704,10 +658,8 @@ test succeed_subscriber_withdraw() {
       service_datum,
     )
 
-  let inputs =
-    [account_input, payment_input]
-  let reference_inputs =
-    [service_input]
+  let inputs = [account_input, payment_input]
+  let reference_inputs = [service_input]
 
   validate_subscriber_withdraw(
     script_output_ref,
@@ -719,6 +671,6 @@ test succeed_subscriber_withdraw() {
     Payment(payment_datum),
     reference_inputs,
     inputs,
-    value.add(value.zero(), own_cs, payment_tokenname, -1),
+    add(zero, own_cs, payment_tokenname, -1),
   )
 }

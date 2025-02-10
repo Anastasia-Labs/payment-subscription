@@ -1,5 +1,5 @@
-use aiken/transaction.{Mint, ScriptContext, Spend, Transaction}
-use aiken/transaction/value
+use cardano/assets.{PolicyId}
+use cardano/transaction.{OutputReference, Transaction}
 use payment_subscription/common/types.{
   CreateService, RemoveService, ServiceDatum, SpendService, UpdateService,
 }
@@ -7,12 +7,8 @@ use payment_subscription/service_multi_validator/validation.{
   validate_create_service, validate_remove_service, validate_update_service,
 }
 
-// This validator script handles minting and spending of service NFTs
-validator {
-  // Minting function: handles creation and deletion of service NFTs
-  fn mint_service(r: CreateService, ctx: ScriptContext) -> Bool {
-    let ScriptContext { transaction: tx, purpose } = ctx
-    expect Mint(own_policy) = purpose
+validator service {
+  mint(r: CreateService, own_policy: PolicyId, tx: Transaction) {
     let Transaction { inputs, outputs, mint, .. } = tx
 
     let CreateService { output_reference, input_index, service_output_index } =
@@ -23,20 +19,20 @@ validator {
       output_reference,
       input_index,
       service_output_index,
-      mint |> value.from_minted_value(),
+      mint,
       inputs,
       outputs,
     )
   }
 
-  fn spend_service(
-    datum: ServiceDatum,
+  spend(
+    datum_option: Option<ServiceDatum>,
     rdmr: SpendService,
-    ctx: ScriptContext,
-  ) -> Bool {
-    let ScriptContext { transaction: tx, purpose } = ctx
-    expect Spend(own_reference) = purpose
+    own_reference: OutputReference,
+    tx: Transaction,
+  ) {
     let Transaction { inputs, outputs, .. } = tx
+    expect Some(datum) = datum_option
 
     when rdmr is {
       UpdateService {
@@ -73,5 +69,9 @@ validator {
           outputs,
         )?
     }
+  }
+
+  else(_) {
+    fail
   }
 }

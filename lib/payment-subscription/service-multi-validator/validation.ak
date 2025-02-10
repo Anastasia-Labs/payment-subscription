@@ -1,13 +1,13 @@
-use aiken/dict
-use aiken/list
-use aiken/transaction.{Input, Output, OutputReference}
-use aiken/transaction/credential.{Address, ScriptCredential}
-use aiken/transaction/value.{AssetName, PolicyId, Value}
-use assist/data
-use assist/types/cip68
-use assist/values
+use aiken/collection/dict
+use aiken/collection/list
+use cardano/address.{Address, Script}
+use cardano/assets.{AssetName, PolicyId, Value, quantity_of, tokens}
+use cardano/transaction.{Input, Output, OutputReference}
+use payment_subscription/common/cip68
+use payment_subscription/common/data
 use payment_subscription/common/types.{ServiceDatum}
 use payment_subscription/common/utils as common_utils
+use payment_subscription/common/values
 
 pub fn is_service_metadata_valid(datum: ServiceDatum) -> Bool {
   let num_intervals = datum.num_intervals
@@ -36,27 +36,19 @@ pub fn validate_create_service(
   let OutputReference { transaction_id, output_index } = output_reference
 
   let ref_token_name =
-    values.unique_token_name(
-      transaction_id.hash,
-      output_index,
-      cip68.prefix_100,
-    )
+    values.unique_token_name(transaction_id, output_index, cip68.prefix_100)
   let user_token_name =
-    values.unique_token_name(
-      transaction_id.hash,
-      output_index,
-      cip68.prefix_222,
-    )
+    values.unique_token_name(transaction_id, output_index, cip68.prefix_222)
   expect Some(output) = list.at(outputs, service_output_index)
   let output_at_service_address =
-    output.address.payment_credential == credential.ScriptCredential(own_policy)
+    output.address.payment_credential == Script(own_policy)
   expect datum: ServiceDatum = data.output_datum(output)
   let output_has_token =
-    value.quantity_of(output.value, own_policy, ref_token_name) == 1
+    quantity_of(output.value, own_policy, ref_token_name) == 1
 
-  let minted_tokens = value.tokens(minted_value, own_policy)
-  expect [Pair(token1, amount1), Pair(token2, amount2)] =
-    dict.to_pairs(minted_tokens)
+  let minted_tokens = tokens(minted_value, own_policy)
+  expect [Pair(token1, amount1),
+    Pair(token2, amount2)] = dict.to_pairs(minted_tokens)
   let minted_tokens_correct =
     (
       token1 == ref_token_name && token2 == user_token_name || token1 == user_token_name && token2 == ref_token_name
@@ -89,15 +81,15 @@ pub fn validate_update_service(
   let service_utxo = service_input.output
   let service_addr = service_utxo.address
   let service_payment_credential = service_addr.payment_credential
-  expect ScriptCredential(own_policy) = service_payment_credential
+  expect Script(own_policy) = service_payment_credential
 
   let reference_input_correct =
-    value.quantity_of(service_utxo.value, own_policy, service_ref_token_name) == 1
+    quantity_of(service_utxo.value, own_policy, service_ref_token_name) == 1
 
   let service_owner_asset_name =
     common_utils.convert_ref_tn_to_user(service_ref_token_name)
   let owner_token_at_input =
-    value.quantity_of(
+    quantity_of(
       merchant_input.output.value,
       own_policy,
       service_owner_asset_name,
@@ -108,7 +100,7 @@ pub fn validate_update_service(
     output.address.payment_credential == service_payment_credential
   expect output_datum: ServiceDatum = data.output_datum(output)
   let output_has_token =
-    value.quantity_of(output.value, own_policy, service_ref_token_name) == 1
+    quantity_of(output.value, own_policy, service_ref_token_name) == 1
 
   let output_datum_correct = and {
       output_datum.service_fee_policyid == datum.service_fee_policyid,
@@ -146,15 +138,15 @@ pub fn validate_remove_service(
   let service_utxo = service_input.output
   let service_addr = service_utxo.address
   let service_payment_credential = service_addr.payment_credential
-  expect ScriptCredential(own_policy) = service_payment_credential
+  expect Script(own_policy) = service_payment_credential
 
   let reference_input_correct =
-    value.quantity_of(service_utxo.value, own_policy, service_ref_token_name) == 1
+    quantity_of(service_utxo.value, own_policy, service_ref_token_name) == 1
 
   let service_owner_asset_name =
     common_utils.convert_ref_tn_to_user(service_ref_token_name)
   let owner_token_at_input =
-    value.quantity_of(
+    quantity_of(
       merchant_input.output.value,
       own_policy,
       service_owner_asset_name,
@@ -165,7 +157,7 @@ pub fn validate_remove_service(
     output.address.payment_credential == service_payment_credential
   expect output_datum: ServiceDatum = data.output_datum(output)
   let output_has_token =
-    value.quantity_of(output.value, own_policy, service_ref_token_name) == 1
+    quantity_of(output.value, own_policy, service_ref_token_name) == 1
 
   let ServiceDatum {
     service_fee_policyid,
