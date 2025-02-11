@@ -1,6 +1,5 @@
 use aiken/crypto.{Hash, Sha2_256}
 use cardano/assets.{AssetName, PolicyId}
-use cardano/transaction.{OutputReference}
 
 // Account
 
@@ -105,7 +104,6 @@ pub type ServiceDatum {
 }
 
 pub type CreateService {
-  output_reference: OutputReference,
   input_index: Int,
   service_output_index: Int,
 }

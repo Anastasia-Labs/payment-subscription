@@ -42,7 +42,7 @@ test success_create_service() {
   let outputs = [user_output, service_output]
   let mint = minted_value
 
-  validate_create_service(own_cs, init_output_ref, 0, 1, mint, inputs, outputs)
+  validate_create_service(own_cs, 0, 1, mint, inputs, outputs)
 }
 
 test succeed_update_service() {

@@ -25,15 +25,13 @@ pub fn is_service_metadata_valid(datum: ServiceDatum) -> Bool {
 // minting policy validator
 pub fn validate_create_service(
   own_policy: PolicyId,
-  output_reference: OutputReference,
   input_index: Int,
   service_output_index: Int,
   minted_value: Value,
   inputs: List<Input>,
   outputs: List<Output>,
 ) -> Bool {
-  expect Some(input) = list.at(inputs, input_index)
-  let is_outref_spent = input.output_reference == output_reference
+  expect Some(Input { output_reference, .. }) = list.at(inputs, input_index)
   let OutputReference { transaction_id, output_index } = output_reference
 
   let ref_token_name =
@@ -64,7 +62,6 @@ pub fn validate_create_service(
     ) && amount1 == 1 && amount2 == 1
 
   and {
-    is_outref_spent?,
     output_at_service_address?,
     is_service_metadata_valid(datum)?,
     output_policies_correct?,

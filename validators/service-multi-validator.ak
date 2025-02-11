@@ -11,12 +11,10 @@ validator service {
   mint(r: CreateService, own_policy: PolicyId, tx: Transaction) {
     let Transaction { inputs, outputs, mint, .. } = tx
 
-    let CreateService { output_reference, input_index, service_output_index } =
-      r
+    let CreateService { input_index, service_output_index } = r
 
     validate_create_service(
       own_policy,
-      output_reference,
       input_index,
       service_output_index,
       mint,
