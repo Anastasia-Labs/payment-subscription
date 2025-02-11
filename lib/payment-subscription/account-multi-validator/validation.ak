@@ -2,17 +2,18 @@ use aiken/collection/dict
 use aiken/collection/list
 use aiken/primitive/bytearray
 use cardano/address.{Address, Script}
-use cardano/assets.{AssetName, PolicyId, Value, quantity_of, tokens}
-use cardano/transaction.{Input, Output, OutputReference}
+use cardano/assets.{
+  AssetName, PolicyId, Value, ada_policy_id, policies, quantity_of, tokens,
+}
+use cardano/transaction.{InlineDatum, Input, Output, OutputReference}
 use payment_subscription/common/cip68
-use payment_subscription/common/data
 use payment_subscription/common/types.{AccountDatum}
 use payment_subscription/common/utils as common_utils
 use payment_subscription/common/values
 
 pub fn is_account_metadata_valid(datum: AccountDatum) -> Bool {
-  let email_valid = bytearray.length(datum.email_hash) > 0
-  let phone_valid = bytearray.length(datum.phone_hash) > 0
+  let email_valid = bytearray.length(datum.email_hash) == 32
+  let phone_valid = bytearray.length(datum.phone_hash) == 32
 
   email_valid || phone_valid
 }
@@ -35,24 +36,31 @@ pub fn validate_create_account(
   let user_token_name =
     values.unique_token_name(transaction_id, output_ix, cip68.prefix_222)
 
-  expect Some(output) = list.at(outputs, output_index)
+  expect Some(Output {
+    address: output_address,
+    value: output_value,
+    datum: InlineDatum(output_datum),
+    ..
+  }) = list.at(outputs, output_index)
   let output_at_account_address =
-    output.address.payment_credential == Script(own_policy)
-  expect output_datum: AccountDatum = data.output_datum(output)
+    output_address.payment_credential == Script(own_policy)
+  expect out_datum: AccountDatum = output_datum
+
+  let output_policies_correct =
+    policies(output_value) == [ada_policy_id, own_policy]
   let output_has_token =
-    quantity_of(output.value, own_policy, ref_token_name) == 1
+    dict.to_pairs(tokens(output_value, own_policy)) == [Pair(ref_token_name, 1)]
 
   let minted_tokens = tokens(minted_value, own_policy)
   expect [Pair(token1, amount1),
     Pair(token2, amount2)] = dict.to_pairs(minted_tokens)
   let minted_tokens_correct =
-    (
-      token1 == ref_token_name && token2 == user_token_name
-    ) && amount1 == 1 && amount2 == 1
+    ( token1 == ref_token_name && token2 == user_token_name ) && amount1 == 1 && amount2 == 1
 
   and {
     output_at_account_address?,
-    is_account_metadata_valid(output_datum)?,
+    is_account_metadata_valid(out_datum)?,
+    output_policies_correct?,
     output_has_token?,
     minted_tokens_correct?,
   }
@@ -68,7 +76,7 @@ pub fn validate_delete_account(
   expect [Pair(token1, amount1),
     Pair(token2, amount2)] = tokens(minted_tokens, own_policy) |> dict.to_pairs
   and {
-    token1 == ref_token_name && token2 == user_token_name || token1 == user_token_name && token2 == ref_token_name,
+    token1 == ref_token_name && token2 == user_token_name,
     amount1 == -1,
     amount2 == -1,
   }
@@ -101,19 +109,30 @@ pub fn validate_update_account(
   let user_token_at_input =
     quantity_of(user_input.output.value, own_policy, user_token_name) == 1
 
-  expect Some(output) = list.at(outputs, reference_output_index)
+  expect Some(Output {
+    address: output_address,
+    value: output_value,
+    datum: InlineDatum(output_datum),
+    ..
+  }) = list.at(outputs, reference_output_index)
   let output_at_account_address =
-    output.address.payment_credential == account_payment_credential
-  expect output_datum: AccountDatum = data.output_datum(output)
+    output_address.payment_credential == account_payment_credential
+  expect out_datum: AccountDatum = output_datum
+
+  let output_policies_correct =
+    policies(output_value) == [ada_policy_id, own_policy]
   let output_has_token =
-    quantity_of(output.value, own_policy, reference_token_name) == 1
+    dict.to_pairs(tokens(output_value, own_policy)) == [
+      Pair(reference_token_name, 1),
+    ]
 
   and {
     reference_correct?,
     reference_token_correct?,
     user_token_at_input?,
     output_at_account_address?,
-    is_account_metadata_valid(output_datum)?,
+    is_account_metadata_valid(out_datum)?,
+    output_policies_correct?,
     output_has_token?,
   }
 }

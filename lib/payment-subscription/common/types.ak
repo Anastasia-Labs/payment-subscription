@@ -1,11 +1,12 @@
+use aiken/crypto.{Hash, Sha2_256}
 use cardano/assets.{AssetName, PolicyId}
 use cardano/transaction.{OutputReference}
 
 // Account
 
 pub type AccountDatum {
-  email_hash: ByteArray,
-  phone_hash: ByteArray,
+  email_hash: Hash<ByteArray, Sha2_256>,
+  phone_hash: Hash<ByteArray, Sha2_256>,
 }
 
 pub type MintAccount {

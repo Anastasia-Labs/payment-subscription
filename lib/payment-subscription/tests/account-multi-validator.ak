@@ -1,3 +1,4 @@
+use aiken/crypto.{sha2_256}
 use cardano/assets.{add, merge, zero}
 use cardano/transaction.{NoDatum}
 use payment_subscription/account_multi_validator/validation.{
@@ -12,7 +13,8 @@ test success_create_account() {
   let own_cs = tests.test_224_01()
   let tx_hash = tests.test_224_02()
   let init_output_ref = tests.test_input_utxo_02(tx_hash)
-  let datum = tests.test_datum_02("you@mail.com", "(717) 550-1675")
+  let datum =
+    tests.test_datum_02(sha2_256("you@mail.com"), sha2_256("(717) 550-1675"))
 
   let ref_tkn = values.unique_token_name(tx_hash, 1, cip68.prefix_100)
   let user_tkn = values.unique_token_name(tx_hash, 1, cip68.prefix_222)
@@ -56,8 +58,10 @@ test succeed_update_account() {
   let init_output_ref = tests.test_input_utxo_02(tx_hash)
   let account_output_ref = tests.test_input_utxo_02(tests.test_224_01())
 
-  let datum = tests.test_datum_02("you@mail.com", "(717) 550-1675")
-  let new_datum = tests.test_datum_02("me@mail.com", "(717) 550-1675")
+  let datum =
+    tests.test_datum_02(sha2_256("you@mail.com"), sha2_256("(717) 550-1675"))
+  let new_datum =
+    tests.test_datum_02(sha2_256("me@mail.com"), sha2_256("(717) 550-1675"))
 
   //   let redeemer = UpdateAccount
   let ref_tkn = values.unique_token_name(tx_hash, 1, cip68.prefix_100)

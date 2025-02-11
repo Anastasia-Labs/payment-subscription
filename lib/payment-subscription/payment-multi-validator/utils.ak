@@ -15,7 +15,6 @@ pub fn validate_initial_payment_against_service(
   } = payment
   let ServiceDatum { num_intervals, interval_length, service_fee, .. } = service
   let start_correct = subscription_start >= current_time_estimate
-  let end_sane = subscription_end > subscription_start
   let end_correct =
     subscription_end - subscription_start == num_intervals * interval_length
   let original_end_correct = original_subscription_end == subscription_end
@@ -36,7 +35,6 @@ pub fn validate_initial_payment_against_service(
     ) == subscription_start
   and {
     start_correct?,
-    end_sane?,
     end_correct?,
     original_end_correct?,
     installments_correct?,
