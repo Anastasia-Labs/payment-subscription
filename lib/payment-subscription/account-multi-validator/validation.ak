@@ -47,7 +47,7 @@ pub fn validate_create_account(
     Pair(token2, amount2)] = dict.to_pairs(minted_tokens)
   let minted_tokens_correct =
     (
-      token1 == ref_token_name && token2 == user_token_name || token1 == user_token_name && token2 == ref_token_name
+      token1 == ref_token_name && token2 == user_token_name
     ) && amount1 == 1 && amount2 == 1
 
   and {
