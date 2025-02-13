@@ -1,7 +1,5 @@
-use aiken/cbor
-use aiken/list
-use aiken/transaction.{Mint, ScriptContext, Spend, Transaction}
-use aiken/transaction/value.{from_minted_value}
+use cardano/assets.{PolicyId}
+use cardano/transaction.{OutputReference, Transaction}
 use payment_subscription/account_multi_validator/validation.{
   validate_create_account, validate_delete_account, validate_remove_account,
   validate_update_account,
@@ -12,61 +10,69 @@ use payment_subscription/common/types.{
 }
 
 // This validator script handles minting and spending of the account NFTs
-validator {
-  // Minting function: handles creation and deletion of account NFTs
-  fn mint_account(r: MintAccount, ctx: ScriptContext) -> Bool {
-    let ScriptContext { transaction: tx, purpose } = ctx
-    expect Mint(own_policy) = purpose
-
-    let Transaction { inputs, mint, outputs, .. } = tx
-
-    let minted_tokens = mint |> from_minted_value()
+validator account {
+  mint(r: MintAccount, own_policy: PolicyId, tx: Transaction) {
+    let Transaction { inputs, outputs, mint, .. } = tx
 
     when r is {
-      CreateAccount { output_reference, input_index } -> {
-        // Ensure this outref is spent in this transaction 
-        trace @" CreateAccount output_reference:"
-        trace cbor.diagnostic(output_reference)
-
-        expect Some(input) = list.at(inputs, input_index)
+      CreateAccount { input_index, output_index } ->
         validate_create_account(
           own_policy,
-          input,
-          minted_tokens,
-          output_reference,
+          input_index,
+          output_index,
+          mint,
+          inputs,
           outputs,
         )
-      }
 
-      DeleteAccount -> validate_delete_account(own_policy, minted_tokens)
+      DeleteAccount { reference_token_name } ->
+        validate_delete_account(own_policy, mint, reference_token_name)
     }
   }
 
-  fn spend_account(
-    _datum: AccountDatum,
+  spend(
+    _datum: Option<AccountDatum>,
     rdmr: SpendAccount,
-    ctx: ScriptContext,
-  ) -> Bool {
-    let ScriptContext { transaction: tx, purpose } = ctx
-    expect Spend(own_reference) = purpose
+    own_reference: OutputReference,
+    tx: Transaction,
+  ) {
+    let Transaction { inputs, outputs, mint, .. } = tx
 
     when rdmr is {
-      UpdateAccount { subscriber_input_index, account_input_index } ->
+      UpdateAccount {
+        reference_token_name,
+        user_input_index,
+        account_input_index,
+        account_output_index,
+      } ->
         validate_update_account(
           own_reference,
-          subscriber_input_index,
+          reference_token_name,
+          user_input_index,
           account_input_index,
-          tx,
+          account_output_index,
+          inputs,
+          outputs,
         )
 
       // Removes the utxo entirely from the script address.
-      RemoveAccount { subscriber_input_index, account_input_index } ->
+      RemoveAccount {
+        reference_token_name,
+        user_input_index,
+        account_input_index,
+      } ->
         validate_remove_account(
           own_reference,
-          subscriber_input_index,
+          reference_token_name,
+          user_input_index,
           account_input_index,
-          tx,
+          inputs,
+          mint,
         )
     }
+  }
+
+  else(_) {
+    fail
   }
 }
