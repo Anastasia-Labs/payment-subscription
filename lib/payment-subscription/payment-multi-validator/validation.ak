@@ -196,10 +196,8 @@ pub fn validate_initial_subscription(
       payment_value_successful_checks == 3
     }
 
-  let mint_correct =
-    dict.to_pairs(tokens(minted_value, own_policy)) == [
-      Pair(payment_tokenname, 1),
-    ]
+  expect [Pair(tkn, 1)] = dict.to_pairs(tokens(minted_value, own_policy))
+  let mint_correct = tkn == payment_tokenname
 
   and {
     subscriber_token_correct?,
@@ -217,9 +215,8 @@ pub fn validate_terminate_subscription(
   own_policy: PolicyId,
   minted_value: Value,
 ) -> Bool {
-  dict.to_pairs(tokens(minted_value, own_policy)) == [
-    Pair(payment_tokenname, -1),
-  ]
+  expect [Pair(tkn, -1)] = dict.to_pairs(tokens(minted_value, own_policy))
+  (tkn == payment_tokenname)?
 }
 
 // spending validation
@@ -413,6 +410,8 @@ pub fn validate_merchant_withdraw(
           own_policy,
         )
 
+      let installments_withdrawn_correct = installments_withdrawn > 0
+
       let payment_output_datum_correct =
         payment_datum_new == PaymentDatum {
           service_reference_tokenname,
@@ -443,6 +442,7 @@ pub fn validate_merchant_withdraw(
         service_owner_token_at_input?,
         payment_token_correct?,
         payment_output_address_correct?,
+        installments_withdrawn_correct?,
         payment_output_datum_correct?,
         value_removal_correct?,
       }
@@ -616,64 +616,71 @@ pub fn validate_subscriber_withdraw(
   inputs: List<Input>,
   mint: Value,
 ) -> Bool {
-  when datum is {
-    Payment(payment_datum) -> {
-      let PaymentDatum {
-        service_reference_tokenname,
-        subscriber_reference_tokenname,
-        ..
-      } = payment_datum
-
-      expect Some(Input {
-        output: Output { value: subscriber_input_value, .. },
-        ..
-      }) = list.at(inputs, subscriber_input_index)
-      let user_token_name =
-        common_utils.convert_ref_tn_to_user(subscriber_reference_tokenname)
-      let user_token_at_input =
-        quantity_of(subscriber_input_value, account_policy_id, user_token_name) == 1
-
-      expect Some(Input {
-        output: Output { address: payment_addr, value: payment_input_value, .. },
-        output_reference: payment_input_reference,
-      }) = list.at(inputs, payment_input_index)
-      let reference_correct = payment_input_reference == own_reference
-      let payment_script_credential = payment_addr.payment_credential
-      expect Script(own_policy) = payment_script_credential
-
-      let payment_token_correct =
-        quantity_of(payment_input_value, own_policy, payment_tokenname) == 1
-
-      expect Some(Input {
-        output: Output {
-          value: service_ref_input_value,
-          datum: InlineDatum(service_ref_input_datum),
-          ..
-        },
-        ..
-      }) = list.at(reference_inputs, service_ref_input_index)
-      let service_token_correct =
-        quantity_of(
-          service_ref_input_value,
-          service_policy_id,
-          service_reference_tokenname,
-        ) == 1
-      expect service_datum: ServiceDatum = service_ref_input_datum
-      let service_is_inactive = !service_datum.is_active
-
-      let payment_token_burnt =
-        quantity_of(mint, own_policy, payment_tokenname) == -1
-
-      and {
-        user_token_at_input?,
-        reference_correct?,
-        payment_token_correct?,
-        service_token_correct?,
-        service_is_inactive?,
-        payment_token_burnt?,
+  let service_reference_tokenname, subscriber_reference_tokenname <-
+    fn(return) {
+      when datum is {
+        Payment(payment_datum) -> {
+          let PaymentDatum {
+            service_reference_tokenname,
+            subscriber_reference_tokenname,
+            ..
+          } = payment_datum
+          return(service_reference_tokenname, subscriber_reference_tokenname)
+        }
+        Penalty(penalty_datum) -> {
+          let PenaltyDatum {
+            service_reference_tokenname,
+            subscriber_reference_tokenname,
+          } = penalty_datum
+          return(service_reference_tokenname, subscriber_reference_tokenname)
+        }
       }
     }
 
-    Penalty(_) -> False
+  expect Some(Input { output: Output { value: subscriber_input_value, .. }, .. }) =
+    list.at(inputs, subscriber_input_index)
+  let user_token_name =
+    common_utils.convert_ref_tn_to_user(subscriber_reference_tokenname)
+  let user_token_at_input =
+    quantity_of(subscriber_input_value, account_policy_id, user_token_name) == 1
+
+  expect Some(Input {
+    output: Output { address: payment_addr, value: payment_input_value, .. },
+    output_reference: payment_input_reference,
+  }) = list.at(inputs, payment_input_index)
+  let reference_correct = payment_input_reference == own_reference
+  let payment_script_credential = payment_addr.payment_credential
+  expect Script(own_policy) = payment_script_credential
+
+  let payment_token_correct =
+    quantity_of(payment_input_value, own_policy, payment_tokenname) == 1
+
+  expect Some(Input {
+    output: Output {
+      value: service_ref_input_value,
+      datum: InlineDatum(service_ref_input_datum),
+      ..
+    },
+    ..
+  }) = list.at(reference_inputs, service_ref_input_index)
+  let service_token_correct =
+    quantity_of(
+      service_ref_input_value,
+      service_policy_id,
+      service_reference_tokenname,
+    ) == 1
+  expect service_datum: ServiceDatum = service_ref_input_datum
+  let service_is_inactive = !service_datum.is_active
+
+  let payment_token_burnt =
+    quantity_of(mint, own_policy, payment_tokenname) == -1
+
+  and {
+    user_token_at_input?,
+    reference_correct?,
+    payment_token_correct?,
+    service_token_correct?,
+    service_is_inactive?,
+    payment_token_burnt?,
   }
 }

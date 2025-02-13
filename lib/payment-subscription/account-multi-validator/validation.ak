@@ -48,8 +48,8 @@ pub fn validate_create_account(
 
   let output_policies_correct =
     policies(output_value) == [ada_policy_id, own_policy]
-  let output_has_token =
-    dict.to_pairs(tokens(output_value, own_policy)) == [Pair(ref_token_name, 1)]
+  expect [Pair(ref_tkn, 1)] = dict.to_pairs(tokens(output_value, own_policy))
+  let output_token_correct = ref_tkn == ref_token_name
 
   let minted_tokens = tokens(minted_value, own_policy)
   expect [Pair(token1, amount1),
@@ -61,7 +61,7 @@ pub fn validate_create_account(
     output_at_account_address?,
     is_account_metadata_valid(out_datum)?,
     output_policies_correct?,
-    output_has_token?,
+    output_token_correct?,
     minted_tokens_correct?,
   }
 }
