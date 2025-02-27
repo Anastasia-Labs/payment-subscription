@@ -118,30 +118,41 @@ fees by a subscriber when the service becomes inactive. It validates:
 The following outlines the user workflow for managing recurring payments:
 
 1. **Initiate Subscription:**
-   - User selects a service and subscription period
-   - Smart contract mints a Payment NFT and locks the subscription fee
-   - User receives confirmation of successful subscription
+
+  - User selects a service and subscription period
+
+  - Smart contract mints a Payment NFT and locks the subscription fee
+  - User receives confirmation of successful subscription
+
 2. **Extend Subscription:**
-   - User chooses to extend their subscription
-   - Off-chain calculates additional fee, new end date and intervals
-   - User approves the extension
-   - Contract updates the Payment Datum with new details
+
+  - User chooses to extend their subscription
+
+  - Off-chain calculates additional fee, new end date and intervals
+  - User approves the extension
+  - Contract updates the Payment Datum with new details
+
 3. **Unsubscribe:**
-   - User requests to end their subscription
-   - Contract calculates refund and penalty amounts
-   - User receives refund, minus any applicable penalties
-   - Payment NFT is burned, ending the subscription
+
+  - User requests to end their subscription
+
+  - Contract calculates refund and penalty amounts
+  - User receives refund, minus any applicable penalties
+  - Payment NFT is burned, ending the subscription
+
 4. **Merchant Withdrawal:**
-   - Merchant can withdraw accrued fees at any time
-   - Contract calculates withdrawable amount based on elapsed time
-   - Remaining funds stay locked until the next withdrawal or end of
-     subscription
+
+  - Merchant can withdraw accrued fees at any time
+  
+  - Contract calculates withdrawable amount based on elapsed time
+  - Remaining funds stay locked until the next withdrawal or end of subscription
+
 5. **Subscriber Withdrawal:**
 
-- Subscriber can withdraw remaining funds if the service becomes inactive
-- Contract verifies the inactive status of the service
-- Full remaining subscription amount is refunded to the subscriber
-- Payment NFT is burned, finalizing the withdrawal
+  - Subscriber can withdraw remaining funds if the service becomes inactive
+  - Contract verifies the inactive status of the service
+  - Full remaining subscription amount is refunded to the subscriber
+  - Payment NFT is burned, finalizing the withdrawal
 
 This workflow demonstrates the ease with which users can manage their recurring
 payments, from initiation to termination, directly from their wallets.

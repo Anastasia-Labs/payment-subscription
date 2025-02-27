@@ -121,5 +121,4 @@ test succeed_remove_account() {
     minted_value,
   )
 }
-
 //TODO: Negative Tests
