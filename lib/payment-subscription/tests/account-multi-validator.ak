@@ -9,6 +9,7 @@ use payment_subscription/common/cip68
 use payment_subscription/common/values
 use payment_subscription/tests/tests
 
+//Happy Path Tests
 test success_create_account() {
   let own_cs = tests.test_224_01()
   let tx_hash = tests.test_224_02()
@@ -120,3 +121,5 @@ test succeed_remove_account() {
     minted_value,
   )
 }
+
+//TODO: Negative Tests
