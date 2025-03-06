@@ -1,6 +1,5 @@
-use aiken/interval.{Finite, Interval, IntervalBound}
 use aiken/math
-use cardano/assets.{add, from_lovelace, zero}
+use cardano/assets.{AssetName, Value, add, from_lovelace, zero}
 use cardano/transaction.{NoDatum}
 use payment_subscription/common/cip68
 use payment_subscription/common/types.{Payment, PaymentDatum, Penalty}
@@ -12,46 +11,120 @@ use payment_subscription/payment_multi_validator/validation.{
 }
 use payment_subscription/tests/tests
 
-// Happy path tests
-test succeed_initiate_subscription() {
-  let own_cs = tests.test_payment_cs()
+fn setup_policy_ids() {
+  let payment_cs = tests.test_payment_cs()
   let account_cs = tests.test_account_cs()
   let service_cs = tests.test_service_cs()
 
-  let tx_hash = tests.test_224_01()
-  let account_tx_hash = tests.test_224_02()
-  let service_tx_hash = tests.test_224_03()
+  (payment_cs, account_cs, service_cs)
+}
 
-  let init_output_ref = tests.test_input_utxo_02(tx_hash)
+fn setup_base_tx_hash() {
+  let payment_tx_hash = tests.test_224_01()
+  let service_tx_hash = tests.test_224_03()
+  let account_tx_hash = tests.test_224_02()
+
+  (payment_tx_hash, service_tx_hash, account_tx_hash)
+}
+
+fn setup_config(num_intervals) {
+  // let current_time = 1737043903924
+  // 30 days in milliseconds
+  let interval_length = 30 * 24 * 60 * 60 * 1000
+  let interval_amount = 10_000_000
+
+  let subscription_start = 1737043736747
+  let subscription_end = subscription_start + interval_length * num_intervals
+  let last_claimed = 1737043736747
+  let current_time = subscription_start + interval_length + 1000
+
+  // Add buffer
+  let total_subscription_fee_qty = interval_amount * num_intervals
+
+  // Set current time to exactly 2 vesting periods (60 days) after start
+  (
+    current_time,
+    interval_length,
+    interval_amount,
+    num_intervals,
+    subscription_start,
+    subscription_end,
+    last_claimed,
+    total_subscription_fee_qty,
+  )
+}
+
+fn create_token_names() {
+  let (_payment_tx_hash, service_tx_hash, account_tx_hash) =
+    setup_base_tx_hash()
 
   let service_tkn =
     values.unique_token_name(service_tx_hash, 1, cip68.prefix_100)
-  let user_account_tkn =
+  let merchant_tkn =
+    values.unique_token_name(service_tx_hash, 1, cip68.prefix_222)
+
+  let account_tkn =
+    values.unique_token_name(account_tx_hash, 1, cip68.prefix_100)
+  let subscriber_tkn =
     values.unique_token_name(account_tx_hash, 1, cip68.prefix_222)
 
-  let current_time = 1000000
-  // 30 days in milliseconds
-  let interval_length = 30 * 24 * 60 * 60 * 1000
-  let interval_amount = 100_000_000
-  let num_intervals = 10
+  (service_tkn, merchant_tkn, account_tkn, subscriber_tkn)
+}
 
-  // 30 days in milliseconds
-  let is_active = True
-  let service_datum =
-    tests.test_service_datum(
-      is_active,
-      interval_length,
-      num_intervals,
-      interval_amount,
-    )
+fn create_base_token_values() -> (Value, Value, Value, Value, Value) {
+  let (service_tkn, merchant_tkn, account_tkn, subscriber_tkn) =
+    create_token_names()
 
-  let total_total_subscription_fee_qty = interval_amount * num_intervals
+  // Use zero as the default base value
+  create_base_token_values_with_base(
+    zero,
+    service_tkn,
+    merchant_tkn,
+    account_tkn,
+    subscriber_tkn,
+  )
+}
+
+fn create_base_token_values_with_base(
+  base_value: Value,
+  service_tkn: AssetName,
+  merchant_tkn: AssetName,
+  account_tkn: AssetName,
+  subscriber_tkn: AssetName,
+) -> (Value, Value, Value, Value, Value) {
+  let (payment_cs, account_cs, service_cs) = setup_policy_ids()
+
+  // let (service_tkn, merchant_tkn, account_tkn, subscriber_tkn) =
+  //   create_token_names()
+  let payment_value = add(base_value, payment_cs, payment_tokenname, 1)
+  let service_value = add(base_value, service_cs, service_tkn, 1)
+  let merchant_value = add(base_value, service_cs, merchant_tkn, 1)
+  let account_value = add(base_value, account_cs, account_tkn, 1)
+  let subscriber_value = add(base_value, account_cs, subscriber_tkn, 1)
+
+  (
+    payment_value,
+    service_value,
+    merchant_value,
+    account_value,
+    subscriber_value,
+  )
+}
+
+fn create_base_payment_datum(
+  current_time,
+  interval_length,
+  interval_amount,
+  num_intervals,
+) {
   let subscription_end = current_time + interval_length * num_intervals
+  let (service_tkn, _merchant_tkn, _account_tkn, subscriber_tkn) =
+    create_token_names()
 
   let payment_datum =
     tests.test_datum_03(
       service_tkn,
-      user_account_tkn,
+      subscriber_tkn,
       current_time,
       subscription_end,
       subscription_end,
@@ -61,10 +134,56 @@ test succeed_initiate_subscription() {
       1,
     )
 
-  let payment_value = add(zero, own_cs, payment_tokenname, 1)
-  let service_value = add(zero, service_cs, service_tkn, 1)
-  let account_value = add(zero, account_cs, user_account_tkn, 1)
+  payment_datum
+}
 
+fn create_base_service_datum(is_active: Bool) {
+  let (
+    _current_time,
+    interval_length,
+    interval_amount,
+    num_intervals,
+    _subscription_start,
+    _subscription_end,
+    _last_claimed,
+    _total_subscription_fee_qty,
+  ) = setup_config(12)
+
+  // let is_active = True
+  let service_datum =
+    tests.test_service_datum(
+      is_active,
+      interval_length,
+      num_intervals,
+      interval_amount,
+    )
+
+  service_datum
+}
+
+fn create_base_inputs(
+  init_output_ref,
+  payment_datum,
+  payment_value,
+  service_value,
+  merchant_value,
+  account_value,
+  subscriber_value,
+) {
+  let (payment_cs, account_cs, service_cs) = setup_policy_ids()
+
+  let service_datum = create_base_service_datum(True)
+
+  // Create the merchant input (to prove service ownership)
+  let merchant_input =
+    tests.test_context_input_02(
+      init_output_ref,
+      service_cs,
+      merchant_value,
+      NoDatum,
+    )
+
+  // Create the service input (to prove service ownership)
   let service_input =
     tests.test_context_input_02(
       init_output_ref,
@@ -79,42 +198,84 @@ test succeed_initiate_subscription() {
       account_value,
       NoDatum,
     )
-
-  let user_pubkey_hash = tests.test_224_03()
-  let user_output =
-    tests.test_utxo_02(
-      user_pubkey_hash,
-      account_value,
-      interval_amount,
+  let subscriber_input =
+    tests.test_context_input_02(
+      init_output_ref,
+      account_cs,
+      subscriber_value,
       NoDatum,
     )
-  let payment_output =
-    tests.test_utxo_02(
-      own_cs,
+
+  // Create the payment input (the one being spent)
+  let payment_input =
+    tests.test_context_input_02(
+      init_output_ref,
+      payment_cs,
       payment_value,
-      total_total_subscription_fee_qty,
       Payment(payment_datum),
     )
 
-  let insert_timerange =
-    Interval {
-      lower_bound: IntervalBound {
-        bound_type: Finite(current_time - 5),
-        is_inclusive: True,
-      },
-      upper_bound: IntervalBound {
-        bound_type: Finite(current_time - 1),
-        is_inclusive: False,
-      },
-    }
+  (
+    payment_input,
+    service_input,
+    merchant_input,
+    account_input,
+    subscriber_input,
+  )
+}
+
+fn create_base_outputs(
+  payment_cs,
+  interval_amount,
+  total_subscription_fee_qty,
+  payment_datum,
+) {
+  let user_pubkey_hash = tests.test_224_03()
+  let (
+    payment_value,
+    _service_value,
+    _merchant_tkn,
+    _account_value,
+    subscriber_value,
+  ) = create_base_token_values()
+
+  let subscriber_output =
+    tests.test_utxo_02(
+      user_pubkey_hash,
+      subscriber_value,
+      interval_amount,
+      NoDatum,
+    )
+
+  let payment_output =
+    tests.test_utxo_02(
+      payment_cs,
+      payment_value,
+      total_subscription_fee_qty,
+      Payment(payment_datum),
+    )
+
+  (payment_output, subscriber_output)
+}
+
+fn test_initiate_subscription(
+  payment_cs,
+  account_cs,
+  service_cs,
+  service_input,
+  account_input,
+  payment_output,
+  subscriber_output,
+  validity_range,
+  mint,
+) {
   let reference_inputs = [service_input]
   let inputs = [account_input, service_input]
-  let outputs = [user_output, payment_output]
-  let mint = payment_value
-  let validity_range = insert_timerange
+  let outputs = [subscriber_output, payment_output]
 
+  // let validity_range = insert_timerange
   validate_initial_subscription(
-    own_cs,
+    payment_cs,
     service_cs,
     account_cs,
     0,
@@ -128,65 +289,139 @@ test succeed_initiate_subscription() {
   )
 }
 
-test succeed_terminate_subscription() {
-  let own_cs = tests.test_payment_cs()
+// Happy path tests
+test succeed_initiate_subscription() {
+  let (payment_cs, account_cs, service_cs) = setup_policy_ids()
+  let (payment_tx_hash, _service_tx_hash, _account_tx_hash) =
+    setup_base_tx_hash()
+  let init_output_ref = tests.test_input_utxo_02(payment_tx_hash)
 
-  let mint = add(zero, own_cs, payment_tokenname, -1)
-  validate_terminate_subscription(own_cs, mint)
-}
+  let (
+    current_time,
+    interval_length,
+    interval_amount,
+    num_intervals,
+    _subscription_start,
+    _subscription_end,
+    _last_claimed,
+    total_subscription_fee_qty,
+  ) = setup_config(12)
 
-test succeed_extend_subscription() {
-  let own_cs = tests.test_payment_cs()
-  let account_cs = tests.test_account_cs()
-  let service_cs = tests.test_service_cs()
-
-  let tx_hash = tests.test_224_01()
-  let payment_tx_hash = tests.test_224_02()
-  let service_tx_hash = tests.test_224_03()
-
-  let extend_output_ref = tests.test_input_utxo_02(payment_tx_hash)
-
-  let service_tkn =
-    values.unique_token_name(service_tx_hash, 1, cip68.prefix_100)
-  let user_account_tkn = values.unique_token_name(tx_hash, 1, cip68.prefix_222)
-
-  let service_value = add(zero, service_cs, service_tkn, 1)
-  let user_value = add(zero, account_cs, user_account_tkn, 1)
-
-  let current_time = 1000000
-  // 30 days in milliseconds
-  let interval_amount = 10_000_000
-  let num_intervals = 1
-  let interval_length = 30 * 24 * 60 * 60 * 1000
-  let total_total_subscription_fee_qty = interval_amount * num_intervals
-
-  // Create the initial payment datum
-  let initial_payment_datum =
-    tests.test_datum_03(
-      service_tkn,
-      user_account_tkn,
+  let payment_datum =
+    create_base_payment_datum(
       current_time,
-      current_time + interval_length,
-      current_time + interval_length,
       interval_length,
       interval_amount,
       num_intervals,
-      1,
     )
-  // Create the payment input (the one being spent)
-  let initial_payment_value =
-    add(
-      from_lovelace(total_total_subscription_fee_qty),
-      own_cs,
-      payment_tokenname,
-      1,
+
+  let (
+    payment_value,
+    service_value,
+    merchant_value,
+    account_value,
+    subscriber_value,
+  ) = create_base_token_values()
+
+  let (
+    _payment_input,
+    service_input,
+    _merchant_input,
+    _account_input,
+    subscriber_input,
+  ) =
+    create_base_inputs(
+      init_output_ref,
+      payment_datum,
+      payment_value,
+      service_value,
+      merchant_value,
+      account_value,
+      subscriber_value,
+    )
+
+  let (payment_output, subscriber_output) =
+    create_base_outputs(
+      payment_cs,
+      interval_amount,
+      total_subscription_fee_qty,
+      payment_datum,
+    )
+
+  let lower_bound = current_time - 5
+  let upper_bound = current_time - 1
+  let validity_range = tests.test_time_range(lower_bound, upper_bound)
+  let mint = payment_value
+
+  test_initiate_subscription(
+    payment_cs,
+    account_cs,
+    service_cs,
+    service_input,
+    subscriber_input,
+    payment_output,
+    subscriber_output,
+    validity_range,
+    mint,
+  )
+}
+
+test succeed_terminate_subscription() {
+  let payment_cs = tests.test_payment_cs()
+
+  let mint = add(zero, payment_cs, payment_tokenname, -1)
+  validate_terminate_subscription(payment_cs, mint)
+}
+
+test succeed_extend_subscription() {
+  let (
+    current_time,
+    interval_length,
+    interval_amount,
+    num_intervals,
+    _subscription_start,
+    _subscription_end,
+    _last_claimed,
+    total_subscription_fee_qty,
+  ) = setup_config(1)
+  let (payment_cs, _account_cs, service_cs) = setup_policy_ids()
+  let (payment_tx_hash, _service_tx_hash, _account_tx_hash) =
+    setup_base_tx_hash()
+
+  let extend_output_ref = tests.test_input_utxo_02(payment_tx_hash)
+
+  let (service_tkn, merchant_tkn, account_tkn, subscriber_tkn) =
+    create_token_names()
+
+  let (
+    payment_value,
+    service_value,
+    merchant_value,
+    account_value,
+    subscriber_value,
+  ) =
+    create_base_token_values_with_base(
+      from_lovelace(total_subscription_fee_qty),
+      service_tkn,
+      merchant_tkn,
+      account_tkn,
+      subscriber_tkn,
+    )
+
+  // Create the initial payment datum
+  let payment_datum =
+    create_base_payment_datum(
+      current_time,
+      interval_length,
+      interval_amount,
+      num_intervals,
     )
   let payment_input =
     tests.test_context_input_02(
       extend_output_ref,
-      own_cs,
-      initial_payment_value,
-      Payment(initial_payment_datum),
+      payment_cs,
+      payment_value,
+      Payment(payment_datum),
     )
 
   // Define extension parameters
@@ -200,9 +435,9 @@ test succeed_extend_subscription() {
   let new_payment_datum: PaymentDatum =
     tests.test_datum_03(
       service_tkn,
-      user_account_tkn,
+      subscriber_tkn,
       current_time,
-      initial_payment_datum.subscription_end + extension_period,
+      payment_datum.subscription_end + extension_period,
       current_time + interval_length,
       interval_length,
       interval_amount,
@@ -210,57 +445,40 @@ test succeed_extend_subscription() {
       1,
     )
 
-  // Create the new payment output
-  let new_payment_value =
-    add(
-      from_lovelace(total_total_subscription_fee_qty + extension_fee),
-      own_cs,
-      payment_tokenname,
-      1,
-    )
   let payment_output =
     tests.test_utxo_02(
-      own_cs,
-      new_payment_value,
-      100_000_000,
+      payment_cs,
+      payment_value,
+      total_subscription_fee_qty + extension_fee,
       Payment(new_payment_datum),
     )
   // Create a mock subscriber input (to pay for the extension)
   let subscriber_pkh = tests.test_224_04()
   // Assuming this function exists to generate a different hash
-  let subscriber_input =
-    tests.test_context_input_02(
-      tests.test_input_utxo_02(tx_hash),
-      account_cs,
-      user_value,
-      // Extra for fees
-      NoDatum,
-    )
-  // Create the service datum and input
-  let is_active = True
-  let service_datum =
-    tests.test_service_datum(
-      is_active,
-      interval_length,
-      num_intervals,
-      interval_amount,
-    )
-  let service_input =
-    tests.test_context_input_02(
-      tests.test_input_utxo_02(service_cs),
-      service_cs,
+  let (
+    _payment_input,
+    service_input,
+    _merchant_input,
+    _account_input,
+    subscriber_input,
+  ) =
+    create_base_inputs(
+      extend_output_ref,
+      payment_datum,
+      payment_value,
       service_value,
-      service_datum,
+      merchant_value,
+      account_value,
+      subscriber_value,
     )
 
   // Create a user output for change
   let change_amount = 3_000_000
-  // Assuming 2_000_000 for fees
-  let user_change_output =
+  let subscriber_output =
     tests.test_user_utxo(subscriber_pkh, from_lovelace(change_amount), NoDatum)
-  let inputs = [subscriber_input, payment_input]
   let reference_inputs = [service_input]
-  let outputs = [user_change_output, payment_output]
+  let inputs = [subscriber_input, payment_input]
+  let outputs = [subscriber_output, payment_output]
 
   validate_extend_subscription(
     extend_output_ref,
@@ -269,55 +487,92 @@ test succeed_extend_subscription() {
     1,
     1,
     extension_intervals,
-    Payment(initial_payment_datum),
+    Payment(payment_datum),
     reference_inputs,
     inputs,
     outputs,
   )
 }
 
-test succeed_merchant_withdraw() {
-  let own_cs = tests.test_payment_cs()
-  let service_cs = tests.test_service_cs()
-
-  let tx_hash = tests.test_224_01()
-  let payment_tx_hash = tests.test_224_02()
-  let service_tx_hash = tests.test_224_03()
-
+fn merchant_withdraw_test(
+  total_subscription_fee_qty,
+  outputs,
+  service_cs,
+  payment_datum,
+  timerange,
+  service_tkn,
+  merchant_tkn,
+  account_tkn,
+  subscriber_tkn,
+) {
+  let (payment_tx_hash, _service_tx_hash, _account_tx_hash) =
+    setup_base_tx_hash()
   let script_output_ref = tests.test_input_utxo_02(payment_tx_hash)
 
-  let service_tkn =
-    values.unique_token_name(service_tx_hash, 1, cip68.prefix_100)
-  let service_user_tkn =
-    values.unique_token_name(service_tx_hash, 1, cip68.prefix_222)
-  let user_account_tkn = values.unique_token_name(tx_hash, 1, cip68.prefix_222)
-
-  let subscription_start = 1737043736747
-  // 30 days in milliseconds
-  let interval_length = 120000
-  //30 * 24 * 60 * 60 * 1000
-  // 120 days total
-  let num_intervals = 12
-  let interval_amount = 100_000_000
-  let total_total_subscription_fee_qty = 1_200_000_000
-  let subscription_end = 1737045176747
-  let last_claimed = 1737043736747
-  // Set current time to exactly 2 vesting periods (60 days) after start
-  let current_time = 1737043903924
-
-  // Half-way through
-  let payment_datum =
-    tests.test_datum_03(
+  let (
+    payment_value,
+    service_value,
+    merchant_value,
+    account_value,
+    subscriber_value,
+  ) =
+    create_base_token_values_with_base(
+      from_lovelace(total_subscription_fee_qty),
       service_tkn,
-      user_account_tkn,
-      subscription_start,
-      subscription_end,
-      subscription_end,
-      interval_length,
-      interval_amount,
-      num_intervals,
-      1,
+      merchant_tkn,
+      account_tkn,
+      subscriber_tkn,
     )
+
+  let (
+    payment_input,
+    service_input,
+    merchant_input,
+    _account_input,
+    _subscriber_input,
+  ) =
+    create_base_inputs(
+      script_output_ref,
+      payment_datum,
+      payment_value,
+      service_value,
+      merchant_value,
+      account_value,
+      subscriber_value,
+    )
+
+  let inputs = [merchant_input, payment_input]
+  let reference_inputs = [service_input]
+
+  validate_merchant_withdraw(
+    script_output_ref,
+    service_cs,
+    0,
+    0,
+    1,
+    1,
+    1,
+    Payment(payment_datum),
+    reference_inputs,
+    inputs,
+    outputs,
+    timerange,
+    zero,
+  )
+}
+
+test succeed_merchant_withdraw() {
+  let (
+    current_time,
+    interval_length,
+    interval_amount,
+    num_intervals,
+    subscription_start,
+    subscription_end,
+    last_claimed,
+    total_subscription_fee_qty,
+  ) = setup_config(12)
+  let (payment_cs, _account_cs, service_cs) = setup_policy_ids()
 
   // Calculate withdrawable amount using stepped vesting
   let time_since_last_claim = math.max(current_time - last_claimed, 0)
@@ -326,83 +581,35 @@ test succeed_merchant_withdraw() {
   let claimable_intervals = math.min(intervals_passed, num_intervals)
   let withdrawable_amount = interval_amount * claimable_intervals
 
-  let is_active = True
-  let service_datum =
-    tests.test_service_datum(
-      is_active,
+  let (service_tkn, merchant_tkn, account_tkn, subscriber_tkn) =
+    create_token_names()
+
+  let payment_datum =
+    create_base_payment_datum(
+      subscription_start,
       interval_length,
-      num_intervals,
       interval_amount,
-    )
-
-  let payment_value =
-    add(
-      from_lovelace(total_total_subscription_fee_qty),
-      own_cs,
-      payment_tokenname,
-      1,
-    )
-  let service_value =
-    add(
-      from_lovelace(total_total_subscription_fee_qty),
-      service_cs,
-      service_tkn,
-      1,
-    )
-
-  let merchant_value =
-    add(
-      from_lovelace(total_total_subscription_fee_qty),
-      service_cs,
-      service_user_tkn,
-      1,
-    )
-
-  // Create the merchant input (to prove service ownership)
-  let merchant_input =
-    tests.test_context_input_02(
-      tests.test_input_utxo_02(service_tx_hash),
-      service_cs,
-      merchant_value,
-      NoDatum,
-    )
-  // Create the payment input (the one being spent)
-  let payment_input =
-    tests.test_context_input_02(
-      script_output_ref,
-      own_cs,
-      payment_value,
-      Payment(payment_datum),
-    )
-
-  // Create the service input (to prove service ownership)
-  let service_input =
-    tests.test_context_input_02(
-      tests.test_input_utxo_02(service_tx_hash),
-      service_cs,
-      service_value,
-      service_datum,
+      num_intervals,
     )
 
   // Calculate withdrawable amount (assuming half of the subscription period has passed)
   let actual_withdrawal = withdrawable_amount
   let merchant_output_value =
-    add(from_lovelace(actual_withdrawal), service_cs, service_user_tkn, 1)
+    add(from_lovelace(actual_withdrawal), service_cs, merchant_tkn, 1)
 
   // Create withdrawal output
   let merchant_output =
     tests.test_utxo_exact(service_cs, merchant_output_value, NoDatum)
 
   // Create remaining funds output (if any)
-  let remaining_amount = total_total_subscription_fee_qty - actual_withdrawal
+  let remaining_amount = total_subscription_fee_qty - actual_withdrawal
 
-  let payment_output_value =
-    add(from_lovelace(remaining_amount), own_cs, payment_tokenname, 1)
-
+  // let payment_output_value =
+  //   add(from_lovelace(remaining_amount), payment_cs, payment_tokenname, 1)
   let new_payment_datum =
     tests.test_datum_03(
       service_tkn,
-      user_account_tkn,
+      subscriber_tkn,
       subscription_start,
       subscription_end,
       subscription_end,
@@ -412,12 +619,797 @@ test succeed_merchant_withdraw() {
       2,
     )
 
+  let (payment_output, _subscriber_output) =
+    create_base_outputs(
+      payment_cs,
+      interval_amount,
+      remaining_amount,
+      new_payment_datum,
+    )
+
+  let outputs = [merchant_output, payment_output]
+  let lower_bound = current_time
+  let upper_bound = lower_bound + 1
+  let insert_timerange = tests.test_time_range(lower_bound, upper_bound)
+
+  merchant_withdraw_test(
+    total_subscription_fee_qty,
+    outputs,
+    service_cs,
+    payment_datum,
+    insert_timerange,
+    service_tkn,
+    merchant_tkn,
+    account_tkn,
+    subscriber_tkn,
+  )
+}
+
+test succeed_unsubscribe() {
+  let (
+    current_time,
+    interval_length,
+    interval_amount,
+    num_intervals,
+    subscription_start,
+    _subscription_end,
+    _last_claimed,
+    _total_subscription_fee_qty,
+  ) = setup_config(12)
+  let (payment_cs, account_cs, service_cs) = setup_policy_ids()
+  let (payment_tx_hash, _service_tx_hash, _account_tx_hash) =
+    setup_base_tx_hash()
+
+  let script_output_ref = tests.test_input_utxo_02(payment_tx_hash)
+
+  let (service_tkn, merchant_tkn, account_tkn, subscriber_tkn) =
+    create_token_names()
+
+  let penalty_fee_qty = 1_000_000
+
+  // Calculate refund based on unclaimed intervals (matching validator logic)
+  let time_since_start = math.max(current_time - subscription_start, 0)
+  let intervals_passed = time_since_start / interval_length
+  let claimed_intervals = math.min(intervals_passed, num_intervals)
+  let remaining_intervals = num_intervals - claimed_intervals
+  let refundable_amount = remaining_intervals * interval_amount
+  // Subscriber should get refundable amount minus penalty
+  let subscriber_refund = refundable_amount - penalty_fee_qty - 2_000_000
+
+  let (
+    payment_value,
+    service_value,
+    merchant_value,
+    account_value,
+    subscriber_value,
+  ) =
+    create_base_token_values_with_base(
+      from_lovelace(refundable_amount),
+      service_tkn,
+      merchant_tkn,
+      account_tkn,
+      subscriber_tkn,
+    )
+
+  // let service_datum = create_base_service_datum(True)
+  let payment_datum =
+    create_base_payment_datum(
+      subscription_start,
+      interval_length,
+      interval_amount,
+      remaining_intervals,
+    )
+
+  let (
+    payment_input,
+    service_input,
+    _merchant_input,
+    _account_input,
+    subscriber_input,
+  ) =
+    create_base_inputs(
+      script_output_ref,
+      payment_datum,
+      payment_value,
+      service_value,
+      merchant_value,
+      account_value,
+      subscriber_value,
+    )
+
+  // Create refund output
+  let refund_output =
+    tests.test_utxo_02(account_cs, from_lovelace(subscriber_refund), 0, NoDatum)
+
+  let penalty_value =
+    add(
+      from_lovelace(penalty_fee_qty + 2_000_000),
+      payment_cs,
+      payment_tokenname,
+      1,
+    )
+
+  // Create penalty output
+  let penalty_datum = tests.test_penalty_datum(service_tkn, subscriber_tkn)
+  let penalty_output =
+    tests.test_utxo_02(payment_cs, penalty_value, 0, Penalty(penalty_datum))
+
+  let lower_bound = current_time - 1
+  let upper_bound = lower_bound + 1
+
+  let insert_timerange = tests.test_time_range(lower_bound, upper_bound)
+
+  let inputs = [subscriber_input, payment_input]
+  let reference_inputs = [service_input]
+  let outputs = [refund_output, penalty_output]
+
+  validate_unsubscribe(
+    script_output_ref,
+    account_cs,
+    service_cs,
+    0,
+    0,
+    1,
+    1,
+    Payment(payment_datum),
+    reference_inputs,
+    inputs,
+    outputs,
+    insert_timerange,
+    zero,
+  )
+}
+
+test succeed_subscriber_withdraw() {
+  let (
+    _current_time,
+    interval_length,
+    interval_amount,
+    num_intervals,
+    subscription_start,
+    subscription_end,
+    _last_claimed,
+    total_subscription_fee_qty,
+  ) = setup_config(12)
+  let (payment_cs, account_cs, service_cs) = setup_policy_ids()
+  let (payment_tx_hash, service_tx_hash, _account_tx_hash) =
+    setup_base_tx_hash()
+
+  let script_output_ref = tests.test_input_utxo_02(payment_tx_hash)
+
+  let (service_tkn, merchant_tkn, account_tkn, subscriber_tkn) =
+    create_token_names()
+
+  // After subscription end
+  let payment_datum =
+    tests.test_datum_03(
+      service_tkn,
+      subscriber_tkn,
+      subscription_start,
+      subscription_end,
+      subscription_end,
+      interval_length,
+      interval_amount,
+      num_intervals,
+      1,
+    )
+
+  // Service is inactive
+  let service_datum = create_base_service_datum(False)
+  let (
+    payment_value,
+    service_value,
+    merchant_value,
+    account_value,
+    subscriber_value,
+  ) =
+    create_base_token_values_with_base(
+      from_lovelace(total_subscription_fee_qty),
+      service_tkn,
+      merchant_tkn,
+      account_tkn,
+      subscriber_tkn,
+    )
+
+  let service_input =
+    tests.test_context_input_02(
+      tests.test_input_utxo_02(service_tx_hash),
+      service_cs,
+      service_value,
+      service_datum,
+    )
+  let (
+    payment_input,
+    _service_input,
+    _merchant_input,
+    _account_input,
+    subscriber_input,
+  ) =
+    create_base_inputs(
+      script_output_ref,
+      payment_datum,
+      payment_value,
+      service_value,
+      merchant_value,
+      account_value,
+      subscriber_value,
+    )
+
+  let inputs = [subscriber_input, payment_input]
+  let reference_inputs = [service_input]
+
+  validate_subscriber_withdraw(
+    script_output_ref,
+    service_cs,
+    account_cs,
+    0,
+    0,
+    1,
+    Payment(payment_datum),
+    reference_inputs,
+    inputs,
+    add(zero, payment_cs, payment_tokenname, -1),
+  )
+}
+
+test fail_initiate_missing_service_ref() fail {
+  let (payment_cs, account_cs, service_cs) = setup_policy_ids()
+  let (payment_tx_hash, _service_tx_hash, _account_tx_hash) =
+    setup_base_tx_hash()
+  let init_output_ref = tests.test_input_utxo_02(payment_tx_hash)
+
+  let (
+    current_time,
+    interval_length,
+    interval_amount,
+    num_intervals,
+    _subscription_start,
+    _subscription_end,
+    _last_claimed,
+    total_subscription_fee_qty,
+  ) = setup_config(12)
+  let payment_datum =
+    create_base_payment_datum(
+      current_time,
+      interval_length,
+      interval_amount,
+      num_intervals,
+    )
+
+  let (
+    payment_value,
+    service_value,
+    merchant_value,
+    account_value,
+    subscriber_value,
+  ) = create_base_token_values()
+
+  let (
+    _payment_input,
+    _service_input,
+    _merchant_input,
+    account_input,
+    subscriber_input,
+  ) =
+    create_base_inputs(
+      init_output_ref,
+      payment_datum,
+      payment_value,
+      service_value,
+      merchant_value,
+      account_value,
+      subscriber_value,
+    )
+
+  let (payment_output, subscriber_output) =
+    create_base_outputs(
+      payment_cs,
+      interval_amount,
+      total_subscription_fee_qty,
+      payment_datum,
+    )
+
+  let lower_bound = current_time - 5
+  let upper_bound = current_time - 1
+  let validity_range = tests.test_time_range(lower_bound, upper_bound)
+
+  let mint = payment_value
+
+  test_initiate_subscription(
+    payment_cs,
+    account_cs,
+    service_cs,
+    // Put in the incorrect input (account_input instead of service_input)
+    account_input,
+    subscriber_input,
+    payment_output,
+    subscriber_output,
+    validity_range,
+    mint,
+  )
+}
+
+test fail_initiate_insufficient_funds() fail {
+  let (payment_cs, account_cs, service_cs) = setup_policy_ids()
+  let (payment_tx_hash, _service_tx_hash, _account_tx_hash) =
+    setup_base_tx_hash()
+  let init_output_ref = tests.test_input_utxo_02(payment_tx_hash)
+
+  let (
+    current_time,
+    interval_length,
+    interval_amount,
+    num_intervals,
+    _subscription_start,
+    _subscription_end,
+    _last_claimed,
+    total_subscription_fee_qty,
+  ) = setup_config(12)
+  let payment_datum =
+    create_base_payment_datum(
+      current_time,
+      interval_length,
+      interval_amount,
+      num_intervals,
+    )
+  let (
+    payment_value,
+    service_value,
+    merchant_value,
+    account_value,
+    subscriber_value,
+  ) = create_base_token_values()
+
+  let (
+    _payment_input,
+    service_input,
+    _merchant_input,
+    _account_input,
+    subscriber_input,
+  ) =
+    create_base_inputs(
+      init_output_ref,
+      payment_datum,
+      payment_value,
+      service_value,
+      merchant_value,
+      account_value,
+      subscriber_value,
+    )
+
+  let (payment_output, subscriber_output) =
+    create_base_outputs(
+      payment_cs,
+      interval_amount,
+      // Reduce the output amount
+      total_subscription_fee_qty / 2,
+      payment_datum,
+    )
+
+  let lower_bound = current_time - 5
+  let upper_bound = current_time - 1
+  let validity_range = tests.test_time_range(lower_bound, upper_bound)
+
+  let mint = payment_value
+
+  test_initiate_subscription(
+    payment_cs,
+    account_cs,
+    service_cs,
+    service_input,
+    subscriber_input,
+    payment_output,
+    subscriber_output,
+    validity_range,
+    mint,
+  )
+}
+
+test fail_initiate_invalid_range() fail {
+  let (payment_cs, account_cs, service_cs) = setup_policy_ids()
+  let (payment_tx_hash, _service_tx_hash, _account_tx_hash) =
+    setup_base_tx_hash()
+  let init_output_ref = tests.test_input_utxo_02(payment_tx_hash)
+
+  let (
+    current_time,
+    interval_length,
+    interval_amount,
+    num_intervals,
+    _subscription_start,
+    _subscription_end,
+    _last_claimed,
+    total_subscription_fee_qty,
+  ) = setup_config(12)
+  let payment_datum =
+    create_base_payment_datum(
+      current_time,
+      interval_length,
+      interval_amount,
+      num_intervals,
+    )
+
+  let (
+    payment_value,
+    service_value,
+    merchant_value,
+    account_value,
+    subscriber_value,
+  ) = create_base_token_values()
+
+  let (
+    _payment_input,
+    service_input,
+    _merchant_input,
+    _account_input,
+    subscriber_input,
+  ) =
+    create_base_inputs(
+      init_output_ref,
+      payment_datum,
+      payment_value,
+      service_value,
+      merchant_value,
+      account_value,
+      subscriber_value,
+    )
+
+  let (payment_output, subscriber_output) =
+    create_base_outputs(
+      payment_cs,
+      interval_amount,
+      total_subscription_fee_qty,
+      payment_datum,
+    )
+
+  let lower_bound = current_time - 5
+  // Change the upperbound range
+  let upper_bound = current_time + 1
+  let validity_range = tests.test_time_range(lower_bound, upper_bound)
+
+  let (
+    payment_value,
+    _service_value,
+    _merchant_tkn,
+    _account_value,
+    _subscriber_value,
+  ) = create_base_token_values()
+
+  test_initiate_subscription(
+    payment_cs,
+    account_cs,
+    service_cs,
+    service_input,
+    subscriber_input,
+    payment_output,
+    subscriber_output,
+    validity_range,
+    payment_value,
+  )
+}
+
+test fail_terminate_token_burn() fail {
+  let payment_cs = tests.test_payment_cs()
+
+  // Burn two tokens instead on one 
+  let mint = add(zero, payment_cs, payment_tokenname, -2)
+  validate_terminate_subscription(payment_cs, mint)
+}
+
+test fail_extend_insufficient_extension_funds() fail {
+  let (
+    current_time,
+    interval_length,
+    interval_amount,
+    num_intervals,
+    _subscription_start,
+    _subscription_end,
+    _last_claimed,
+    total_subscription_fee_qty,
+  ) = setup_config(1)
+  let (payment_cs, _account_cs, service_cs) = setup_policy_ids()
+  let (payment_tx_hash, _service_tx_hash, _account_tx_hash) =
+    setup_base_tx_hash()
+
+  let extend_output_ref = tests.test_input_utxo_02(payment_tx_hash)
+
+  let (service_tkn, merchant_tkn, account_tkn, subscriber_tkn) =
+    create_token_names()
+
+  let (
+    payment_value,
+    service_value,
+    merchant_value,
+    account_value,
+    subscriber_value,
+  ) =
+    create_base_token_values_with_base(
+      from_lovelace(total_subscription_fee_qty),
+      service_tkn,
+      merchant_tkn,
+      account_tkn,
+      subscriber_tkn,
+    )
+
+  // Create the initial payment datum
+  let payment_datum =
+    create_base_payment_datum(
+      current_time,
+      interval_length,
+      interval_amount,
+      num_intervals,
+    )
+  let payment_input =
+    tests.test_context_input_02(
+      extend_output_ref,
+      payment_cs,
+      payment_value,
+      Payment(payment_datum),
+    )
+
+  // Define extension parameters
+  // 30 more days
+  let extension_intervals = 6
+  let extension_period = interval_length * extension_intervals
+
+  let extension_fee = interval_amount * extension_intervals
+
+  // Same as initial fee for simplicity
+  // Create the new payment datum with extended period and increased fee
+  let new_payment_datum: PaymentDatum =
+    tests.test_datum_03(
+      service_tkn,
+      subscriber_tkn,
+      current_time,
+      payment_datum.subscription_end + extension_period,
+      current_time + interval_length,
+      interval_length,
+      interval_amount,
+      num_intervals + extension_intervals,
+      1,
+    )
+
+  // Create the new payment output
   let payment_output =
     tests.test_utxo_02(
-      own_cs,
-      payment_output_value,
-      0,
+      payment_cs,
+      payment_value,
+      // Divide the extension fee by 2 to simulate less extension fee
+      total_subscription_fee_qty + extension_fee / 2,
       Payment(new_payment_datum),
+    )
+  // Create a mock subscriber input (to pay for the extension)
+  let subscriber_pkh = tests.test_224_04()
+  // Assuming this function exists to generate a different hash
+  let (
+    _payment_input,
+    service_input,
+    _merchant_input,
+    _account_input,
+    subscriber_input,
+  ) =
+    create_base_inputs(
+      extend_output_ref,
+      payment_datum,
+      payment_value,
+      service_value,
+      merchant_value,
+      account_value,
+      subscriber_value,
+    )
+
+  // Create a user output for change
+  let change_amount = 3_000_000
+  let subscriber_output =
+    tests.test_user_utxo(subscriber_pkh, from_lovelace(change_amount), NoDatum)
+  let reference_inputs = [service_input]
+  let inputs = [subscriber_input, payment_input]
+  let outputs = [subscriber_output, payment_output]
+
+  validate_extend_subscription(
+    extend_output_ref,
+    service_cs,
+    0,
+    1,
+    1,
+    extension_intervals,
+    Payment(payment_datum),
+    reference_inputs,
+    inputs,
+    outputs,
+  )
+}
+
+test fail_vesting_interval_tampering() fail {
+  let (
+    current_time,
+    interval_length,
+    interval_amount,
+    num_intervals,
+    subscription_start,
+    subscription_end,
+    last_claimed,
+    total_subscription_fee_qty,
+  ) = setup_config(12)
+  let (payment_cs, _account_cs, service_cs) = setup_policy_ids()
+
+  // Calculate withdrawable amount using stepped vesting
+  let time_since_last_claim = math.max(current_time - last_claimed, 0)
+
+  let intervals_passed = time_since_last_claim / interval_length
+  let claimable_intervals = math.min(intervals_passed, num_intervals)
+  let withdrawable_amount = interval_amount * claimable_intervals
+
+  let (service_tkn, merchant_tkn, account_tkn, subscriber_tkn) =
+    create_token_names()
+
+  let payment_datum =
+    create_base_payment_datum(
+      subscription_start,
+      interval_length,
+      interval_amount,
+      num_intervals,
+    )
+
+  // Calculate withdrawable amount (assuming half of the subscription period has passed)
+  let actual_withdrawal = withdrawable_amount
+  let merchant_output_value =
+    add(from_lovelace(actual_withdrawal), service_cs, merchant_tkn, 1)
+
+  // Create withdrawal output
+  let merchant_output =
+    tests.test_utxo_exact(service_cs, merchant_output_value, NoDatum)
+
+  // Create remaining funds output (if any)
+  let remaining_amount = total_subscription_fee_qty - actual_withdrawal
+
+  let new_payment_datum =
+    tests.test_datum_03(
+      service_tkn,
+      subscriber_tkn,
+      subscription_start,
+      subscription_end,
+      subscription_end,
+      interval_length,
+      interval_amount,
+      // Try to influence the number of intervals
+      16,
+      2,
+    )
+
+  let (payment_output, _subscriber_output) =
+    create_base_outputs(
+      payment_cs,
+      interval_amount,
+      remaining_amount,
+      new_payment_datum,
+    )
+
+  let outputs = [merchant_output, payment_output]
+  let lower_bound = current_time
+  let upper_bound = lower_bound + 1
+  let insert_timerange = tests.test_time_range(lower_bound, upper_bound)
+
+  merchant_withdraw_test(
+    total_subscription_fee_qty,
+    outputs,
+    service_cs,
+    payment_datum,
+    insert_timerange,
+    service_tkn,
+    merchant_tkn,
+    account_tkn,
+    subscriber_tkn,
+  )
+}
+
+test fail_merchant_withdraw_unauthorized() fail {
+  let (
+    current_time,
+    interval_length,
+    interval_amount,
+    num_intervals,
+    subscription_start,
+    subscription_end,
+    last_claimed,
+    total_subscription_fee_qty,
+  ) = setup_config(12)
+  let (payment_cs, _account_cs, service_cs) = setup_policy_ids()
+  let (payment_tx_hash, _service_tx_hash, _account_tx_hash) =
+    setup_base_tx_hash()
+
+  let script_output_ref = tests.test_input_utxo_02(payment_tx_hash)
+
+  // Calculate withdrawable amount using stepped vesting
+  let time_since_last_claim = math.max(current_time - last_claimed, 0)
+
+  let intervals_passed = time_since_last_claim / interval_length
+  let claimable_intervals = math.min(intervals_passed, num_intervals)
+  let withdrawable_amount = interval_amount * claimable_intervals
+
+  let (service_tkn, merchant_tkn, account_tkn, subscriber_tkn) =
+    create_token_names()
+
+  let payment_datum =
+    create_base_payment_datum(
+      subscription_start,
+      interval_length,
+      interval_amount,
+      num_intervals,
+    )
+
+  let (
+    payment_value,
+    service_value,
+    _merchant_value,
+    account_value,
+    subscriber_value,
+  ) =
+    create_base_token_values_with_base(
+      from_lovelace(total_subscription_fee_qty),
+      service_tkn,
+      merchant_tkn,
+      account_tkn,
+      subscriber_tkn,
+    )
+
+  let merchant_value =
+    add(
+      from_lovelace(total_subscription_fee_qty),
+      service_cs,
+      // Incorrect token name merchant_tkn
+      service_tkn,
+      1,
+    )
+
+  let (
+    payment_input,
+    service_input,
+    merchant_input,
+    _account_input,
+    _subscriber_value,
+  ) =
+    create_base_inputs(
+      script_output_ref,
+      payment_datum,
+      payment_value,
+      service_value,
+      merchant_value,
+      account_value,
+      subscriber_value,
+    )
+
+  // Calculate withdrawable amount (assuming half of the subscription period has passed)
+  let actual_withdrawal = withdrawable_amount
+  let merchant_output_value =
+    add(from_lovelace(actual_withdrawal), service_cs, merchant_tkn, 1)
+
+  // Create withdrawal output
+  let merchant_output =
+    tests.test_utxo_exact(service_cs, merchant_output_value, NoDatum)
+
+  // Create remaining funds output (if any)
+  let remaining_amount = total_subscription_fee_qty - actual_withdrawal
+
+  let new_payment_datum =
+    tests.test_datum_03(
+      service_tkn,
+      subscriber_tkn,
+      subscription_start,
+      subscription_end,
+      subscription_end,
+      interval_length,
+      interval_amount,
+      num_intervals,
+      2,
+    )
+
+  let (payment_output, _subscriber_output) =
+    create_base_outputs(
+      payment_cs,
+      interval_amount,
+      remaining_amount,
+      new_payment_datum,
     )
 
   let lower_bound = current_time
@@ -446,34 +1438,293 @@ test succeed_merchant_withdraw() {
   )
 }
 
-test succeed_unsubscribe() {
-  let own_cs = tests.test_payment_cs()
-  let account_cs = tests.test_account_cs()
-  let service_cs = tests.test_service_cs()
-
-  let tx_hash = tests.test_224_01()
-  let payment_tx_hash = tests.test_224_02()
-  let account_tx_hash = tests.test_224_03()
-  let service_tx_hash = tests.test_224_04()
+test fail_merchant_withdraw_early() fail {
+  let (
+    current_time,
+    interval_length,
+    interval_amount,
+    num_intervals,
+    subscription_start,
+    subscription_end,
+    last_claimed,
+    total_subscription_fee_qty,
+  ) = setup_config(12)
+  let (payment_cs, _account_cs, service_cs) = setup_policy_ids()
+  let (payment_tx_hash, service_tx_hash, _account_tx_hash) =
+    setup_base_tx_hash()
 
   let script_output_ref = tests.test_input_utxo_02(payment_tx_hash)
 
-  let service_tkn =
-    values.unique_token_name(service_tx_hash, 1, cip68.prefix_222)
-  let user_account_tkn =
-    values.unique_token_name(account_tx_hash, 1, cip68.prefix_222)
+  let (service_tkn, merchant_tkn, _account_tkn, subscriber_tkn) =
+    create_token_names()
 
-  let subscription_start = 1737043736747
-  // 30 days in milliseconds
-  let interval_length = 120000
-  let interval_amount = 10_000_000
-  //30 * 24 * 60 * 60 * 1000
-  // 120 days total
-  let num_intervals = 12
-  let subscription_end = 1737045176747
+  let payment_datum =
+    create_base_payment_datum(
+      subscription_start,
+      interval_length,
+      interval_amount,
+      num_intervals,
+    )
+
+  // Calculate withdrawable amount using stepped vesting
+  let time_since_last_claim = math.max(current_time - last_claimed, 0)
+
+  let intervals_passed = time_since_last_claim / interval_length
+  let claimable_intervals = math.min(intervals_passed, num_intervals)
+  let withdrawable_amount = interval_amount * claimable_intervals
+
+  let service_datum = create_base_service_datum(True)
+
+  let payment_value =
+    add(
+      from_lovelace(total_subscription_fee_qty),
+      payment_cs,
+      payment_tokenname,
+      1,
+    )
+  let service_value =
+    add(from_lovelace(total_subscription_fee_qty), service_cs, service_tkn, 1)
+
+  let merchant_value =
+    add(from_lovelace(total_subscription_fee_qty), service_cs, merchant_tkn, 1)
+
+  // Create the merchant input (to prove service ownership)
+  let merchant_input =
+    tests.test_context_input_02(
+      tests.test_input_utxo_02(service_tx_hash),
+      service_cs,
+      merchant_value,
+      NoDatum,
+    )
+  // Create the payment input (the one being spent)
+  let payment_input =
+    tests.test_context_input_02(
+      script_output_ref,
+      payment_cs,
+      payment_value,
+      Payment(payment_datum),
+    )
+
+  // Create the service input (to prove service ownership)
+  let service_input =
+    tests.test_context_input_02(
+      tests.test_input_utxo_02(service_tx_hash),
+      service_cs,
+      service_value,
+      service_datum,
+    )
+
+  // Calculate withdrawable amount (assuming half of the subscription period has passed)
+  let actual_withdrawal = withdrawable_amount
+  let merchant_output_value =
+    add(from_lovelace(actual_withdrawal), service_cs, merchant_tkn, 1)
+
+  // Create withdrawal output
+  let merchant_output =
+    tests.test_utxo_exact(service_cs, merchant_output_value, NoDatum)
+
+  // Create remaining funds output (if any)
+  let remaining_amount = total_subscription_fee_qty - actual_withdrawal
+
+  let new_payment_datum =
+    tests.test_datum_03(
+      service_tkn,
+      subscriber_tkn,
+      subscription_start,
+      subscription_end,
+      subscription_end,
+      interval_length,
+      interval_amount,
+      num_intervals,
+      2,
+    )
+
+  let (payment_output, _subscriber_output) =
+    create_base_outputs(
+      payment_cs,
+      interval_amount,
+      remaining_amount,
+      new_payment_datum,
+    )
+
+  // Try to withdraw before current_time
+  let lower_bound = current_time - 10000
+  let upper_bound = lower_bound + 1
+
+  let insert_timerange = tests.test_time_range(lower_bound, upper_bound)
+
+  let inputs = [merchant_input, payment_input]
+  let reference_inputs = [service_input]
+  let outputs = [merchant_output, payment_output]
+
+  validate_merchant_withdraw(
+    script_output_ref,
+    service_cs,
+    0,
+    0,
+    1,
+    1,
+    1,
+    Payment(payment_datum),
+    reference_inputs,
+    inputs,
+    outputs,
+    insert_timerange,
+    zero,
+  )
+}
+
+test fail_merchant_overwithdraw() fail {
+  let (
+    current_time,
+    interval_length,
+    interval_amount,
+    num_intervals,
+    subscription_start,
+    subscription_end,
+    last_claimed,
+    total_subscription_fee_qty,
+  ) = setup_config(12)
+  let (payment_cs, _account_cs, service_cs) = setup_policy_ids()
+  let (payment_tx_hash, _service_tx_hash, _account_tx_hash) =
+    setup_base_tx_hash()
+
+  let script_output_ref = tests.test_input_utxo_02(payment_tx_hash)
+
+  let (service_tkn, merchant_tkn, account_tkn, subscriber_tkn) =
+    create_token_names()
+
+  let payment_datum =
+    create_base_payment_datum(
+      subscription_start,
+      interval_length,
+      interval_amount,
+      num_intervals,
+    )
+
+  // Calculate withdrawable amount using stepped vesting
+  let time_since_last_claim = math.max(current_time - last_claimed, 0)
+
+  let intervals_passed = time_since_last_claim / interval_length
+  let claimable_intervals = math.min(intervals_passed, num_intervals)
+  let withdrawable_amount = interval_amount * claimable_intervals
+
+  let (
+    payment_value,
+    service_value,
+    merchant_value,
+    account_value,
+    subscriber_value,
+  ) =
+    create_base_token_values_with_base(
+      from_lovelace(total_subscription_fee_qty),
+      service_tkn,
+      merchant_tkn,
+      account_tkn,
+      subscriber_tkn,
+    )
+
+  let (
+    payment_input,
+    service_input,
+    merchant_input,
+    _account_input,
+    _subscriber_value,
+  ) =
+    create_base_inputs(
+      script_output_ref,
+      payment_datum,
+      payment_value,
+      service_value,
+      merchant_value,
+      account_value,
+      subscriber_value,
+    )
+
+  // Set installments_withdrawn to more than available (overwithdraw).
+  let overwithdraw_installments = num_intervals + 1
+
+  // Calculate withdrawable amount (assuming half of the subscription period has passed)
+  let actual_withdrawal = withdrawable_amount * overwithdraw_installments
+  let merchant_output_value =
+    add(from_lovelace(actual_withdrawal), service_cs, merchant_tkn, 1)
+
+  // Create withdrawal output
+  let merchant_output =
+    tests.test_utxo_exact(service_cs, merchant_output_value, NoDatum)
+
+  // Create remaining funds output (if any)
+  let remaining_amount = total_subscription_fee_qty - actual_withdrawal
+
+  let new_payment_datum =
+    tests.test_datum_03(
+      service_tkn,
+      subscriber_tkn,
+      subscription_start,
+      subscription_end,
+      subscription_end,
+      interval_length,
+      interval_amount,
+      num_intervals,
+      2,
+    )
+
+  let (payment_output, _subscriber_output) =
+    create_base_outputs(
+      payment_cs,
+      interval_amount,
+      remaining_amount,
+      new_payment_datum,
+    )
+
+  let lower_bound = current_time
+  let upper_bound = lower_bound + 1
+
+  let insert_timerange = tests.test_time_range(lower_bound, upper_bound)
+
+  let inputs = [merchant_input, payment_input]
+  let reference_inputs = [service_input]
+  let outputs = [merchant_output, payment_output]
+
+  validate_merchant_withdraw(
+    script_output_ref,
+    service_cs,
+    0,
+    0,
+    1,
+    1,
+    1,
+    Payment(payment_datum),
+    reference_inputs,
+    inputs,
+    outputs,
+    insert_timerange,
+    zero,
+  )
+}
+
+//When unsubscribing early, the subscriber must pay a penalty. If that penalty output is missing or underfunded, the transaction must be rejected.
+test fail_unsubscribe_penalty_not_paid() fail {
+  let (
+    current_time,
+    interval_length,
+    interval_amount,
+    num_intervals,
+    subscription_start,
+    _subscription_end,
+    _last_claimed,
+    _total_subscription_fee_qty,
+  ) = setup_config(12)
+  let (payment_cs, account_cs, service_cs) = setup_policy_ids()
+  let (payment_tx_hash, _service_tx_hash, _account_tx_hash) =
+    setup_base_tx_hash()
+
+  let script_output_ref = tests.test_input_utxo_02(payment_tx_hash)
+
+  let (service_tkn, merchant_tkn, account_tkn, subscriber_tkn) =
+    create_token_names()
+
   let penalty_fee_qty = 1_000_000
-  // Set current time to exactly 2 vesting periods (60 days) after start
-  let current_time = 1737043903924
 
   // Calculate refund based on unclaimed intervals (matching validator logic)
   let time_since_start = math.max(current_time - subscription_start, 0)
@@ -481,86 +1732,73 @@ test succeed_unsubscribe() {
   let claimed_intervals = math.min(intervals_passed, num_intervals)
   let remaining_intervals = num_intervals - claimed_intervals
   let refundable_amount = remaining_intervals * interval_amount
-
   // Subscriber should get refundable amount minus penalty
   let subscriber_refund = refundable_amount - penalty_fee_qty - 2_000_000
 
-  let account_value = add(zero, account_cs, user_account_tkn, 1)
-  let service_value = add(zero, service_cs, service_tkn, 1)
-
-  let is_active = True
-  let service_datum =
-    tests.test_service_datum(
-      is_active,
-      interval_length,
-      num_intervals,
-      interval_amount,
+  let (
+    payment_value,
+    service_value,
+    merchant_value,
+    account_value,
+    subscriber_value,
+  ) =
+    create_base_token_values_with_base(
+      from_lovelace(refundable_amount),
+      service_tkn,
+      merchant_tkn,
+      account_tkn,
+      subscriber_tkn,
     )
 
+  // let service_datum = create_base_service_datum(True)
   let payment_datum =
-    tests.test_datum_03(
-      service_tkn,
-      user_account_tkn,
+    create_base_payment_datum(
       subscription_start,
-      subscription_end,
-      subscription_end,
       interval_length,
       interval_amount,
       remaining_intervals,
-      1,
     )
 
-  let payment_value =
-    add(from_lovelace(refundable_amount), own_cs, payment_tokenname, 1)
-  // Create the payment input (the one being spent)
-  let payment_input =
-    tests.test_context_input_02(
+  let (
+    payment_input,
+    service_input,
+    _merchant_input,
+    _account_input,
+    subscriber_input,
+  ) =
+    create_base_inputs(
       script_output_ref,
-      own_cs,
-      payment_value,
       payment_datum,
-    )
-
-  // Create the account input
-  let account_input =
-    tests.test_context_input_02(
-      tests.test_input_utxo_02(tx_hash),
-      account_cs,
-      account_value,
-      NoDatum,
-    )
-
-  let service_input =
-    tests.test_context_input_02(
-      tests.test_input_utxo_02(service_cs),
-      service_cs,
+      payment_value,
       service_value,
-      service_datum,
+      merchant_value,
+      account_value,
+      subscriber_value,
     )
 
-  // Create refund output
   let refund_output =
     tests.test_utxo_02(account_cs, from_lovelace(subscriber_refund), 0, NoDatum)
 
   let penalty_value =
     add(
-      from_lovelace(penalty_fee_qty + 2_000_000),
-      own_cs,
+      // In this test, purposely omit or underfund the penalty output.
+      from_lovelace(penalty_fee_qty - 500_000),
+      payment_cs,
       payment_tokenname,
       1,
     )
 
   // Create penalty output
-  let penalty_datum = tests.test_penalty_datum(service_tkn, user_account_tkn)
+  let penalty_datum = tests.test_penalty_datum(service_tkn, subscriber_tkn)
   let penalty_output =
-    tests.test_utxo_02(own_cs, penalty_value, 0, Penalty(penalty_datum))
+    tests.test_utxo_02(payment_cs, penalty_value, 0, Penalty(penalty_datum))
 
   let lower_bound = current_time - 1
   let upper_bound = lower_bound + 1
 
   let insert_timerange = tests.test_time_range(lower_bound, upper_bound)
 
-  let inputs = [account_input, payment_input]
+  let inputs = [subscriber_input, payment_input]
   let reference_inputs = [service_input]
   let outputs = [refund_output, penalty_output]
 
@@ -581,33 +1819,148 @@ test succeed_unsubscribe() {
   )
 }
 
-test succeed_subscriber_withdraw() {
-  let own_cs = tests.test_payment_cs()
-  let account_cs = tests.test_account_cs()
-  let service_cs = tests.test_service_cs()
-
-  let tx_hash = tests.test_224_01()
-  let payment_tx_hash = tests.test_224_02()
-  let service_tx_hash = tests.test_224_03()
+test fail_unsubscribe_missing_subscriber_nft() fail {
+  let (
+    current_time,
+    interval_length,
+    interval_amount,
+    num_intervals,
+    subscription_start,
+    _subscription_end,
+    _last_claimed,
+    _total_subscription_fee_qty,
+  ) = setup_config(12)
+  let (payment_cs, account_cs, service_cs) = setup_policy_ids()
+  let (payment_tx_hash, _service_tx_hash, _account_tx_hash) =
+    setup_base_tx_hash()
 
   let script_output_ref = tests.test_input_utxo_02(payment_tx_hash)
 
-  let service_tkn =
-    values.unique_token_name(service_tx_hash, 1, cip68.prefix_222)
-  let user_account_tkn = values.unique_token_name(tx_hash, 1, cip68.prefix_222)
+  let (service_tkn, merchant_tkn, account_tkn, subscriber_tkn) =
+    create_token_names()
 
-  let subscription_start = 1000000
-  let interval_length = 30 * 24 * 60 * 60 * 1000
-  let subscription_end = subscription_start + interval_length
-  let total_subscription_fee_qty = 1_000_000_000
-  let interval_amount = 100_000_000
-  let num_intervals = 1
+  let penalty_fee_qty = 1_000_000
+
+  // Calculate refund based on unclaimed intervals (matching validator logic)
+  let time_since_start = math.max(current_time - subscription_start, 0)
+  let intervals_passed = time_since_start / interval_length
+  let claimed_intervals = math.min(intervals_passed, num_intervals)
+  let remaining_intervals = num_intervals - claimed_intervals
+  let refundable_amount = remaining_intervals * interval_amount
+  // Subscriber should get refundable amount minus penalty
+  let subscriber_refund = refundable_amount - penalty_fee_qty - 2_000_000
+
+  let (
+    payment_value,
+    service_value,
+    merchant_value,
+    account_value,
+    subscriber_value,
+  ) =
+    create_base_token_values_with_base(
+      from_lovelace(refundable_amount),
+      service_tkn,
+      merchant_tkn,
+      account_tkn,
+      //Input incorrect subscriber insead of merchant
+      merchant_tkn,
+    )
+
+  // let service_datum = create_base_service_datum(True)
+  let payment_datum =
+    create_base_payment_datum(
+      subscription_start,
+      interval_length,
+      interval_amount,
+      remaining_intervals,
+    )
+
+  let (
+    payment_input,
+    service_input,
+    _merchant_input,
+    _account_input,
+    subscriber_input,
+  ) =
+    create_base_inputs(
+      script_output_ref,
+      payment_datum,
+      payment_value,
+      service_value,
+      merchant_value,
+      account_value,
+      subscriber_value,
+    )
+
+  // Create refund output
+  let refund_output =
+    tests.test_utxo_02(account_cs, from_lovelace(subscriber_refund), 0, NoDatum)
+
+  let penalty_value =
+    add(
+      from_lovelace(penalty_fee_qty + 2_000_000),
+      payment_cs,
+      payment_tokenname,
+      1,
+    )
+
+  // Create penalty output
+  let penalty_datum = tests.test_penalty_datum(service_tkn, subscriber_tkn)
+  let penalty_output =
+    tests.test_utxo_02(payment_cs, penalty_value, 0, Penalty(penalty_datum))
+
+  let lower_bound = current_time - 1
+  let upper_bound = lower_bound + 1
+
+  let insert_timerange = tests.test_time_range(lower_bound, upper_bound)
+
+  let inputs = [subscriber_input, payment_input]
+  let reference_inputs = [service_input]
+  let outputs = [refund_output, penalty_output]
+
+  validate_unsubscribe(
+    script_output_ref,
+    account_cs,
+    service_cs,
+    0,
+    0,
+    1,
+    1,
+    Payment(payment_datum),
+    reference_inputs,
+    inputs,
+    outputs,
+    insert_timerange,
+    zero,
+  )
+}
+
+// Withdraw while service.active=True
+test fail_subscriber_withdraw_active_service() fail {
+  let (
+    _current_time,
+    interval_length,
+    interval_amount,
+    num_intervals,
+    subscription_start,
+    subscription_end,
+    _last_claimed,
+    total_subscription_fee_qty,
+  ) = setup_config(12)
+  let (payment_cs, account_cs, service_cs) = setup_policy_ids()
+  let (payment_tx_hash, service_tx_hash, _account_tx_hash) =
+    setup_base_tx_hash()
+
+  let script_output_ref = tests.test_input_utxo_02(payment_tx_hash)
+
+  let (service_tkn, merchant_tkn, account_tkn, subscriber_tkn) =
+    create_token_names()
 
   // After subscription end
   let payment_datum =
     tests.test_datum_03(
       service_tkn,
-      user_account_tkn,
+      subscriber_tkn,
       subscription_start,
       subscription_end,
       subscription_end,
@@ -617,37 +1970,21 @@ test succeed_subscriber_withdraw() {
       1,
     )
 
-  let is_active = False
-  // Service is inactive
-  let service_datum =
-    tests.test_service_datum(
-      is_active,
-      interval_length,
-      num_intervals,
-      interval_amount,
-    )
-
-  let account_value = add(zero, account_cs, user_account_tkn, 1)
-  let payment_value =
-    add(from_lovelace(total_subscription_fee_qty), own_cs, payment_tokenname, 1)
-  let service_value =
-    add(from_lovelace(total_subscription_fee_qty), service_cs, service_tkn, 1)
-
-  // Create the account input
-  let account_input =
-    tests.test_context_input_02(
-      tests.test_input_utxo_02(tx_hash),
-      account_cs,
-      account_value,
-      NoDatum,
-    )
-
-  let payment_input =
-    tests.test_context_input_02(
-      script_output_ref,
-      own_cs,
-      payment_value,
-      payment_datum,
+  // Change Service Active state to True to force a fail.
+  let service_datum = create_base_service_datum(True)
+  let (
+    payment_value,
+    service_value,
+    merchant_value,
+    account_value,
+    subscriber_value,
+  ) =
+    create_base_token_values_with_base(
+      from_lovelace(total_subscription_fee_qty),
+      service_tkn,
+      merchant_tkn,
+      account_tkn,
+      subscriber_tkn,
     )
 
   let service_input =
@@ -657,8 +1994,24 @@ test succeed_subscriber_withdraw() {
       service_value,
       service_datum,
     )
+  let (
+    payment_input,
+    _service_input,
+    _merchant_input,
+    _account_input,
+    subscriber_input,
+  ) =
+    create_base_inputs(
+      script_output_ref,
+      payment_datum,
+      payment_value,
+      service_value,
+      merchant_value,
+      account_value,
+      subscriber_value,
+    )
 
-  let inputs = [account_input, payment_input]
+  let inputs = [subscriber_input, payment_input]
   let reference_inputs = [service_input]
 
   validate_subscriber_withdraw(
@@ -671,6 +2024,6 @@ test succeed_subscriber_withdraw() {
     Payment(payment_datum),
     reference_inputs,
     inputs,
-    add(zero, own_cs, payment_tokenname, -1),
+    add(zero, payment_cs, payment_tokenname, -1),
   )
 }
