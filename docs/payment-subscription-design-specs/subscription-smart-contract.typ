@@ -1496,7 +1496,47 @@ This transaction allows anyone with an Accoun NFT to unlock subscription funds f
 
     - Remaining ADA after subscriber withdrawal
 
+#pagebreak()
 
+\
+= Extra
+\
+This section presents extra information, that might be useful for the reader.
+\
+== CIP68
+\
+The project extensively uses the CIP68 compliant NFTs.
+For our purposes they can be thought as pairs of NFTs
+that on one hand display a proof, that a particular user has access to an Account or Service,
+and on another hand give all parties a reference copy to this information.
+
+The first in the pair is the NFT usually referred to as "user token", which is stored
+on the users address, and acts as proof of ovnership. To prove that user is authorised to
+do an action, the UTxO with this token is cosumed in the script address transaction.
+Output UTxO is routed back to the user address, so this asset never leaves the ovner.
+
+The second in the pair is the reference NFT, and it's stored at the script’s address.
+This is a "copy" of previous NFT that's available to everyone and can be referenced in actions,
+that don't require the ovner's permission.
+
+To update the NFTs (and "stored" data on them) special script's actions used to consume UTxOs with both tokens
+and produce a new pair.
+
+To learn more about this standard, feel free to read #link("https://cips.cardano.org/cip/CIP-68")[
+  this
+] article.
+Note, that the metadata part of the standard is not implemented or used in this project.
+\
+
+\
+== Examples
+\
+In this section we will display some examples of this project's usage, giving a bird's eye view for the system.
+\
+\
+=== Journal subscription
+\
+Hi
 
 
 // Additional Features
