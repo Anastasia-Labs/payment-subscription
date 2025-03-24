@@ -7,13 +7,13 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v3
 
-      - uses: aiken-lang/setup-aiken@v1
+      - uses: aiken-lang/setup-aiken@v1.0.2
         with:
-          version: v1.0.29-alpha
+          version: v1.1.10
 
       - run: aiken fmt --check
       - run: aiken check
