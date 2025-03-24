@@ -852,7 +852,7 @@ This endpoint mints a new subscription NFT for a subscriber, establishing a new 
       - 1 Reference NFT Asset
 #pagebreak()
  
-=== Mint :: DeleteAccount
+=== Mint :: DeleteAccount<delete-account>
 \
 This transaction allows a subscriber to burn an Account NFT, effectively removing the user from the subscription system. An off-chain check is required to ensure that there are no pending subscription fees in the Payment UTxO.
 
@@ -974,69 +974,6 @@ This transaction updates the metadata attached to the Account UTxO at the script
 
       - 1 Reference NFT Asset
 #pagebreak()
-
-=== Spend :: RemoveAccount
-\
-
-This transaction effectively terminates the subscription and removes the subscriber's account from the system by consuming the Account NFT and the Reference NFT.
-
-\
-#figure(
-  image("./images/remove-account-image.png", width: 100%),
-  caption: [Remove Account Metadata UTxO diagram],
-)
-\
-
-==== Inputs
-\
-  + *Subscriber Wallet UTxO*
-
-    - Address: Subscriber’s wallet address
-
-    - Value:
-
-      - Minimum ADA 
-
-      - Account NFT Asset
-
-  + *Account Policy UTxO*
-
-  - Address: Account Multi-validator Address (Spend)
-
-  - Datum:
-
-    - account_datum: listed in @account-datum
-
-  - Value: 
-
-    - Minimum ADA
-
-    - 1 Reference NFT Asset
-\
-==== Mints
-\
-  + *Account Validator*
-
-    - Redeemer: RemoveAccount
-    
-    - Value:
-
-      - -1 Account NFT Asset
-
-      - -1 Reference NFT Asset    
-\
-==== Outputs
-\
-  + *Subscriber UTxO*
-
-    - Address: Subscriber wallet address
-
-    - Value: 
-
-      - Minimum ADA (remaining after burning the NFT)
-
-#pagebreak()
-
 
 == Payment Validator
 \
