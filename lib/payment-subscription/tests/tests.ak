@@ -1,12 +1,90 @@
 use aiken/collection/list
 use aiken/crypto.{blake2b_256}
+use aiken/fuzz.{and_then}
 use aiken/interval.{Finite, Interval, IntervalBound}
 use aiken/primitive/bytearray
 use cardano/address.{Address, Script, VerificationKey}
-use cardano/assets.{ada_asset_name, ada_policy_id, add, from_lovelace}
-use cardano/transaction.{InlineDatum, Input, Output, OutputReference}
+use cardano/assets.{
+  PolicyId, Value, ada_asset_name, ada_policy_id, add, from_lovelace, merge,
+  zero,
+}
+use cardano/transaction.{InlineDatum, Input, NoDatum, Output, OutputReference}
+use payment_subscription/common/cip68
 use payment_subscription/common/types.{
   AccountDatum, Installment, PaymentDatum, PenaltyDatum, ServiceDatum,
+}
+use payment_subscription/common/values
+
+pub fn create_account_datum_fuzzer() -> Fuzzer<AccountDatum> {
+  let email_hash <- and_then(fuzz.bytearray_fixed(32))
+  let phone_hash <- and_then(fuzz.bytearray_fixed(32))
+
+  fuzz.constant(AccountDatum { email_hash, phone_hash })
+}
+
+pub fn create_account_fuzzer() -> Fuzzer<
+  (PolicyId, Int, Int, Value, List<Input>, List<Output>),
+> {
+  let own_policy <- and_then(fuzz.bytearray_fixed(28))
+  let tx_hash <- and_then(fuzz.bytearray_fixed(28))
+  let input_output_ref =
+    OutputReference { transaction_id: tx_hash, output_index: 1 }
+
+  let ref_tkn = values.unique_token_name(tx_hash, 1, cip68.prefix_100)
+  let user_tkn = values.unique_token_name(tx_hash, 1, cip68.prefix_222)
+
+  let ref_value = add(zero, own_policy, ref_tkn, 1)
+  let user_value = add(zero, own_policy, user_tkn, 1)
+  let minted_value = merge(ref_value, user_value)
+
+  let user_input =
+    Input {
+      output_reference: input_output_ref,
+      output: Output {
+        address: Address(Script(own_policy), None),
+        value: from_lovelace(4_000_000),
+        datum: InlineDatum(NoDatum),
+        reference_script: None,
+      },
+    }
+
+  let user_key_hash <- and_then(fuzz.bytearray_fixed(28))
+  let user_output =
+    Output {
+      address: Address {
+        payment_credential: VerificationKey(user_key_hash),
+        stake_credential: None,
+      },
+      value: add(user_value, ada_policy_id, ada_asset_name, 100_000_000),
+      datum: InlineDatum(NoDatum),
+      reference_script: None,
+    }
+
+  let own_datum <- and_then(create_account_datum_fuzzer())
+  let own_output =
+    Output {
+      address: Address {
+        payment_credential: Script(own_policy),
+        stake_credential: None,
+      },
+      value: add(ref_value, ada_policy_id, ada_asset_name, 100_000_000),
+      datum: InlineDatum(own_datum),
+      reference_script: None,
+    }
+
+  let in_idx = 0
+  let out_idx = 1
+
+  fuzz.constant(
+    (
+      own_policy,
+      in_idx,
+      out_idx,
+      minted_value,
+      [user_input],
+      [user_output, own_output],
+    ),
+  )
 }
 
 // Generate a bytearray with blake2b_256

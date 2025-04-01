@@ -9,6 +9,18 @@ use payment_subscription/common/cip68
 use payment_subscription/common/values
 use payment_subscription/tests/tests
 
+test success_create_account_fuzzy(test_values via tests.create_account_fuzzer()) {
+  let (own_policy, in_idx, out_idx, minted_value, inputs, outputs) = test_values
+  validate_create_account(
+    own_policy,
+    in_idx,
+    out_idx,
+    minted_value,
+    inputs,
+    outputs,
+  )
+}
+
 //Happy Path Tests
 test success_create_account() {
   let own_cs = tests.test_224_01()
