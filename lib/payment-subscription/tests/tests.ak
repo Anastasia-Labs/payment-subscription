@@ -5,8 +5,8 @@ use aiken/interval.{Finite, Interval, IntervalBound}
 use aiken/primitive/bytearray
 use cardano/address.{Address, Script, VerificationKey}
 use cardano/assets.{
-  PolicyId, Value, ada_asset_name, ada_policy_id, add, from_lovelace, merge,
-  zero,
+  AssetName, PolicyId, Value, ada_asset_name, ada_policy_id, add, from_lovelace,
+  merge, zero,
 }
 use cardano/transaction.{InlineDatum, Input, NoDatum, Output, OutputReference}
 use payment_subscription/common/cip68
@@ -83,6 +83,158 @@ pub fn create_account_fuzzer() -> Fuzzer<
       minted_value,
       [user_input],
       [user_output, own_output],
+    ),
+  )
+}
+
+pub fn delete_account_fuzzer() -> Fuzzer<(PolicyId, Value, AssetName)> {
+  let own_policy <- and_then(fuzz.bytearray_fixed(28))
+  let tx_hash <- and_then(fuzz.bytearray_fixed(28))
+
+  let ref_tkn = values.unique_token_name(tx_hash, 1, cip68.prefix_100)
+  let user_tkn = values.unique_token_name(tx_hash, 1, cip68.prefix_222)
+
+  let ref_value = add(zero, own_policy, ref_tkn, -1)
+  let user_value = add(zero, own_policy, user_tkn, -1)
+  let minted_value = merge(ref_value, user_value)
+
+  fuzz.constant((own_policy, minted_value, ref_tkn))
+}
+
+pub fn update_account_fuzzer() -> Fuzzer<
+  (OutputReference, AssetName, Int, Int, Int, List<Input>, List<Output>),
+> {
+  let own_policy <- and_then(fuzz.bytearray_fixed(28))
+  let tx_hash <- and_then(fuzz.bytearray_fixed(28))
+  let input_output_ref =
+    OutputReference { transaction_id: tx_hash, output_index: 1 }
+  let account_output_ref =
+    OutputReference { transaction_id: own_policy, output_index: 1 }
+
+  let ref_tkn = values.unique_token_name(tx_hash, 1, cip68.prefix_100)
+  let user_tkn = values.unique_token_name(tx_hash, 1, cip68.prefix_222)
+
+  let ref_value = add(zero, own_policy, ref_tkn, 1)
+  let user_value = add(zero, own_policy, user_tkn, 1)
+
+  let user_input =
+    Input {
+      output_reference: input_output_ref,
+      output: Output {
+        address: Address(Script(own_policy), None),
+        value: user_value,
+        datum: InlineDatum(NoDatum),
+        reference_script: None,
+      },
+    }
+
+  let old_datum <- and_then(create_account_datum_fuzzer())
+  let account_input =
+    Input {
+      output_reference: account_output_ref,
+      output: Output {
+        address: Address(Script(own_policy), None),
+        value: ref_value,
+        datum: InlineDatum(old_datum),
+        reference_script: None,
+      },
+    }
+
+  let user_key_hash <- and_then(fuzz.bytearray_fixed(28))
+  let user_output =
+    Output {
+      address: Address {
+        payment_credential: VerificationKey(user_key_hash),
+        stake_credential: None,
+      },
+      value: add(user_value, ada_policy_id, ada_asset_name, 100_000_000),
+      datum: InlineDatum(NoDatum),
+      reference_script: None,
+    }
+
+  let new_datum <- and_then(create_account_datum_fuzzer())
+  let own_output =
+    Output {
+      address: Address {
+        payment_credential: Script(own_policy),
+        stake_credential: None,
+      },
+      value: add(ref_value, ada_policy_id, ada_asset_name, 100_000_000),
+      datum: InlineDatum(new_datum),
+      reference_script: None,
+    }
+
+  let user_input_index = 0
+  let account_input_index = 1
+  let reference_output_index = 1
+
+  fuzz.constant(
+    (
+      account_output_ref,
+      ref_tkn,
+      user_input_index,
+      account_input_index,
+      reference_output_index,
+      [user_input, account_input],
+      [user_output, own_output],
+    ),
+  )
+}
+
+pub fn remove_account_fuzzer() -> Fuzzer<
+  (OutputReference, AssetName, Int, Int, List<Input>, Value),
+> {
+  let own_policy <- and_then(fuzz.bytearray_fixed(28))
+  let tx_hash <- and_then(fuzz.bytearray_fixed(28))
+  let input_output_ref =
+    OutputReference { transaction_id: tx_hash, output_index: 1 }
+  let account_output_ref =
+    OutputReference { transaction_id: own_policy, output_index: 1 }
+
+  let ref_tkn = values.unique_token_name(tx_hash, 1, cip68.prefix_100)
+  let user_tkn = values.unique_token_name(tx_hash, 1, cip68.prefix_222)
+
+  let ref_value = add(zero, own_policy, ref_tkn, 1)
+  let user_value = add(zero, own_policy, user_tkn, 1)
+
+  let mint_ref_value = add(zero, own_policy, ref_tkn, -1)
+  let mint_user_value = add(zero, own_policy, user_tkn, -1)
+  let minted_value = merge(mint_ref_value, mint_user_value)
+
+  let user_input =
+    Input {
+      output_reference: input_output_ref,
+      output: Output {
+        address: Address(Script(own_policy), None),
+        value: user_value,
+        datum: InlineDatum(NoDatum),
+        reference_script: None,
+      },
+    }
+
+  let datum <- and_then(create_account_datum_fuzzer())
+  let account_input =
+    Input {
+      output_reference: account_output_ref,
+      output: Output {
+        address: Address(Script(own_policy), None),
+        value: ref_value,
+        datum: InlineDatum(datum),
+        reference_script: None,
+      },
+    }
+
+  let user_input_index = 0
+  let account_input_index = 1
+
+  fuzz.constant(
+    (
+      account_output_ref,
+      ref_tkn,
+      user_input_index,
+      account_input_index,
+      [user_input, account_input],
+      minted_value,
     ),
   )
 }

@@ -21,6 +21,51 @@ test success_create_account_fuzzy(test_values via tests.create_account_fuzzer())
   )
 }
 
+test success_delete_account_fuzzy(test_values via tests.delete_account_fuzzer()) {
+  let (own_policy, minted_value, ref_value) = test_values
+  validate_delete_account(own_policy, minted_value, ref_value)
+}
+
+test success_update_account_fuzzy(test_values via tests.update_account_fuzzer()) {
+  let (
+    account_output_ref,
+    ref_tkn,
+    user_input_index,
+    account_input_index,
+    reference_output_index,
+    inputs,
+    outputs,
+  ) = test_values
+  validate_update_account(
+    account_output_ref,
+    ref_tkn,
+    user_input_index,
+    account_input_index,
+    reference_output_index,
+    inputs,
+    outputs,
+  )
+}
+
+test success_remove_account_fuzzy(test_values via tests.remove_account_fuzzer()) {
+  let (
+    account_output_ref,
+    ref_tkn,
+    user_input_index,
+    account_input_index,
+    inputs,
+    minted_value,
+  ) = test_values
+  validate_remove_account(
+    account_output_ref,
+    ref_tkn,
+    user_input_index,
+    account_input_index,
+    inputs,
+    minted_value,
+  )
+}
+
 //Happy Path Tests
 test success_create_account() {
   let own_cs = tests.test_224_01()
@@ -53,11 +98,9 @@ test succeed_delete_account() {
   let own_cs = tests.test_224_01()
   let tx_hash = tests.test_224_02()
 
-  //   let redeemer = DeleteAccount
   let ref_tkn = values.unique_token_name(tx_hash, 1, cip68.prefix_100)
   let user_tkn = values.unique_token_name(tx_hash, 1, cip68.prefix_222)
 
-  //   let ref_value = value.from_asset(own_cs, ref_tkn, 1)
   let ref_value = add(zero, own_cs, ref_tkn, -1)
   let user_value = add(zero, own_cs, user_tkn, -1)
   let minted_value = merge(ref_value, user_value)
