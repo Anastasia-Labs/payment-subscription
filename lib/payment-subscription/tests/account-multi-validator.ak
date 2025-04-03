@@ -42,7 +42,7 @@ pub fn create_account_fuzzer() -> Fuzzer<
       output_reference: input_output_ref,
       output: Output {
         address: Address(Script(own_policy), None),
-        value: from_lovelace(4_000_000),
+        value: from_lovelace(0),
         datum: InlineDatum(NoDatum),
         reference_script: None,
       },
@@ -55,7 +55,7 @@ pub fn create_account_fuzzer() -> Fuzzer<
         payment_credential: VerificationKey(user_key_hash),
         stake_credential: None,
       },
-      value: add(user_value, ada_policy_id, ada_asset_name, 100_000_000),
+      value: add(user_value, ada_policy_id, ada_asset_name, 1),
       datum: InlineDatum(NoDatum),
       reference_script: None,
     }
@@ -67,7 +67,7 @@ pub fn create_account_fuzzer() -> Fuzzer<
         payment_credential: Script(own_policy),
         stake_credential: None,
       },
-      value: add(ref_value, ada_policy_id, ada_asset_name, 100_000_000),
+      value: add(ref_value, ada_policy_id, ada_asset_name, 1),
       datum: InlineDatum(own_datum),
       reference_script: None,
     }
@@ -147,7 +147,7 @@ pub fn update_account_fuzzer() -> Fuzzer<
         payment_credential: VerificationKey(user_key_hash),
         stake_credential: None,
       },
-      value: add(user_value, ada_policy_id, ada_asset_name, 100_000_000),
+      value: add(user_value, ada_policy_id, ada_asset_name, 1),
       datum: InlineDatum(NoDatum),
       reference_script: None,
     }
@@ -159,7 +159,7 @@ pub fn update_account_fuzzer() -> Fuzzer<
         payment_credential: Script(own_policy),
         stake_credential: None,
       },
-      value: add(ref_value, ada_policy_id, ada_asset_name, 100_000_000),
+      value: add(ref_value, ada_policy_id, ada_asset_name, 1),
       datum: InlineDatum(new_datum),
       reference_script: None,
     }
