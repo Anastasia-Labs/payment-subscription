@@ -1,15 +1,245 @@
 use aiken/crypto.{sha2_256}
-use cardano/assets.{add, merge, zero}
-use cardano/transaction.{NoDatum}
+use aiken/fuzz.{and_then}
+use cardano/address.{Address, Script, VerificationKey}
+use cardano/assets.{
+  AssetName, PolicyId, Value, ada_asset_name, ada_policy_id, add, from_lovelace,
+  merge, zero,
+}
+use cardano/transaction.{InlineDatum, Input, NoDatum, Output, OutputReference}
 use payment_subscription/account_multi_validator/validation.{
   validate_create_account, validate_delete_account, validate_remove_account,
   validate_update_account,
 }
 use payment_subscription/common/cip68
+use payment_subscription/common/types.{AccountDatum}
 use payment_subscription/common/values
 use payment_subscription/tests/tests
 
-test success_create_account_fuzzy(test_values via tests.create_account_fuzzer()) {
+pub fn create_account_datum_fuzzer() -> Fuzzer<AccountDatum> {
+  let email_hash <- and_then(fuzz.bytearray_fixed(32))
+  let phone_hash <- and_then(fuzz.bytearray_fixed(32))
+
+  fuzz.constant(AccountDatum { email_hash, phone_hash })
+}
+
+pub fn create_account_fuzzer() -> Fuzzer<
+  (PolicyId, Int, Int, Value, List<Input>, List<Output>),
+> {
+  let own_policy <- and_then(fuzz.bytearray_fixed(28))
+  let tx_hash <- and_then(fuzz.bytearray_fixed(28))
+  let input_output_ref =
+    OutputReference { transaction_id: tx_hash, output_index: 1 }
+
+  let ref_tkn = values.unique_token_name(tx_hash, 1, cip68.prefix_100)
+  let user_tkn = values.unique_token_name(tx_hash, 1, cip68.prefix_222)
+
+  let ref_value = add(zero, own_policy, ref_tkn, 1)
+  let user_value = add(zero, own_policy, user_tkn, 1)
+  let minted_value = merge(ref_value, user_value)
+
+  let user_input =
+    Input {
+      output_reference: input_output_ref,
+      output: Output {
+        address: Address(Script(own_policy), None),
+        value: from_lovelace(4_000_000),
+        datum: InlineDatum(NoDatum),
+        reference_script: None,
+      },
+    }
+
+  let user_key_hash <- and_then(fuzz.bytearray_fixed(28))
+  let user_output =
+    Output {
+      address: Address {
+        payment_credential: VerificationKey(user_key_hash),
+        stake_credential: None,
+      },
+      value: add(user_value, ada_policy_id, ada_asset_name, 100_000_000),
+      datum: InlineDatum(NoDatum),
+      reference_script: None,
+    }
+
+  let own_datum <- and_then(create_account_datum_fuzzer())
+  let own_output =
+    Output {
+      address: Address {
+        payment_credential: Script(own_policy),
+        stake_credential: None,
+      },
+      value: add(ref_value, ada_policy_id, ada_asset_name, 100_000_000),
+      datum: InlineDatum(own_datum),
+      reference_script: None,
+    }
+
+  let in_idx = 0
+  let out_idx = 1
+
+  fuzz.constant(
+    (
+      own_policy,
+      in_idx,
+      out_idx,
+      minted_value,
+      [user_input],
+      [user_output, own_output],
+    ),
+  )
+}
+
+pub fn delete_account_fuzzer() -> Fuzzer<(PolicyId, Value, AssetName)> {
+  let own_policy <- and_then(fuzz.bytearray_fixed(28))
+  let tx_hash <- and_then(fuzz.bytearray_fixed(28))
+
+  let ref_tkn = values.unique_token_name(tx_hash, 1, cip68.prefix_100)
+  let user_tkn = values.unique_token_name(tx_hash, 1, cip68.prefix_222)
+
+  let ref_value = add(zero, own_policy, ref_tkn, -1)
+  let user_value = add(zero, own_policy, user_tkn, -1)
+  let minted_value = merge(ref_value, user_value)
+
+  fuzz.constant((own_policy, minted_value, ref_tkn))
+}
+
+pub fn update_account_fuzzer() -> Fuzzer<
+  (OutputReference, AssetName, Int, Int, Int, List<Input>, List<Output>),
+> {
+  let own_policy <- and_then(fuzz.bytearray_fixed(28))
+  let tx_hash <- and_then(fuzz.bytearray_fixed(28))
+  let input_output_ref =
+    OutputReference { transaction_id: tx_hash, output_index: 1 }
+  let account_output_ref =
+    OutputReference { transaction_id: own_policy, output_index: 1 }
+
+  let ref_tkn = values.unique_token_name(tx_hash, 1, cip68.prefix_100)
+  let user_tkn = values.unique_token_name(tx_hash, 1, cip68.prefix_222)
+
+  let ref_value = add(zero, own_policy, ref_tkn, 1)
+  let user_value = add(zero, own_policy, user_tkn, 1)
+
+  let user_input =
+    Input {
+      output_reference: input_output_ref,
+      output: Output {
+        address: Address(Script(own_policy), None),
+        value: user_value,
+        datum: InlineDatum(NoDatum),
+        reference_script: None,
+      },
+    }
+
+  let old_datum <- and_then(create_account_datum_fuzzer())
+  let account_input =
+    Input {
+      output_reference: account_output_ref,
+      output: Output {
+        address: Address(Script(own_policy), None),
+        value: ref_value,
+        datum: InlineDatum(old_datum),
+        reference_script: None,
+      },
+    }
+
+  let user_key_hash <- and_then(fuzz.bytearray_fixed(28))
+  let user_output =
+    Output {
+      address: Address {
+        payment_credential: VerificationKey(user_key_hash),
+        stake_credential: None,
+      },
+      value: add(user_value, ada_policy_id, ada_asset_name, 100_000_000),
+      datum: InlineDatum(NoDatum),
+      reference_script: None,
+    }
+
+  let new_datum <- and_then(create_account_datum_fuzzer())
+  let own_output =
+    Output {
+      address: Address {
+        payment_credential: Script(own_policy),
+        stake_credential: None,
+      },
+      value: add(ref_value, ada_policy_id, ada_asset_name, 100_000_000),
+      datum: InlineDatum(new_datum),
+      reference_script: None,
+    }
+
+  let user_input_index = 0
+  let account_input_index = 1
+  let reference_output_index = 1
+
+  fuzz.constant(
+    (
+      account_output_ref,
+      ref_tkn,
+      user_input_index,
+      account_input_index,
+      reference_output_index,
+      [user_input, account_input],
+      [user_output, own_output],
+    ),
+  )
+}
+
+pub fn remove_account_fuzzer() -> Fuzzer<
+  (OutputReference, AssetName, Int, Int, List<Input>, Value),
+> {
+  let own_policy <- and_then(fuzz.bytearray_fixed(28))
+  let tx_hash <- and_then(fuzz.bytearray_fixed(28))
+  let input_output_ref =
+    OutputReference { transaction_id: tx_hash, output_index: 1 }
+  let account_output_ref =
+    OutputReference { transaction_id: own_policy, output_index: 1 }
+
+  let ref_tkn = values.unique_token_name(tx_hash, 1, cip68.prefix_100)
+  let user_tkn = values.unique_token_name(tx_hash, 1, cip68.prefix_222)
+
+  let ref_value = add(zero, own_policy, ref_tkn, 1)
+  let user_value = add(zero, own_policy, user_tkn, 1)
+
+  let mint_ref_value = add(zero, own_policy, ref_tkn, -1)
+  let mint_user_value = add(zero, own_policy, user_tkn, -1)
+  let minted_value = merge(mint_ref_value, mint_user_value)
+
+  let user_input =
+    Input {
+      output_reference: input_output_ref,
+      output: Output {
+        address: Address(Script(own_policy), None),
+        value: user_value,
+        datum: InlineDatum(NoDatum),
+        reference_script: None,
+      },
+    }
+
+  let datum <- and_then(create_account_datum_fuzzer())
+  let account_input =
+    Input {
+      output_reference: account_output_ref,
+      output: Output {
+        address: Address(Script(own_policy), None),
+        value: ref_value,
+        datum: InlineDatum(datum),
+        reference_script: None,
+      },
+    }
+
+  let user_input_index = 0
+  let account_input_index = 1
+
+  fuzz.constant(
+    (
+      account_output_ref,
+      ref_tkn,
+      user_input_index,
+      account_input_index,
+      [user_input, account_input],
+      minted_value,
+    ),
+  )
+}
+
+test success_create_account_fuzzy(test_values via create_account_fuzzer()) {
   let (own_policy, in_idx, out_idx, minted_value, inputs, outputs) = test_values
   validate_create_account(
     own_policy,
@@ -21,12 +251,12 @@ test success_create_account_fuzzy(test_values via tests.create_account_fuzzer())
   )
 }
 
-test success_delete_account_fuzzy(test_values via tests.delete_account_fuzzer()) {
+test success_delete_account_fuzzy(test_values via delete_account_fuzzer()) {
   let (own_policy, minted_value, ref_value) = test_values
   validate_delete_account(own_policy, minted_value, ref_value)
 }
 
-test success_update_account_fuzzy(test_values via tests.update_account_fuzzer()) {
+test success_update_account_fuzzy(test_values via update_account_fuzzer()) {
   let (
     account_output_ref,
     ref_tkn,
@@ -47,7 +277,7 @@ test success_update_account_fuzzy(test_values via tests.update_account_fuzzer())
   )
 }
 
-test success_remove_account_fuzzy(test_values via tests.remove_account_fuzzer()) {
+test success_remove_account_fuzzy(test_values via remove_account_fuzzer()) {
   let (
     account_output_ref,
     ref_tkn,
