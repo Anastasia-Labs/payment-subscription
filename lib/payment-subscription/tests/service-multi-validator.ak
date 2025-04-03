@@ -7,6 +7,64 @@ use payment_subscription/service_multi_validator/validation.{
 }
 use payment_subscription/tests/tests
 
+test success_create_service_fuzzy(test_values via tests.create_service_fuzzer()) {
+  let (own_policy, in_idx, out_idx, minted_value, inputs, outputs) = test_values
+  validate_create_service(
+    own_policy,
+    in_idx,
+    out_idx,
+    minted_value,
+    inputs,
+    outputs,
+  )
+}
+
+test success_update_service_fuzzy(test_values via tests.update_service_fuzzer()) {
+  let (
+    service_output_ref,
+    datum,
+    ref_tkn,
+    merchant_input_index,
+    service_input_index,
+    service_output_index,
+    inputs,
+    outputs,
+  ) = test_values
+  validate_update_service(
+    service_output_ref,
+    datum,
+    ref_tkn,
+    merchant_input_index,
+    service_input_index,
+    service_output_index,
+    inputs,
+    outputs,
+  )
+}
+
+test success_remove_service_fuzzy(test_values via tests.remove_service_fuzzer()) {
+  let (
+    service_output_ref,
+    datum,
+    ref_tkn,
+    merchant_input_index,
+    service_input_index,
+    service_output_index,
+    inputs,
+    outputs,
+  ) = test_values
+  validate_remove_service(
+    service_output_ref,
+    datum,
+    ref_tkn,
+    merchant_input_index,
+    service_input_index,
+    service_output_index,
+    inputs,
+    outputs,
+  )
+}
+
 test success_create_service() {
   let own_cs = tests.test_224_01()
   let tx_hash = tests.test_224_02()
