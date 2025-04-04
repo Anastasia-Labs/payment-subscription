@@ -13,13 +13,12 @@ use payment_subscription/service_multi_validator/validation.{
 }
 use payment_subscription/tests/tests
 
-pub fn service_datum_fuzzer(
-  is_active: Bool,
-  interval_length: Int,
-  num_intervals: Int,
-  service_fee: Int,
-  penalty_fee: Int,
-) -> Fuzzer<ServiceDatum> {
+pub fn service_datum_fuzzer(is_active: Bool) -> Fuzzer<ServiceDatum> {
+  let service_fee <- and_then(fuzz.int_between(1, 1_000_000_000))
+  let penalty_fee <- and_then(fuzz.int_between(1, 1_000_000_000))
+  let num_intervals <- and_then(fuzz.int_between(1, 10))
+  let interval_length <- and_then(fuzz.int_between(1, 10_000_000_000))
+
   fuzz.constant(
     ServiceDatum {
       service_fee_policyid: ada_policy_id,
@@ -77,23 +76,9 @@ pub fn create_service_fuzzer() -> Fuzzer<
       reference_script: None,
     }
 
-  // 30 days in milliseconds
-  let interval_length = 30 * 24 * 60 * 60 * 1000
-  let num_intervals = 1
-  let service_fee = 100_000_000
-  let penalty_fee = 1_000_000
   let is_active = True
 
-  let datum <-
-    and_then(
-      service_datum_fuzzer(
-        is_active,
-        interval_length,
-        num_intervals,
-        service_fee,
-        penalty_fee,
-      ),
-    )
+  let datum <- and_then(service_datum_fuzzer(is_active))
 
   let own_output =
     Output {
@@ -162,23 +147,9 @@ pub fn update_service_fuzzer() -> Fuzzer<
       },
     }
 
-  // 30 days in milliseconds
-  let interval_length = 30 * 24 * 60 * 60 * 1000
-  let num_intervals = 1
-  let service_fee = 100_000_000
-  let penalty_fee = 1_000_000
   let is_active = True
 
-  let datum <-
-    and_then(
-      service_datum_fuzzer(
-        is_active,
-        interval_length,
-        num_intervals,
-        service_fee,
-        penalty_fee,
-      ),
-    )
+  let datum <- and_then(service_datum_fuzzer(is_active))
 
   let service_input =
     Input {
@@ -205,16 +176,7 @@ pub fn update_service_fuzzer() -> Fuzzer<
       reference_script: None,
     }
 
-  let new_datum <-
-    and_then(
-      service_datum_fuzzer(
-        is_active,
-        interval_length,
-        num_intervals,
-        service_fee,
-        penalty_fee,
-      ),
-    )
+  let new_datum <- and_then(service_datum_fuzzer(is_active))
 
   let service_output =
     Output {
@@ -286,23 +248,9 @@ pub fn remove_service_fuzzer() -> Fuzzer<
       },
     }
 
-  // 30 days in milliseconds
-  let interval_length = 30 * 24 * 60 * 60 * 1000
-  let num_intervals = 1
-  let service_fee = 100_000_000
-  let penalty_fee = 1_000_000
   let is_active = True
 
-  let datum <-
-    and_then(
-      service_datum_fuzzer(
-        is_active,
-        interval_length,
-        num_intervals,
-        service_fee,
-        penalty_fee,
-      ),
-    )
+  let datum <- and_then(service_datum_fuzzer(is_active))
 
   let service_input =
     Input {
@@ -329,16 +277,7 @@ pub fn remove_service_fuzzer() -> Fuzzer<
       reference_script: None,
     }
 
-  let disabled_datum <-
-    and_then(
-      service_datum_fuzzer(
-        False,
-        interval_length,
-        num_intervals,
-        service_fee,
-        penalty_fee,
-      ),
-    )
+  let disabled_datum = ServiceDatum { ..datum, is_active: False }
 
   let service_output =
     Output {
