@@ -38,7 +38,7 @@ pub fn create_service_fuzzer() -> Fuzzer<
   (PolicyId, Int, Int, Value, List<Input>, List<Output>),
 > {
   let own_policy <- and_then(fuzz.bytearray_fixed(28))
-  let tx_hash <- and_then(fuzz.bytearray_fixed(28))
+  let tx_hash <- and_then(fuzz.bytearray_fixed(32))
   let input_output_ref =
     OutputReference { transaction_id: tx_hash, output_index: 1 }
 
@@ -119,7 +119,7 @@ pub fn update_service_fuzzer() -> Fuzzer<
   ),
 > {
   let own_policy <- and_then(fuzz.bytearray_fixed(28))
-  let tx_hash <- and_then(fuzz.bytearray_fixed(28))
+  let tx_hash <- and_then(fuzz.bytearray_fixed(32))
   let input_output_ref =
     OutputReference { transaction_id: tx_hash, output_index: 1 }
   let service_output_ref =
@@ -220,7 +220,7 @@ pub fn remove_service_fuzzer() -> Fuzzer<
   ),
 > {
   let own_policy <- and_then(fuzz.bytearray_fixed(28))
-  let tx_hash <- and_then(fuzz.bytearray_fixed(28))
+  let tx_hash <- and_then(fuzz.bytearray_fixed(32))
   let input_output_ref =
     OutputReference { transaction_id: tx_hash, output_index: 1 }
   let service_output_ref =

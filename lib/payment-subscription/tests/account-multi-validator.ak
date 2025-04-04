@@ -26,7 +26,7 @@ pub fn create_account_fuzzer() -> Fuzzer<
   (PolicyId, Int, Int, Value, List<Input>, List<Output>),
 > {
   let own_policy <- and_then(fuzz.bytearray_fixed(28))
-  let tx_hash <- and_then(fuzz.bytearray_fixed(28))
+  let tx_hash <- and_then(fuzz.bytearray_fixed(32))
   let input_output_ref =
     OutputReference { transaction_id: tx_hash, output_index: 1 }
 
@@ -89,7 +89,7 @@ pub fn create_account_fuzzer() -> Fuzzer<
 
 pub fn delete_account_fuzzer() -> Fuzzer<(PolicyId, Value, AssetName)> {
   let own_policy <- and_then(fuzz.bytearray_fixed(28))
-  let tx_hash <- and_then(fuzz.bytearray_fixed(28))
+  let tx_hash <- and_then(fuzz.bytearray_fixed(32))
 
   let ref_tkn = values.unique_token_name(tx_hash, 1, cip68.prefix_100)
   let user_tkn = values.unique_token_name(tx_hash, 1, cip68.prefix_222)
@@ -105,7 +105,7 @@ pub fn update_account_fuzzer() -> Fuzzer<
   (OutputReference, AssetName, Int, Int, Int, List<Input>, List<Output>),
 > {
   let own_policy <- and_then(fuzz.bytearray_fixed(28))
-  let tx_hash <- and_then(fuzz.bytearray_fixed(28))
+  let tx_hash <- and_then(fuzz.bytearray_fixed(32))
   let input_output_ref =
     OutputReference { transaction_id: tx_hash, output_index: 1 }
   let account_output_ref =
@@ -185,7 +185,7 @@ pub fn remove_account_fuzzer() -> Fuzzer<
   (OutputReference, AssetName, Int, Int, List<Input>, Value),
 > {
   let own_policy <- and_then(fuzz.bytearray_fixed(28))
-  let tx_hash <- and_then(fuzz.bytearray_fixed(28))
+  let tx_hash <- and_then(fuzz.bytearray_fixed(32))
   let input_output_ref =
     OutputReference { transaction_id: tx_hash, output_index: 1 }
   let account_output_ref =
