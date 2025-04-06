@@ -1,15 +1,26 @@
+use aiken/collection/list
+use aiken/fuzz.{and_then, such_that}
+use aiken/interval
 use aiken/math
-use cardano/assets.{AssetName, Value, add, from_lovelace, zero}
-use cardano/transaction.{NoDatum}
+use cardano/address.{Address, Script}
+use cardano/assets.{
+  AssetName, PolicyId, Value, add, from_asset, from_lovelace, zero,
+}
+use cardano/transaction.{
+  InlineDatum, Input, NoDatum, Output, OutputReference, ValidityRange,
+}
 use payment_subscription/common/cip68
-use payment_subscription/common/types.{Payment, PaymentDatum, Penalty}
+use payment_subscription/common/types.{
+  Installment, Payment, PaymentDatum, PaymentValidatorDatum, Penalty,
+  ServiceDatum,
+}
 use payment_subscription/common/values
 use payment_subscription/payment_multi_validator/validation.{
   payment_tokenname, validate_extend_subscription, validate_initial_subscription,
   validate_merchant_withdraw, validate_subscriber_withdraw,
   validate_terminate_subscription, validate_unsubscribe,
 }
-use payment_subscription/tests/tests
+use payment_subscription/tests/tests.{placeholder_input, placeholder_output}
 
 fn setup_policy_ids() {
   let payment_cs = tests.test_payment_cs()
@@ -363,6 +374,270 @@ test succeed_initiate_subscription() {
     subscriber_output,
     validity_range,
     mint,
+  )
+}
+
+type InitSubscriptionTestData {
+  payment_policy: PolicyId,
+  service_policy: PolicyId,
+  account_policy: PolicyId,
+  service_ref_input_index: Int,
+  subscriber_input_index: Int,
+  payment_output_index: Int,
+  reference_inputs: List<Input>,
+  inputs: List<Input>,
+  outputs: List<Output>,
+  minted_value: Value,
+  validity_range: ValidityRange,
+}
+
+fn gen_output_ref() -> Fuzzer<OutputReference> {
+  let transaction_id <- and_then(fuzz.bytearray_fixed(32))
+  let output_index <- and_then(fuzz.int_between(0, 20))
+  fuzz.constant(OutputReference { transaction_id, output_index })
+}
+
+fn gen_account_input(
+  account_policy: PolicyId,
+  account_token_seed: OutputReference,
+) -> Fuzzer<Input> {
+  let input_ref <- and_then(gen_output_ref())
+  let account_token_name =
+    values.unique_token_name(
+      account_token_seed.transaction_id,
+      account_token_seed.output_index,
+      cip68.prefix_222,
+    )
+  fuzz.constant(
+    Input {
+      output_reference: input_ref,
+      output: Output {
+        address: Address(Script(account_policy), None),
+        value: from_asset(account_policy, account_token_name, 1),
+        datum: NoDatum,
+        reference_script: None,
+      },
+    },
+  )
+}
+
+fn gen_service_input(
+  service_policy: PolicyId,
+  service_datum: ServiceDatum,
+  service_token_name: AssetName,
+) -> Fuzzer<Input> {
+  let input_ref <- and_then(gen_output_ref())
+  fuzz.constant(
+    Input {
+      output_reference: input_ref,
+      output: Output {
+        address: Address(Script(service_policy), None),
+        value: from_asset(service_policy, service_token_name, 1),
+        datum: InlineDatum(service_datum),
+        reference_script: None,
+      },
+    },
+  )
+}
+
+fn valid_payment_output(
+  payment_policy: PolicyId,
+  payment_datum: PaymentValidatorDatum,
+  service_datum: ServiceDatum,
+) -> Output {
+  let value =
+    add(
+      add(from_lovelace(2_000_000), payment_policy, payment_tokenname, 1),
+      service_datum.service_fee_policyid,
+      service_datum.service_fee_assetname,
+      service_datum.num_intervals * service_datum.service_fee,
+    )
+  Output {
+    address: Address(Script(payment_policy), None),
+    value,
+    datum: InlineDatum(payment_datum),
+    reference_script: None,
+  }
+}
+
+fn gen_list_single_index(default: a, indexed: a) -> Fuzzer<(Int, List<a>)> {
+  let count <- and_then(fuzz.int_between(1, 20))
+  let index <- and_then(fuzz.int_between(0, count - 1))
+  fuzz.constant(
+    (
+      index,
+      list.map(
+        list.range(0, count - 1),
+        fn(i) {
+          if i == index {
+            indexed
+          } else {
+            default
+          }
+        },
+      ),
+    ),
+  )
+}
+
+fn gen_service_reference_token_name() -> Fuzzer<AssetName> {
+  fuzz.bytearray_between(1, 32)
+}
+
+fn gen_valid_service_datum() -> Fuzzer<ServiceDatum> {
+  let service_fee_policyid <- and_then(fuzz.bytearray_fixed(28))
+  let service_fee_assetname <- and_then(fuzz.bytearray_between(1, 32))
+  let service_fee <- and_then(fuzz.int_between(1, 100_000_000_000_000))
+  let penalty_fee_policyid <- and_then(fuzz.bytearray_fixed(28))
+  let penalty_fee_assetname <- and_then(fuzz.bytearray_between(1, 32))
+  let penalty_fee <- and_then(fuzz.int_between(1, 100_000_000_000_000))
+  let interval_length <- and_then(fuzz.int_between(1, 100_000_000_000_000))
+  let num_intervals <- and_then(fuzz.int_between(1, 1_000))
+  fuzz.constant(
+    ServiceDatum {
+      service_fee_policyid,
+      service_fee_assetname,
+      service_fee,
+      penalty_fee_policyid,
+      penalty_fee_assetname,
+      penalty_fee,
+      interval_length,
+      num_intervals,
+      is_active: True,
+    },
+  )
+}
+
+fn gen_valid_payment_datum(
+  current_time: Int,
+  service_datum: ServiceDatum,
+  service_reference_tokenname: AssetName,
+  subscriber_reference_tokenname: AssetName,
+) -> Fuzzer<PaymentDatum> {
+  let subscription_start <- and_then(fuzz.int_at_least(current_time))
+  let subscription_end =
+    subscription_start + service_datum.interval_length * service_datum.num_intervals
+  let installments =
+    list.map(
+      list.range(1, service_datum.num_intervals),
+      fn(i) {
+        Installment {
+          claimable_at: subscription_start + i * service_datum.interval_length,
+          claimable_amount: service_datum.service_fee,
+        }
+      },
+    )
+  fuzz.constant(
+    PaymentDatum {
+      service_reference_tokenname,
+      subscriber_reference_tokenname,
+      subscription_start,
+      subscription_end,
+      original_subscription_end: subscription_end,
+      installments,
+    },
+  )
+}
+
+fn policies_are_different(
+  service_datum: ServiceDatum,
+  policies_not_allowed: List<PolicyId>,
+) -> Bool {
+  and {
+    !list.any(
+      policies_not_allowed,
+      fn(p) { service_datum.service_fee_policyid == p },
+    ),
+    !list.any(
+      policies_not_allowed,
+      fn(p) { service_datum.penalty_fee_policyid == p },
+    ),
+  }
+}
+
+fn gen_init_subscription_success() -> Fuzzer<InitSubscriptionTestData> {
+  let (payment_policy, account_policy, service_policy) = setup_policy_ids()
+  let account_token_seed <- and_then(gen_output_ref())
+  let subscriber_reference_tokenname =
+    values.unique_token_name(
+      account_token_seed.transaction_id,
+      account_token_seed.output_index,
+      cip68.prefix_100,
+    )
+  let account_ref <-
+    and_then(gen_account_input(account_policy, account_token_seed))
+  let (subscriber_input_index, inputs) <-
+    and_then(gen_list_single_index(placeholder_input, account_ref))
+  let service_datum <-
+    and_then(
+      such_that(
+        gen_valid_service_datum(),
+        fn(s) {
+          policies_are_different(
+            s,
+            [payment_policy, account_policy, service_policy],
+          )
+        },
+      ),
+    )
+  let service_reference_tokenname <-
+    and_then(gen_service_reference_token_name())
+  let service_input <-
+    and_then(
+      gen_service_input(
+        service_policy,
+        service_datum,
+        service_reference_tokenname,
+      ),
+    )
+  let (service_ref_input_index, reference_inputs) <-
+    and_then(gen_list_single_index(placeholder_input, service_input))
+  let current_time <- and_then(fuzz.int())
+  let payment_datum <-
+    and_then(
+      gen_valid_payment_datum(
+        current_time,
+        service_datum,
+        service_reference_tokenname,
+        subscriber_reference_tokenname,
+      ),
+    )
+  let payment_output =
+    valid_payment_output(payment_policy, Payment(payment_datum), service_datum)
+  let (payment_output_index, outputs) <-
+    and_then(gen_list_single_index(placeholder_output, payment_output))
+  fuzz.constant(
+    InitSubscriptionTestData {
+      payment_policy,
+      service_policy,
+      account_policy,
+      service_ref_input_index,
+      subscriber_input_index,
+      payment_output_index,
+      reference_inputs,
+      inputs,
+      outputs,
+      minted_value: from_asset(payment_policy, payment_tokenname, 1),
+      validity_range: interval.entirely_before(payment_datum.subscription_start),
+    },
+  )
+}
+
+test prop_successful_initiate_subscription(
+  test_values via gen_init_subscription_success(),
+) {
+  validate_initial_subscription(
+    test_values.payment_policy,
+    test_values.service_policy,
+    test_values.account_policy,
+    test_values.service_ref_input_index,
+    test_values.subscriber_input_index,
+    test_values.payment_output_index,
+    test_values.reference_inputs,
+    test_values.inputs,
+    test_values.outputs,
+    test_values.minted_value,
+    test_values.validity_range,
   )
 }
 
