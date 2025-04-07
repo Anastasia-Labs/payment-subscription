@@ -3,11 +3,33 @@ use aiken/crypto.{blake2b_256}
 use aiken/interval.{Finite, Interval, IntervalBound}
 use aiken/primitive/bytearray
 use cardano/address.{Address, Script, VerificationKey}
-use cardano/assets.{ada_asset_name, ada_policy_id, add, from_lovelace}
-use cardano/transaction.{InlineDatum, Input, Output, OutputReference}
+use cardano/assets.{ada_asset_name, ada_policy_id, add, from_lovelace, zero}
+use cardano/transaction.{InlineDatum, Input, NoDatum, Output, OutputReference}
 use payment_subscription/common/types.{
   AccountDatum, Installment, PaymentDatum, PenaltyDatum, ServiceDatum,
 }
+
+pub const placeholder_output =
+  Output {
+    address: Address {
+      payment_credential: VerificationKey(
+        #"00000000000000000000000000000000000000000000000000000000",
+      ),
+      stake_credential: None,
+    },
+    value: zero,
+    datum: NoDatum,
+    reference_script: None,
+  }
+
+pub const placeholder_input =
+  Input {
+    output_reference: OutputReference {
+      transaction_id: #"0000000000000000000000000000000000000000000000000000000000000000",
+      output_index: 0,
+    },
+    output: placeholder_output,
+  }
 
 // Generate a bytearray with blake2b_256
 pub fn test_224_01() {
