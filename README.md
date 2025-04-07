@@ -170,18 +170,31 @@ as expected:
 
 We have prepared comprehensive test cases. For detailed evidence and to view the
 test cases associated with these criteria, please refer to the
-[Test Documentation](https://github.com/Anastasia-Labs/payment-subscription/blob/service-multi-validator/lib/payment-subscription/tests/README.md)
+[Test Documentation](TEST-README.md)
 
 To run all tests, simply do:
+
+This may take some time ...
 
 ```sh
 aiken check
 ```
-![payment-subscription.gif](/docs/images/payment_test.gif)
+![payment_subscription.gif](/docs/images/payment_subscription.gif)
 
-Test results:
+### Test results
 
-![test_report.png](/docs/images/test_report.png)
+#### Service Multi-Validator
+
+![test_report.png](/docs/images/service_test.png)
+
+#### Account Multi-Validator
+
+![test_report.png](/docs/images/account_test.png)
+
+#### Payment Multi-Validator
+
+![test_report.png](/docs/images/payment_test.png)
+
 
 Each test case is designed to validate specific aspects of the multi-signature
 contract,To run only specific tests, do:
