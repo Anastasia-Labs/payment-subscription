@@ -19,11 +19,27 @@ The test suite for the Payment Subscription Smart Contract consists of thirteen
 critical test cases, each designed to verify specific aspects of the contract's
 functionality.
 
+These tests are accompanied with Aiken property based (fuzzy) tests totaling to 838 checks written to validate a variety of edge cases guaranteeing security. For the porposes of this document, we will only focus on the key tests.  
+
 ### 1.1 Test Execution Results
 
 Below is a screenshot of all the tests as per the contract design document specifications.
 
-![payment-subscription.png](/docs/images/payment_subscription_test.png)
+```sh
+-> payment-subscription$ aiken check
+```
+
+#### Service Multi-Validator
+
+![test_report.png](/docs/images/service_test.png)
+
+#### Account Multi-Validator
+
+![test_report.png](/docs/images/account_test.png)
+
+#### Payment Multi-Validator
+
+![test_report.png](/docs/images/payment_test.png)
 
 
 ## 2 Payment Validator Test Execution Results
